@@ -5,7 +5,12 @@ export interface RegistrationData {
   lastName: string
   email: string
   phone: string
+  country: string
+  institution: string
+  arrivalDate: string
+  departureDate: string
   paymentRequired: boolean
+  paymentByCard: boolean
 }
 
 export interface Registration extends RegistrationData {
@@ -13,6 +18,9 @@ export interface Registration extends RegistrationData {
   paymentStatus: PaymentStatus
   createdAt: string
   stripeSessionId?: string | null
+  paymentIntentId?: string | null
+  invoiceId?: string | null
+  invoiceUrl?: string | null
 }
 
 export interface RegistrationFormData {
@@ -20,6 +28,11 @@ export interface RegistrationFormData {
   lastName: string
   email: string
   phone: string
+  country: string
+  institution: string
+  arrivalDate: string
+  departureDate: string
   paymentRequired: boolean
+  paymentByCard: boolean
 }
 

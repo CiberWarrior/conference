@@ -4,13 +4,31 @@ import { createServerClient } from '@/lib/supabase'
 import { createCheckoutSession } from '@/lib/stripe'
 import type { PaymentStatus } from '@/types/registration'
 
-const registrationSchema = z.object({
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  email: z.string().email(),
-  phone: z.string().min(5),
-  paymentRequired: z.boolean(),
-})
+const registrationSchema = z
+  .object({
+    firstName: z.string().min(2),
+    lastName: z.string().min(2),
+    email: z.string().email(),
+    phone: z.string().min(5),
+    country: z.string().min(2),
+    institution: z.string().min(2),
+    arrivalDate: z.string().min(1),
+    departureDate: z.string().min(1),
+    paymentRequired: z.boolean(),
+    paymentByCard: z.boolean(),
+  })
+  .refine(
+    (data) => {
+      if (data.arrivalDate && data.departureDate) {
+        return new Date(data.departureDate) >= new Date(data.arrivalDate)
+      }
+      return true
+    },
+    {
+      message: 'Departure date must be after or equal to arrival date',
+      path: ['departureDate'],
+    }
+  )
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +64,12 @@ export async function POST(request: NextRequest) {
         last_name: validatedData.lastName,
         email: validatedData.email,
         phone: validatedData.phone,
+        country: validatedData.country,
+        institution: validatedData.institution,
+        arrival_date: validatedData.arrivalDate,
+        departure_date: validatedData.departureDate,
         payment_required: validatedData.paymentRequired,
+        payment_by_card: validatedData.paymentByCard,
         payment_status: paymentStatus,
       })
       .select()
@@ -63,8 +86,9 @@ export async function POST(request: NextRequest) {
     let paymentUrl: string | undefined
     let stripeSessionId: string | null = null
 
-    // Create Stripe checkout session if payment is required
-    if (validatedData.paymentRequired) {
+    // Create Stripe checkout session if payment is required but NOT by card (fallback for non-card payments)
+    // If paymentByCard is true, we'll use direct payment in the form instead
+    if (validatedData.paymentRequired && !validatedData.paymentByCard) {
       try {
         // Default amount - should be configurable
         const amount = 50 // 50 EUR default

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import ConditionalNavigation from '@/components/ConditionalNavigation'
 
 export const metadata: Metadata = {
-  title: 'Conference Registration',
-  description: 'Register for the conference',
+  title: 'Event Management Platform | Conference Registration',
+  description: 'Professional event management platform for conferences. Registration, payment processing, and abstract management all in one place.',
 }
 
 export default function RootLayout({
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ConditionalNavigation />
+        {children}
+      </body>
     </html>
   )
 }
