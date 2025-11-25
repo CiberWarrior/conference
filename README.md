@@ -54,6 +54,16 @@ Svi podaci korisnika se pohranjuju u **Supabase bazu podataka** (PostgreSQL u cl
 
 **📖 Detalji o praksi pohrane:** Pogledajte [DATA_STORAGE_PRACTICES.md](./DATA_STORAGE_PRACTICES.md)
 
+## 🚀 Deploy na Vercel
+
+Za detaljne upute o deploy-u na Vercel, pogledajte [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md)
+
+**Brzo:**
+1. Pushaj kod na GitHub
+2. Importuj repository u Vercel
+3. Postavi environment varijable
+4. Deploy!
+
 ## Struktura projekta
 
 - `app/` - Next.js App Router stranice i API rute
@@ -61,4 +71,5 @@ Svi podaci korisnika se pohranjuju u **Supabase bazu podataka** (PostgreSQL u cl
 - `lib/` - Utility funkcije i konfiguracije
 - `types/` - TypeScript tipovi
 - `supabase/` - Supabase Edge Functions i migracije
+- `vercel.json` - Vercel deployment konfiguracija
 

@@ -3,6 +3,10 @@ import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
 import Stripe from 'stripe'
 
+// Vercel serverless function configuration
+export const runtime = 'nodejs'
+export const maxDuration = 30 // seconds
+
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
@@ -19,6 +23,13 @@ export async function POST(request: NextRequest) {
   if (!webhookSecret) {
     return NextResponse.json(
       { error: 'Missing STRIPE_WEBHOOK_SECRET' },
+      { status: 500 }
+    )
+  }
+
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe is not configured' },
       { status: 500 }
     )
   }
@@ -162,4 +173,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ received: true })
 }
-

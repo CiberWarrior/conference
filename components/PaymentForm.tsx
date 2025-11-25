@@ -7,8 +7,8 @@ import {
   PaymentElement,
   useStripe,
   useElements,
-  type StripeElementsOptions,
 } from '@stripe/react-stripe-js'
+import type { StripeElementsOptions } from '@stripe/stripe-js'
 import LoadingSpinner from './LoadingSpinner'
 
 const stripePromise = loadStripe(

@@ -1,0 +1,19 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/stripe-webhook/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/confirm-payment/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/create-payment-intent/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
+
