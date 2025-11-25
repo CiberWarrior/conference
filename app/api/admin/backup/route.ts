@@ -10,6 +10,10 @@ import { createServerClient } from '@/lib/supabase'
  * 
  * Security: Trebalo bi dodati autentifikaciju i autorizaciju!
  */
+
+// Force dynamic rendering since we use searchParams
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
