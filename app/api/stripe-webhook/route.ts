@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
+import { sendPaymentConfirmation } from '@/lib/email'
 import Stripe from 'stripe'
 
 // Vercel serverless function configuration
@@ -54,6 +55,17 @@ export async function POST(request: NextRequest) {
     const registrationId = session.metadata?.registrationId
 
     if (registrationId) {
+      // Get registration details for email
+      const { data: registration, error: regError } = await supabase
+        .from('registrations')
+        .select('*')
+        .eq('id', registrationId)
+        .single()
+
+      if (regError) {
+        console.error('Failed to fetch registration:', regError)
+      }
+
       // Update payment status to paid
       const { error } = await supabase
         .from('registrations')
@@ -66,6 +78,31 @@ export async function POST(request: NextRequest) {
           { error: 'Failed to update payment status' },
           { status: 500 }
         )
+      }
+
+      // Create payment history entry
+      await supabase.from('payment_history').insert({
+        registration_id: registrationId,
+        transaction_type: 'payment',
+        amount: (session.amount_total || 0) / 100, // Convert from cents
+        currency: session.currency || 'usd',
+        status: 'completed',
+        stripe_payment_intent_id: session.payment_intent as string,
+        description: 'Payment completed via Stripe Checkout',
+        metadata: { session_id: session.id },
+      })
+
+      // Send payment confirmation email
+      if (registration) {
+        sendPaymentConfirmation(
+          registration.id,
+          registration.email,
+          registration.first_name,
+          registration.last_name,
+          registration.invoice_url || undefined
+        ).catch((err) => {
+          console.error('Failed to send payment confirmation email:', err)
+        })
       }
     }
   }
@@ -160,6 +197,29 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           )
         }
+
+        // Create payment history entry
+        await supabase.from('payment_history').insert({
+          registration_id: registrationId,
+          transaction_type: 'payment',
+          amount: paymentIntent.amount / 100, // Convert from cents
+          currency: paymentIntent.currency,
+          status: 'completed',
+          stripe_payment_intent_id: paymentIntent.id,
+          description: `Payment completed - Invoice ${finalizedInvoice.number || invoiceId}`,
+          metadata: { invoice_id: invoiceId, payment_intent_id: paymentIntent.id },
+        })
+
+        // Send payment confirmation email
+        sendPaymentConfirmation(
+          registration.id,
+          registration.email,
+          registration.first_name,
+          registration.last_name,
+          invoiceUrl || undefined
+        ).catch((err) => {
+          console.error('Failed to send payment confirmation email:', err)
+        })
       } catch (invoiceError) {
         console.error('Error creating invoice:', invoiceError)
         // Still update payment status even if invoice creation fails

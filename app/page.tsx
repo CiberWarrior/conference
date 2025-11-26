@@ -356,7 +356,7 @@ export default function Home() {
                   </svg>
                   <div>
                     <span className="font-semibold text-gray-900">Location:</span>
-                    <span className="ml-2">Conference Center, City, Country</span>
+                    <span className="ml-2">Zagreb, Croatia</span>
                   </div>
                 </li>
               </ul>

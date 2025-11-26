@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -37,10 +38,48 @@ const navigation: NavItem[] = [
       </svg>
     ),
   },
+  {
+    name: 'Check-In',
+    href: '/admin/checkin',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Payments',
+    href: '/admin/payments',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Certificates',
+    href: '/admin/certificates',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent hydration mismatch by not rendering active state until mounted
+  const getIsActive = (href: string) => {
+    if (!mounted || !pathname) return false
+    return pathname === href || (href !== '/admin' && pathname.startsWith(href))
+  }
 
   return (
     <div className="hidden md:flex md:flex-shrink-0">
@@ -59,7 +98,7 @@ export default function Sidebar() {
           <div className="flex-1 flex flex-col">
             <nav className="flex-1 px-2 space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+                const isActive = getIsActive(item.href)
                 return (
                   <Link
                     key={item.name}

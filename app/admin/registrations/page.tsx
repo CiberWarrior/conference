@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Registration } from '@/types/registration'
+import * as XLSX from 'xlsx'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function RegistrationsPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -10,6 +12,20 @@ export default function RegistrationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkActionMenuOpen, setBulkActionMenuOpen] = useState(false)
+  const [bulkEmailModalOpen, setBulkEmailModalOpen] = useState(false)
+  const [bulkEmailType, setBulkEmailType] = useState<'payment_reminder' | 'pre_conference_reminder' | 'event_details'>('payment_reminder')
+  const [bulkEmailData, setBulkEmailData] = useState({
+    customMessage: '',
+    conferenceDate: '',
+    conferenceLocation: '',
+    conferenceProgram: '',
+  })
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [selectedQRRegistration, setSelectedQRRegistration] = useState<Registration | null>(null)
 
   useEffect(() => {
     loadRegistrations()
@@ -40,6 +56,8 @@ export default function RegistrationsPage() {
           paymentByCard: r.payment_by_card || false,
           paymentStatus: r.payment_status,
           createdAt: r.created_at,
+          checkedIn: r.checked_in || false,
+          checkedInAt: r.checked_in_at || null,
         }))
       )
     } catch (err) {
@@ -49,7 +67,23 @@ export default function RegistrationsPage() {
     }
   }
 
-  const exportToCSV = () => {
+  // Filter registrations based on search and status
+  const filteredRegistrations = registrations.filter((reg) => {
+    const matchesSearch =
+      reg.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reg.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reg.country && reg.country.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (reg.institution && reg.institution.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesFilter =
+      filterStatus === 'all' || reg.paymentStatus === filterStatus
+
+    return matchesSearch && matchesFilter
+  })
+
+  // Helper function to prepare data for export
+  const prepareExportData = () => {
     const headers = [
       'First Name',
       'Last Name',
@@ -78,33 +112,203 @@ export default function RegistrationsPage() {
       r.paymentStatus,
       new Date(r.createdAt).toLocaleString(),
     ])
+    return { headers, rows }
+  }
 
+  const exportToCSV = () => {
+    const { headers, rows } = prepareExportData()
     const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `registrations-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    setExportMenuOpen(false)
   }
 
-  const filteredRegistrations = registrations.filter((reg) => {
-    const matchesSearch =
-      reg.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (reg.country && reg.country.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (reg.institution && reg.institution.toLowerCase().includes(searchTerm.toLowerCase()))
+  const exportToExcel = () => {
+    const { headers, rows } = prepareExportData()
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    
+    // Set column widths
+    const colWidths = headers.map(() => ({ wch: 20 }))
+    ws['!cols'] = colWidths
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Registrations')
+    
+    // Generate Excel file
+    const fileName = `registrations-${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    setExportMenuOpen(false)
+  }
 
-    const matchesFilter =
-      filterStatus === 'all' || reg.paymentStatus === filterStatus
+  const exportToGoogleSheets = () => {
+    const { headers, rows } = prepareExportData()
+    
+    // Create CSV content optimized for Google Sheets
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `registrations-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    // Show instructions
+    alert(
+      'CSV file downloaded! To import into Google Sheets:\n\n' +
+      '1. Open Google Sheets (sheets.google.com)\n' +
+      '2. Click File → Import\n' +
+      '3. Upload the downloaded CSV file\n' +
+      '4. Choose "Replace spreadsheet" or "Insert new sheet"\n' +
+      '5. Click Import'
+    )
+    setExportMenuOpen(false)
+  }
 
-    return matchesSearch && matchesFilter
-  })
+  // Bulk operations
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredRegistrations.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredRegistrations.map((r) => r.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedIds(newSelected)
+  }
+
+  const handleBulkUpdateStatus = async (newStatus: 'paid' | 'pending' | 'not_required') => {
+    if (selectedIds.size === 0) return
+
+    try {
+      setBulkProcessing(true)
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_status',
+          registrationIds: Array.from(selectedIds),
+          newStatus,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update registrations')
+      }
+
+      alert(`Successfully updated ${result.updated} registration(s)`)
+      setSelectedIds(new Set())
+      setBulkActionMenuOpen(false)
+      loadRegistrations()
+    } catch (error) {
+      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  const handleBulkSendEmail = async () => {
+    if (selectedIds.size === 0) return
+
+    try {
+      setBulkProcessing(true)
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_email',
+          registrationIds: Array.from(selectedIds),
+          emailType: bulkEmailType,
+          emailData: bulkEmailData,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send emails')
+      }
+
+      alert(`Sent ${result.sent} email(s), ${result.failed} failed`)
+      if (result.errors && result.errors.length > 0) {
+        console.error('Email errors:', result.errors)
+      }
+      setSelectedIds(new Set())
+      setBulkEmailModalOpen(false)
+      setBulkActionMenuOpen(false)
+    } catch (error) {
+      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  const handleBulkExport = () => {
+    const selectedRegistrations = filteredRegistrations.filter((r) => selectedIds.has(r.id))
+    if (selectedRegistrations.length === 0) return
+
+    const headers = [
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Country',
+      'Institution',
+      'Arrival Date',
+      'Departure Date',
+      'Payment Required',
+      'Payment by Card',
+      'Payment Status',
+      'Created At',
+    ]
+    const rows = selectedRegistrations.map((r) => [
+      r.firstName,
+      r.lastName,
+      r.email,
+      r.phone,
+      r.country || '',
+      r.institution || '',
+      r.arrivalDate || '',
+      r.departureDate || '',
+      r.paymentRequired ? 'Yes' : 'No',
+      r.paymentByCard ? 'Yes' : 'No',
+      r.paymentStatus,
+      new Date(r.createdAt).toLocaleString(),
+    ])
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = headers.map(() => ({ wch: 20 }))
+    XLSX.utils.book_append_sheet(wb, ws, 'Selected Registrations')
+    XLSX.writeFile(wb, `selected-registrations-${new Date().toISOString().split('T')[0]}.xlsx`)
+
+    setSelectedIds(new Set())
+    setBulkActionMenuOpen(false)
+  }
 
   if (loading) {
     return (
@@ -122,15 +326,62 @@ export default function RegistrationsPage() {
           <p className="mt-2 text-gray-600">Manage conference registrations</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={exportToCSV}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export CSV
-          </button>
+          {/* Export Dropdown Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {exportMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setExportMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                  <div className="py-1">
+                    <button
+                      onClick={exportToCSV}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={exportToExcel}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export as Excel (.xlsx)
+                    </button>
+                    <button
+                      onClick={exportToGoogleSheets}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export for Google Sheets
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
           <a
             href="/api/admin/backup?format=csv"
             download
@@ -185,10 +436,114 @@ export default function RegistrationsPage() {
           </div>
         </div>
 
+        {/* Bulk Actions Toolbar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedIds.size} registration(s) selected
+              </span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                Clear selection
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setBulkActionMenuOpen(!bulkActionMenuOpen)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+                  disabled={bulkProcessing}
+                >
+                  Bulk Actions
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {bulkActionMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setBulkActionMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setBulkEmailModalOpen(true)
+                            setBulkActionMenuOpen(false)
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Send Email
+                        </button>
+                        <div className="border-t border-gray-200 my-1" />
+                        <button
+                          onClick={() => handleBulkUpdateStatus('paid')}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          disabled={bulkProcessing}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Mark as Paid
+                        </button>
+                        <button
+                          onClick={() => handleBulkUpdateStatus('pending')}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          disabled={bulkProcessing}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Mark as Pending
+                        </button>
+                        <button
+                          onClick={() => handleBulkUpdateStatus('not_required')}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          disabled={bulkProcessing}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Mark as Not Required
+                        </button>
+                        <div className="border-t border-gray-200 my-1" />
+                        <button
+                          onClick={handleBulkExport}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Export Selected
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filteredRegistrations.length && filteredRegistrations.length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Name
                 </th>
@@ -219,12 +574,18 @@ export default function RegistrationsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Check-In
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  QR Code
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
@@ -244,6 +605,14 @@ export default function RegistrationsPage() {
               ) : (
                 filteredRegistrations.map((reg) => (
                   <tr key={reg.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(reg.id)}
+                        onChange={() => toggleSelect(reg.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {reg.firstName} {reg.lastName}
@@ -300,6 +669,40 @@ export default function RegistrationsPage() {
                         {reg.paymentStatus}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {reg.checkedIn ? (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Checked In
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Not Checked In
+                        </span>
+                      )}
+                      {reg.checkedInAt && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(reg.checkedInAt).toLocaleString()}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => {
+                          setSelectedQRRegistration(reg)
+                          setQrModalOpen(true)
+                        }}
+                        className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                        title="View QR Code"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        QR
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -314,6 +717,198 @@ export default function RegistrationsPage() {
           </p>
         </div>
       </div>
+
+      {/* Bulk Email Modal */}
+      {bulkEmailModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Send Email to {selectedIds.size} Registration(s)
+              </h3>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Type
+                </label>
+                <select
+                  value={bulkEmailType}
+                  onChange={(e) =>
+                    setBulkEmailType(
+                      e.target.value as 'payment_reminder' | 'pre_conference_reminder' | 'event_details'
+                    )
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="payment_reminder">Payment Reminder</option>
+                  <option value="pre_conference_reminder">Pre-Conference Reminder</option>
+                  <option value="event_details">Event Details</option>
+                </select>
+              </div>
+
+              {(bulkEmailType === 'pre_conference_reminder' || bulkEmailType === 'event_details') && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Conference Date
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkEmailData.conferenceDate}
+                      onChange={(e) =>
+                        setBulkEmailData({ ...bulkEmailData, conferenceDate: e.target.value })
+                      }
+                      placeholder="e.g., March 15, 2025"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Conference Location
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkEmailData.conferenceLocation}
+                      onChange={(e) =>
+                        setBulkEmailData({ ...bulkEmailData, conferenceLocation: e.target.value })
+                      }
+                      placeholder="e.g., Zagreb, Croatia"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Conference Program
+                    </label>
+                    <textarea
+                      value={bulkEmailData.conferenceProgram}
+                      onChange={(e) =>
+                        setBulkEmailData({ ...bulkEmailData, conferenceProgram: e.target.value })
+                      }
+                      placeholder="Enter conference program details..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Custom Message (Optional)
+                </label>
+                <textarea
+                  value={bulkEmailData.customMessage}
+                  onChange={(e) =>
+                    setBulkEmailData({ ...bulkEmailData, customMessage: e.target.value })
+                  }
+                  placeholder="Add any additional message..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setBulkEmailModalOpen(false)
+                  setBulkEmailData({
+                    customMessage: '',
+                    conferenceDate: '',
+                    conferenceLocation: '',
+                    conferenceProgram: '',
+                  })
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                disabled={bulkProcessing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkSendEmail}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                disabled={bulkProcessing}
+              >
+                {bulkProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Send Email
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {qrModalOpen && selectedQRRegistration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">QR Code</h3>
+              <button
+                onClick={() => {
+                  setQrModalOpen(false)
+                  setSelectedQRRegistration(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-6 text-center">
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedQRRegistration.firstName} {selectedQRRegistration.lastName}
+                </p>
+                <p className="text-sm text-gray-500">{selectedQRRegistration.email}</p>
+              </div>
+              <div className="flex justify-center mb-4 p-4 bg-gray-50 rounded-lg">
+                <QRCodeSVG
+                  value={selectedQRRegistration.id}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Registration ID: {selectedQRRegistration.id}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedQRRegistration.id)
+                    alert('Registration ID copied to clipboard!')
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                >
+                  Copy ID
+                </button>
+                <button
+                  onClick={() => {
+                    setQrModalOpen(false)
+                    setSelectedQRRegistration(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

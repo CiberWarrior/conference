@@ -21,6 +21,8 @@ export interface Registration extends RegistrationData {
   paymentIntentId?: string | null
   invoiceId?: string | null
   invoiceUrl?: string | null
+  checkedIn?: boolean
+  checkedInAt?: string | null
 }
 
 export interface RegistrationFormData {

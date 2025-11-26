@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerClient } from '@/lib/supabase'
 import { createCheckoutSession } from '@/lib/stripe'
+import { sendRegistrationConfirmation } from '@/lib/email'
 import type { PaymentStatus } from '@/types/registration'
 
 const registrationSchema = z
@@ -113,24 +114,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Trigger email confirmation (async, don't wait)
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-confirmation-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({
-          registrationId: registration.id,
-          email: validatedData.email,
-          firstName: validatedData.firstName,
-          lastName: validatedData.lastName,
-          paymentUrl,
-        }),
-      }).catch((err) => {
-        console.error('Failed to trigger email:', err)
-      })
-    }
+    sendRegistrationConfirmation(
+      registration.id,
+      validatedData.email,
+      validatedData.firstName,
+      validatedData.lastName,
+      paymentUrl
+    ).catch((err) => {
+      console.error('Failed to send registration confirmation email:', err)
+    })
 
     return NextResponse.json({
       success: true,

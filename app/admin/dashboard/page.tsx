@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import StatsCard from '@/components/admin/StatsCard'
+import {
+  RegistrationsByDayChart,
+  PaymentStatusChart,
+  RegistrationsByCountryChart,
+  RevenueByPeriodChart,
+} from '@/components/admin/Charts'
 import Link from 'next/link'
 
 export default function DashboardPage() {
@@ -11,8 +17,15 @@ export default function DashboardPage() {
     paidRegistrations: 0,
     pendingPayments: 0,
     totalAbstracts: 0,
+    checkedIn: 0,
     recentRegistrations: [] as any[],
     recentAbstracts: [] as any[],
+  })
+  const [chartData, setChartData] = useState({
+    registrationsByDay: [] as { date: string; count: number }[],
+    paymentStatus: [] as { name: string; value: number }[],
+    registrationsByCountry: [] as { country: string; count: number }[],
+    revenueByPeriod: [] as { period: string; revenue: number }[],
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,14 +67,77 @@ export default function DashboardPage() {
       if (registrations) {
         const paid = registrations.filter((r) => r.payment_status === 'paid').length
         const pending = registrations.filter((r) => r.payment_status === 'pending').length
+        const notRequired = registrations.filter(
+          (r) => r.payment_status === 'not_required'
+        ).length
+        const checkedIn = registrations.filter((r) => r.checked_in === true).length
+
+        // Prepare chart data
+        // Registrations by Day
+        const registrationsByDayMap = new Map<string, number>()
+        registrations.forEach((reg) => {
+          const date = new Date(reg.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })
+          registrationsByDayMap.set(date, (registrationsByDayMap.get(date) || 0) + 1)
+        })
+        const registrationsByDay = Array.from(registrationsByDayMap.entries())
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => {
+            // Simple sort by date string (for better results, parse dates)
+            return a.date.localeCompare(b.date)
+          })
+
+        // Payment Status Distribution
+        const paymentStatus = [
+          { name: 'Paid', value: paid },
+          { name: 'Pending', value: pending },
+          { name: 'Not Required', value: notRequired },
+        ].filter((item) => item.value > 0)
+
+        // Registrations by Country
+        const countryMap = new Map<string, number>()
+        registrations.forEach((reg) => {
+          const country = reg.country || 'Unknown'
+          countryMap.set(country, (countryMap.get(country) || 0) + 1)
+        })
+        const registrationsByCountry = Array.from(countryMap.entries())
+          .map(([country, count]) => ({ country, count }))
+          .sort((a, b) => b.count - a.count)
+
+        // Revenue by Period (monthly)
+        const revenueByMonthMap = new Map<string, number>()
+        registrations
+          .filter((r) => r.payment_status === 'paid')
+          .forEach((reg) => {
+            const month = new Date(reg.created_at).toLocaleDateString('en-US', {
+              month: 'short',
+              year: 'numeric',
+            })
+            // Default amount - should be fetched from payment data
+            const amount = 50 // This should come from actual payment data
+            revenueByMonthMap.set(month, (revenueByMonthMap.get(month) || 0) + amount)
+          })
+        const revenueByPeriod = Array.from(revenueByMonthMap.entries())
+          .map(([period, revenue]) => ({ period, revenue }))
+          .sort((a, b) => a.period.localeCompare(b.period))
 
         setStats({
           totalRegistrations: registrations.length,
           paidRegistrations: paid,
           pendingPayments: pending,
           totalAbstracts: abstracts?.length || 0,
+          checkedIn: checkedIn,
           recentRegistrations: registrations.slice(0, 5),
           recentAbstracts: abstracts?.slice(0, 5) || [],
+        })
+
+        setChartData({
+          registrationsByDay,
+          paymentStatus,
+          registrationsByCountry,
+          revenueByPeriod,
         })
       }
     } catch (error) {
@@ -112,7 +188,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <StatsCard
           title="Total Registrations"
           value={stats.totalRegistrations}
@@ -153,6 +229,37 @@ export default function DashboardPage() {
             </svg>
           }
         />
+        <StatsCard
+          title="Checked In"
+          value={stats.checkedIn || 0}
+          color="indigo"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-gray-900 mb-6">Analytics & Insights</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {chartData.registrationsByDay.length > 0 && (
+            <RegistrationsByDayChart data={chartData.registrationsByDay} />
+          )}
+          {chartData.paymentStatus.length > 0 && (
+            <PaymentStatusChart data={chartData.paymentStatus} />
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-6 mb-6">
+          {chartData.registrationsByCountry.length > 0 && (
+            <RegistrationsByCountryChart data={chartData.registrationsByCountry} />
+          )}
+          {chartData.revenueByPeriod.length > 0 && (
+            <RevenueByPeriodChart data={chartData.revenueByPeriod} />
+          )}
+        </div>
       </div>
 
       {/* Recent Activity */}

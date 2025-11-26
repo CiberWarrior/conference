@@ -3,12 +3,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Abstract } from '@/types/abstract'
+import * as XLSX from 'xlsx'
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx'
+import jsPDF from 'jspdf'
+import { saveAs } from 'file-saver'
 
 export default function AbstractsPage() {
   const [abstracts, setAbstracts] = useState<Abstract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   useEffect(() => {
     loadAbstracts()
@@ -63,26 +68,249 @@ export default function AbstractsPage() {
     }
   }
 
-  const exportToCSV = () => {
-    const headers = ['File Name', 'Email', 'File Size (bytes)', 'Uploaded At']
+  // Helper function to prepare data for export
+  const prepareExportData = () => {
+    const headers = ['File Name', 'Email', 'File Size (MB)', 'Uploaded At']
     const rows = filteredAbstracts.map((a) => [
       a.fileName,
       a.email || '',
-      a.fileSize.toString(),
+      (a.fileSize / 1024 / 1024).toFixed(2),
       new Date(a.uploadedAt).toLocaleString(),
     ])
+    return { headers, rows }
+  }
 
+  const exportToCSV = () => {
+    const { headers, rows } = prepareExportData()
     const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `abstracts-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    setExportMenuOpen(false)
+  }
+
+  const exportToExcel = () => {
+    const { headers, rows } = prepareExportData()
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    
+    // Set column widths
+    const colWidths = headers.map(() => ({ wch: 25 }))
+    ws['!cols'] = colWidths
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Abstracts')
+    
+    // Generate Excel file
+    const fileName = `abstracts-${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    setExportMenuOpen(false)
+  }
+
+  const exportToGoogleSheets = () => {
+    const { headers, rows } = prepareExportData()
+    
+    // Create CSV content optimized for Google Sheets
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `abstracts-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    // Show instructions
+    alert(
+      'CSV file downloaded! To import into Google Sheets:\n\n' +
+      '1. Open Google Sheets (sheets.google.com)\n' +
+      '2. Click File → Import\n' +
+      '3. Upload the downloaded CSV file\n' +
+      '4. Choose "Replace spreadsheet" or "Insert new sheet"\n' +
+      '5. Click Import'
+    )
+    setExportMenuOpen(false)
+  }
+
+  const exportToWord = async () => {
+    try {
+      const { headers, rows } = prepareExportData()
+
+      // Create Word document
+      const tableRows = [
+        // Header row
+        new TableRow({
+          children: headers.map(
+            (header) =>
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: header,
+                        bold: true,
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                width: { size: 20, type: WidthType.PERCENTAGE },
+              })
+          ),
+        }),
+        // Data rows
+        ...rows.map(
+          (row) =>
+            new TableRow({
+              children: row.map(
+                (cell) =>
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: String(cell),
+                          }),
+                        ],
+                      }),
+                    ],
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  })
+              ),
+            })
+        ),
+      ]
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: 'Abstracts List',
+                    bold: true,
+                    size: 32,
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 400 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Generated: ${new Date().toLocaleString()}`,
+                    size: 20,
+                  }),
+                ],
+                spacing: { after: 200 },
+              }),
+              new Table({
+                rows: tableRows,
+                width: { size: 100, type: WidthType.PERCENTAGE },
+              }),
+            ],
+          },
+        ],
+      })
+
+      // Generate and download
+      const blob = await Packer.toBlob(doc)
+      saveAs(blob, `abstracts-${new Date().toISOString().split('T')[0]}.docx`)
+      setExportMenuOpen(false)
+    } catch (error) {
+      console.error('Error exporting to Word:', error)
+      alert('Failed to export to Word format')
+    }
+  }
+
+  const exportToPDF = () => {
+    try {
+      const { headers, rows } = prepareExportData()
+
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 10
+      const startY = 20
+      let yPos = startY
+
+      // Title
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Abstracts List', pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // Date
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 10
+
+      // Table
+      const colWidths = [60, 60, 30, 50] // Adjust based on number of columns
+      const rowHeight = 8
+      const tableStartX = margin
+
+      // Header row
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setFillColor(240, 240, 240)
+      doc.rect(tableStartX, yPos, pageWidth - 2 * margin, rowHeight, 'F')
+      
+      let xPos = tableStartX
+      headers.forEach((header, index) => {
+        doc.text(header, xPos + 2, yPos + 5)
+        xPos += colWidths[index] || 50
+      })
+      yPos += rowHeight
+
+      // Data rows
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      rows.forEach((row, rowIndex) => {
+        // Check if we need a new page
+        if (yPos + rowHeight > pageHeight - margin) {
+          doc.addPage()
+          yPos = margin
+        }
+
+        // Alternate row colors
+        if (rowIndex % 2 === 0) {
+          doc.setFillColor(250, 250, 250)
+          doc.rect(tableStartX, yPos, pageWidth - 2 * margin, rowHeight, 'F')
+        }
+
+        xPos = tableStartX
+        row.forEach((cell, cellIndex) => {
+          const cellText = String(cell).substring(0, 30) // Truncate long text
+          doc.text(cellText, xPos + 2, yPos + 5)
+          xPos += colWidths[cellIndex] || 50
+        })
+        yPos += rowHeight
+      })
+
+      // Save PDF
+      doc.save(`abstracts-${new Date().toISOString().split('T')[0]}.pdf`)
+      setExportMenuOpen(false)
+    } catch (error) {
+      console.error('Error exporting to PDF:', error)
+      alert('Failed to export to PDF format')
+    }
   }
 
   const filteredAbstracts = abstracts.filter((abstract) => {
@@ -109,15 +337,80 @@ export default function AbstractsPage() {
           <h2 className="text-3xl font-bold text-gray-900">Abstracts</h2>
           <p className="mt-2 text-gray-600">Manage submitted abstracts</p>
         </div>
-        <button
-          onClick={exportToCSV}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Export CSV
-        </button>
+        {/* Export Dropdown Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setExportMenuOpen(!exportMenuOpen)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {exportMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setExportMenuOpen(false)}
+              />
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                <div className="py-1">
+                  <button
+                    onClick={exportToCSV}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export as CSV
+                  </button>
+                  <button
+                    onClick={exportToExcel}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export as Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={exportToGoogleSheets}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export for Google Sheets
+                  </button>
+                  <div className="border-t border-gray-200 my-1" />
+                  <button
+                    onClick={exportToWord}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export as Word (.docx)
+                  </button>
+                  <button
+                    onClick={exportToPDF}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Export as PDF
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {error && (
