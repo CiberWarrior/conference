@@ -255,7 +255,7 @@ export default function PaymentsPage() {
             <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
               <li>Reminders are sent to registrations with pending payments</li>
               <li>Default: Send reminder after 3 days, max 3 reminders per registration</li>
-              <li>Use "Test Reminders" to see what would be sent without actually sending</li>
+              <li>Use &quot;Test Reminders&quot; to see what would be sent without actually sending</li>
             </ul>
           </div>
         </div>
