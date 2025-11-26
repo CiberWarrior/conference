@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
-})
+import { stripe } from '@/lib/stripe'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,6 +86,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Process refund through Stripe
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 500 }
+      )
+    }
+
     if (!registration.payment_intent_id) {
       return NextResponse.json(
         { error: 'No payment intent found for this registration' },
