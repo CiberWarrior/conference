@@ -6,6 +6,7 @@ import type { Abstract } from '@/types/abstract'
 import * as XLSX from 'xlsx'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx'
 import jsPDF from 'jspdf'
+// @ts-ignore - file-saver doesn't have types
 import { saveAs } from 'file-saver'
 
 export default function AbstractsPage() {
