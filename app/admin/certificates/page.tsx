@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useConference } from '@/contexts/ConferenceContext'
+import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 interface Certificate {
   id: string
@@ -16,10 +19,12 @@ interface Certificate {
     email: string
     certificate_generated: boolean
     certificate_sent: boolean
+    conference_id: string
   }
 }
 
 export default function CertificatesPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -31,12 +36,49 @@ export default function CertificatesPage() {
   const [certificateType, setCertificateType] = useState<'participation' | 'presentation' | 'organizer' | 'volunteer'>('participation')
 
   useEffect(() => {
-    loadCertificates()
-  }, [])
+    if (currentConference) {
+      // Set conference details
+      setConferenceName(currentConference.name)
+      if (currentConference.start_date) {
+        setConferenceDate(new Date(currentConference.start_date).toLocaleDateString())
+      }
+      if (currentConference.location) {
+        setConferenceLocation(currentConference.location)
+      }
+      if (currentConference.logo_url) {
+        setLogoUrl(currentConference.logo_url)
+      }
+      
+      loadCertificates()
+    }
+  }, [currentConference])
 
   const loadCertificates = async () => {
+    if (!currentConference) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
+      
+      // First, get all registrations for this conference
+      const { data: registrations, error: regError } = await supabase
+        .from('registrations')
+        .select('id')
+        .eq('conference_id', currentConference.id)
+      
+      if (regError) throw regError
+      
+      const registrationIds = registrations?.map(r => r.id) || []
+      
+      if (registrationIds.length === 0) {
+        setCertificates([])
+        setLoading(false)
+        return
+      }
+
+      // Then get certificates for those registrations
       const { data, error } = await supabase
         .from('certificates')
         .select(`
@@ -46,9 +88,11 @@ export default function CertificatesPage() {
             last_name,
             email,
             certificate_generated,
-            certificate_sent
+            certificate_sent,
+            conference_id
           )
         `)
+        .in('registration_id', registrationIds)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -155,6 +199,28 @@ export default function CertificatesPage() {
     } else {
       setSelectedIds(new Set(certificates.map((c) => c.registration_id)))
     }
+  }
+
+  if (!currentConference && !conferenceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <p className="text-gray-600 mb-6">
+            Please select a conference from the header dropdown or create a new one.
+          </p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            Go to My Conferences
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (

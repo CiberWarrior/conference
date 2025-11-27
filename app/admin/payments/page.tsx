@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useConference } from '@/contexts/ConferenceContext'
+import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 interface Refund {
   id: string
@@ -29,6 +32,7 @@ interface PaymentHistory {
 }
 
 export default function PaymentsPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [activeTab, setActiveTab] = useState<'reminders' | 'refunds' | 'history'>('reminders')
   const [loading, setLoading] = useState(false)
   const [refunds, setRefunds] = useState<Refund[]>([])
@@ -45,13 +49,15 @@ export default function PaymentsPage() {
   const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
-    loadReminderStats()
-    if (activeTab === 'refunds') {
-      loadRefunds()
-    } else if (activeTab === 'history') {
-      loadPaymentHistory()
+    if (currentConference) {
+      loadReminderStats()
+      if (activeTab === 'refunds') {
+        loadRefunds()
+      } else if (activeTab === 'history') {
+        loadPaymentHistory()
+      }
     }
-  }, [activeTab])
+  }, [activeTab, currentConference])
 
   const loadReminderStats = async () => {
     try {
@@ -66,9 +72,11 @@ export default function PaymentsPage() {
   }
 
   const loadRefunds = async () => {
+    if (!currentConference) return
+
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/refunds')
+      const response = await fetch(`/api/admin/refunds?conference_id=${currentConference.id}`)
       const data = await response.json()
       if (response.ok) {
         setRefunds(data.refunds || [])
@@ -81,9 +89,11 @@ export default function PaymentsPage() {
   }
 
   const loadPaymentHistory = async () => {
+    if (!currentConference) return
+
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/payment-history')
+      const response = await fetch(`/api/admin/payment-history?conference_id=${currentConference.id}`)
       const data = await response.json()
       if (response.ok) {
         setPaymentHistory(data.history || [])
@@ -181,6 +191,28 @@ export default function PaymentsPage() {
     } finally {
       setProcessing(false)
     }
+  }
+
+  if (!currentConference && !conferenceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <p className="text-gray-600 mb-6">
+            Please select a conference from the header dropdown or create a new one.
+          </p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            Go to My Conferences
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (

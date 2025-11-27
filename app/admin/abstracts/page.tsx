@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useConference } from '@/contexts/ConferenceContext'
 import type { Abstract } from '@/types/abstract'
 import * as XLSX from 'xlsx'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx'
 import jsPDF from 'jspdf'
 // @ts-ignore - file-saver doesn't have types
 import { saveAs } from 'file-saver'
+import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 export default function AbstractsPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [abstracts, setAbstracts] = useState<Abstract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,15 +21,23 @@ export default function AbstractsPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   useEffect(() => {
-    loadAbstracts()
-  }, [])
+    if (currentConference) {
+      loadAbstracts()
+    }
+  }, [currentConference])
 
   const loadAbstracts = async () => {
+    if (!currentConference) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('abstracts')
         .select('*')
+        .eq('conference_id', currentConference.id)
         .order('uploaded_at', { ascending: false })
 
       if (fetchError) throw fetchError
@@ -323,10 +335,32 @@ export default function AbstractsPage() {
     return matchesSearch
   })
 
-  if (loading) {
+  if (loading || conferenceLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!currentConference) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <p className="text-gray-600 mb-6">
+            Please select a conference from the header dropdown or create a new one.
+          </p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            Go to My Conferences
+          </Link>
+        </div>
       </div>
     )
   }

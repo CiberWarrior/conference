@@ -3,6 +3,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Html5Qrcode } from 'html5-qrcode'
+import { useConference } from '@/contexts/ConferenceContext'
+import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 interface CheckInResult {
   success: boolean
@@ -17,6 +20,7 @@ interface CheckInResult {
 }
 
 export default function CheckInPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<CheckInResult | null>(null)
   const [manualId, setManualId] = useState('')
@@ -130,6 +134,27 @@ export default function CheckInPage() {
     await handleQRCodeScan(manualId.trim())
   }
 
+  if (!currentConference && !conferenceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <p className="text-gray-600 mb-6">
+            Please select a conference from the header dropdown or create a new one.
+          </p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            Go to My Conferences
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">

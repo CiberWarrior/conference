@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useConference } from '@/contexts/ConferenceContext'
 import StatsCard from '@/components/admin/StatsCard'
 import {
   RegistrationsByDayChart,
@@ -10,8 +11,10 @@ import {
   RevenueByPeriodChart,
 } from '@/components/admin/Charts'
 import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 export default function DashboardPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [stats, setStats] = useState({
     totalRegistrations: 0,
     paidRegistrations: 0,
@@ -31,10 +34,18 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadStats()
-  }, [])
+    if (currentConference) {
+      loadStats()
+    }
+  }, [currentConference])
 
   const loadStats = async () => {
+    if (!currentConference) {
+      setError('No conference selected')
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -44,20 +55,22 @@ export default function DashboardPage() {
         throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL in .env.local')
       }
 
-      // Load registrations
+      // Load registrations for current conference
       const { data: registrations, error: regError } = await supabase
         .from('registrations')
         .select('*')
+        .eq('conference_id', currentConference.id)
         .order('created_at', { ascending: false })
 
       if (regError) {
         throw regError
       }
 
-      // Load abstracts
+      // Load abstracts for current conference
       const { data: abstracts, error: absError } = await supabase
         .from('abstracts')
         .select('*')
+        .eq('conference_id', currentConference.id)
         .order('uploaded_at', { ascending: false })
 
       if (absError) {
@@ -152,6 +165,29 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  // No conference selected
+  if (!currentConference && !conferenceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <p className="text-gray-600 mb-6">
+            Please select a conference from the header dropdown or create a new one to view the dashboard.
+          </p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            Go to My Conferences
+          </Link>
+        </div>
       </div>
     )
   }

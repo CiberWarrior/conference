@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useConference } from '@/contexts/ConferenceContext'
 import type { Registration } from '@/types/registration'
 import * as XLSX from 'xlsx'
 import { QRCodeSVG } from 'qrcode.react'
 
 export default function RegistrationsPage() {
+  const { currentConference, loading: conferenceLoading } = useConference()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,15 +30,23 @@ export default function RegistrationsPage() {
   const [selectedQRRegistration, setSelectedQRRegistration] = useState<Registration | null>(null)
 
   useEffect(() => {
-    loadRegistrations()
-  }, [])
+    if (currentConference) {
+      loadRegistrations()
+    }
+  }, [currentConference])
 
   const loadRegistrations = async () => {
+    if (!currentConference) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('registrations')
         .select('*')
+        .eq('conference_id', currentConference.id)
         .order('created_at', { ascending: false })
 
       if (fetchError) throw fetchError

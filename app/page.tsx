@@ -1,131 +1,216 @@
 import Link from 'next/link'
-import RegistrationForm from '@/components/RegistrationForm'
 import Footer from '@/components/Footer'
+import {
+  ArrowRight,
+  Upload,
+  Users,
+  Calendar,
+  TrendingUp,
+  Zap,
+  FileText,
+  BarChart3,
+  Sparkles,
+  ChevronDown,
+  CheckCircle,
+  Info,
+  Clock,
+  Globe,
+  GitMerge,
+  MapPin,
+  Mail,
+  Phone,
+} from 'lucide-react'
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <main className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 text-white overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center bg-gradient-to-br from-slate-800 via-blue-900 to-purple-900 text-white overflow-hidden">
+        {/* Geometric pattern background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          </div>
+          
+          {/* Decorative icons/shapes */}
+          <div className="absolute top-20 left-[10%] w-16 h-16 text-blue-400/20">
+            <Calendar className="w-full h-full" />
+          </div>
+          <div className="absolute top-40 right-[15%] w-20 h-20 text-purple-400/20">
+            <Users className="w-full h-full" />
+          </div>
+          <div className="absolute bottom-32 left-[20%] w-14 h-14 text-cyan-400/20">
+            <FileText className="w-full h-full" />
+          </div>
+          <div className="absolute bottom-40 right-[25%] w-12 h-12 text-violet-400/20">
+            <TrendingUp className="w-full h-full" />
+          </div>
+          
+          {/* Gradient orbs */}
+          <div className="absolute top-1/4 left-[5%] w-64 h-64 bg-blue-500/10 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-1/4 right-[5%] w-80 h-80 bg-purple-500/10 rounded-full filter blur-3xl"></div>
         </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
-          <div className="text-center">
-            <div className="inline-block mb-6 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 animate-fade-in">
-              <span className="text-sm font-semibold text-blue-100">Professional Conference Management</span>
-            </div>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 animate-fade-in bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white">
-              Conference Platform
-            </h1>
-            <p className="text-xl md:text-2xl mb-4 text-blue-100 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Having the best event management platform should be a key part of any event organisation strategy.
-            </p>
-            <p className="text-lg md:text-xl mb-10 text-blue-200 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Implementing all your desires and wishes into reality
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Link
-                href="#registration"
-                className="group bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg"
-              >
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Register Now
-              </Link>
-              <Link
-                href="/abstracts"
-                className="group bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-600 transition-all duration-200 border-2 border-white/20 hover:border-white/40 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg"
-              >
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Submit Abstract
-              </Link>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 w-full">
+          <div className="max-w-4xl mx-auto">
+            {/* Content - Centered */}
+            <div className="text-center">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-blue-500/10 backdrop-blur-sm rounded-full border border-blue-400/20">
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-semibold text-blue-200">Professional Event Platform</span>
+              </div>
+
+              {/* Main Heading */}
+              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 leading-[1.1]">
+                <span className="block text-white">
+                  Modern
+                </span>
+                <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-violet-400 bg-clip-text text-transparent">
+                  Conference
+                </span>
+                <span className="block text-white">
+                  Management
+                </span>
+              </h1>
+
+              {/* Subheading */}
+              <p className="text-lg md:text-xl mb-10 text-slate-300 leading-relaxed max-w-2xl mx-auto">
+                Register as an attendee, submit your research, and join our scientific community. Seamless registration with integrated payment and abstract submission.
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+                <Link
+                  href="/register"
+                  className="group relative bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-5 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-purple-600/40 flex items-center justify-center gap-3"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  <span>Register as Attendee</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link
+                  href="/submit-abstract"
+                  className="group relative bg-slate-700/50 backdrop-blur-sm text-white px-10 py-5 rounded-xl font-bold hover:bg-slate-700 transition-all duration-300 border border-slate-600 hover:border-slate-500 flex items-center justify-center gap-3"
+                >
+                  <Upload className="w-5 h-5" />
+                  <span>Submit Abstract</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+
+              {/* Features list - 4 columns on larger screens */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 hover:border-slate-600 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                  </div>
+                  <span className="text-slate-300 font-medium text-sm">Easy Registration</span>
+                </div>
+                <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 hover:border-slate-600 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <span className="text-slate-300 font-medium text-sm">Secure Payments</span>
+                </div>
+                <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 hover:border-slate-600 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <span className="text-slate-300 font-medium text-sm">Abstract Hub</span>
+                </div>
+                <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 hover:border-slate-600 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <span className="text-slate-300 font-medium text-sm">Real-time Analytics</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Solutions Section */}
-      <section className="py-24 bg-gradient-to-b from-white via-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Features Section */}
+      <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
-              <span className="text-sm font-semibold text-blue-700">Our Solutions</span>
+            <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
+              <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                POWERFUL FEATURES
+              </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">
-              We help you personalise event experiences
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6">
+              Everything you need,
+              <br />
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                all in one place
+              </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Effective solutions for better results
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Streamline your conference management with our comprehensive suite of tools
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Registration + Payment */}
-            <div className="group relative p-8 rounded-3xl bg-white border border-gray-200 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full -mr-16 -mt-16 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                  <Users className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Registration + Payment</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Sell tickets and collect necessary information with this fully customizable registration form
+                <h3 className="text-2xl font-black text-gray-900 mb-4">Smart Registration</h3>
+                <p className="text-gray-600 leading-relaxed mb-6 text-base">
+                  Seamless registration with integrated payment processing. Customizable forms that capture exactly what you need.
                 </p>
-                <Link href="#registration" className="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-700 group-hover:gap-3 transition-all">
-                  Learn More
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <Link href="#solutions" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 group-hover:gap-4 transition-all text-sm">
+                  Explore Feature
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
 
             {/* Abstract Management */}
-            <div className="group relative p-8 rounded-3xl bg-white border border-gray-200 hover:border-purple-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 rounded-full -mr-16 -mt-16 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-purple-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                  <FileText className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Abstract Management</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Collect, handle and review abstracts as well as manage submissions in an easy way
+                <h3 className="text-2xl font-black text-gray-900 mb-4">Abstract Hub</h3>
+                <p className="text-gray-600 leading-relaxed mb-6 text-base">
+                  Streamlined submission and review process. Organize, evaluate, and manage research abstracts effortlessly.
                 </p>
-                <Link href="/abstracts" className="inline-flex items-center gap-2 text-purple-600 font-semibold hover:text-purple-700 group-hover:gap-3 transition-all">
-                  Learn More
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <Link href="/abstracts" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 group-hover:gap-4 transition-all text-sm">
+                  Explore Feature
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
 
             {/* Event Management */}
-            <div className="group relative p-8 rounded-3xl bg-white border border-gray-200 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-green-100 rounded-full -mr-16 -mt-16 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+                <div className="w-20 h-20 bg-gradient-to-br from-green-500 via-green-600 to-teal-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                  <BarChart3 className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Event Management</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Manage all features from one central hub and have access to real time statistics
+                <h3 className="text-2xl font-black text-gray-900 mb-4">Command Center</h3>
+                <p className="text-gray-600 leading-relaxed mb-6 text-base">
+                  Centralized dashboard with real-time analytics. Monitor registrations, payments, and submissions instantly.
                 </p>
-                <Link href="/admin" className="inline-flex items-center gap-2 text-green-600 font-semibold hover:text-green-700 group-hover:gap-3 transition-all">
-                  Learn More
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <Link href="/admin" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 group-hover:gap-4 transition-all text-sm">
+                  Explore Feature
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -133,158 +218,157 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Registration & Abstract Section */}
-      <section id="registration" className="py-24 bg-gradient-to-b from-white via-blue-50/30 to-white">
+      {/* Registration & Abstract Section - 2 Simple Boxes */}
+      <section id="solutions" className="py-24 bg-gradient-to-b from-white via-blue-50/30 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full">
               <span className="text-sm font-semibold text-blue-700">Get Started</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-              Register & Submit Your Work
+              Join the Conference
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Complete your registration and submit your abstract to participate in the conference
+              Register as an attendee or submit your research paper to participate in the conference
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-            {/* Registration Form */}
-            <div className="order-2 lg:order-1">
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Registration Box */}
+            <div className="group bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-blue-500 transition-all duration-300 shadow-lg hover:shadow-2xl hover:-translate-y-2">
               <div className="mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Conference Registration</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="w-8 h-8 text-white" />
                 </div>
-                <p className="text-gray-600 mb-6">
-                  Complete the form below to secure your spot. Early registration includes special benefits and discounted rates.
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Attendee Registration</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Register as a conference participant and secure your spot. Complete the registration form and pay your attendance fee online with integrated payment processing.
                 </p>
               </div>
-              <RegistrationForm />
+
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Secure online payment</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Instant confirmation email</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Early bird discounts available</span>
+                </div>
+              </div>
+
+              <Link
+                href="/register"
+                className="group/btn w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl"
+              >
+                <span>Register as Attendee</span>
+                <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+              </Link>
             </div>
 
-            {/* Abstract Submission */}
-            <div className="order-1 lg:order-2">
+            {/* Abstract Submission Box */}
+            <div className="group bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-purple-500 transition-all duration-300 shadow-lg hover:shadow-2xl hover:-translate-y-2">
               <div className="mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Submit Abstract</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Upload className="w-8 h-8 text-white" />
                 </div>
-                <p className="text-gray-600 mb-6">
-                  Share your research and contribute to the conference program. Upload your abstract in Word format (.doc or .docx).
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Submit Your Research</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Share your research with the scientific community. Submit your abstract or paper to be considered for presentation at the conference. Quick and easy submission process.
                 </p>
               </div>
-              
-              <div className="bg-gradient-to-br from-purple-50 to-white rounded-3xl p-8 border-2 border-purple-100 hover:border-purple-300 transition-all duration-300 shadow-lg hover:shadow-xl">
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Word Format Only</h4>
-                      <p className="text-sm text-gray-600">Submit your abstract as .doc or .docx file</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Maximum 10MB</h4>
-                      <p className="text-sm text-gray-600">File size limit ensures quick uploads</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Quick & Easy</h4>
-                      <p className="text-sm text-gray-600">Simple upload process with instant confirmation</p>
-                    </div>
-                  </div>
-
-                  <Link
-                    href="/abstracts"
-                    className="block w-full mt-8 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4 rounded-xl font-semibold hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Go to Abstract Submission
-                  </Link>
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Word format (.doc, .docx)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Quick upload process</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700">Instant submission confirmation</span>
                 </div>
               </div>
+
+              <Link
+                href="/submit-abstract"
+                className="group/btn w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4 rounded-xl font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg hover:shadow-xl"
+              >
+                <span>Submit Abstract</span>
+                <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* Conference Types Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-block mb-4 px-4 py-2 bg-purple-100 rounded-full">
-              <span className="text-sm font-semibold text-purple-700">Conference Formats</span>
+            <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
+              <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                FLEXIBLE FORMATS
+              </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-              Conference Types
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6">
+              Support any
+              <br />
+              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                conference format
+              </span>
             </h2>
-            <p className="text-xl text-gray-600">
-              Choose the format that best suits your needs
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              From virtual to in-person, our platform adapts to your needs
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Virtual Conference */}
-            <div className="group relative p-8 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-200 rounded-full -mr-12 -mt-12 opacity-30 group-hover:opacity-50 transition-opacity"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform">🌐</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Virtual Conference</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                  <Globe className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">Virtual Conference</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Connect attendees through an interactive platform and extend your reach. Participants can attend without leaving their home.
+                  Connect attendees worldwide through an interactive platform. No travel required—participants join from anywhere.
                 </p>
               </div>
             </div>
 
             {/* Hybrid Conference */}
-            <div className="group relative p-8 rounded-3xl bg-gradient-to-br from-blue-50 via-white to-blue-50/50 border border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-200 rounded-full -mr-12 -mt-12 opacity-30 group-hover:opacity-50 transition-opacity"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform">🔀</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Hybrid Conference</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                  <GitMerge className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">Hybrid Conference</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Combine both in-person and virtual features. Simultaneously engage the physical and virtual audience.
+                  Best of both worlds. Engage in-person and virtual audiences simultaneously with seamless integration.
                 </p>
               </div>
             </div>
 
             {/* On-site Conference */}
-            <div className="group relative p-8 rounded-3xl bg-gradient-to-br from-green-50 via-white to-green-50/50 border border-green-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-green-200 rounded-full -mr-12 -mt-12 opacity-30 group-hover:opacity-50 transition-opacity"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
               <div className="relative">
-                <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform">📍</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">On-site Conference</h3>
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                  <MapPin className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">On-site Conference</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Take your live events to the next level by adding innovative virtual components to on-site experience.
+                  Traditional in-person events with modern digital tools. Create memorable face-to-face experiences.
                 </p>
               </div>
             </div>
@@ -293,104 +377,137 @@ export default function Home() {
       </section>
 
       {/* Info Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Important Dates</h3>
-              <ul className="space-y-4 text-gray-600">
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Abstract Submission:</span>
-                    <span className="ml-2">Deadline TBD</span>
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Important Dates */}
+            <div className="relative p-10 rounded-3xl bg-gradient-to-br from-blue-50 to-white border-2 border-blue-100 hover:border-blue-300 hover:shadow-xl transition-all duration-300">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full -mr-16 -mt-16 opacity-10 blur-2xl"></div>
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-white" />
                   </div>
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Early Registration:</span>
-                    <span className="ml-2">Deadline TBD</span>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Conference Dates:</span>
-                    <span className="ml-2">TBD</span>
-                  </div>
-                </li>
-              </ul>
+                  <h3 className="text-3xl font-black text-gray-900">Important Dates</h3>
+                </div>
+                <ul className="space-y-5">
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Abstract Submission</div>
+                      <div className="text-gray-600">Deadline TBD</div>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Early Registration</div>
+                      <div className="text-gray-600">Deadline TBD</div>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-violet-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Conference Dates</div>
+                      <div className="text-gray-600">TBD</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h3>
-              <ul className="space-y-4 text-gray-600">
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Email:</span>
-                    <span className="ml-2">conference@example.com</span>
+
+            {/* Contact Information */}
+            <div className="relative p-10 rounded-3xl bg-gradient-to-br from-purple-50 to-white border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all duration-300">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500 to-violet-500 rounded-full -mr-16 -mt-16 opacity-10 blur-2xl"></div>
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-violet-600 rounded-xl flex items-center justify-center">
+                    <Mail className="w-6 h-6 text-white" />
                   </div>
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Phone:</span>
-                    <span className="ml-2">+1 (555) 123-4567</span>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <div>
-                    <span className="font-semibold text-gray-900">Location:</span>
-                    <span className="ml-2">Zagreb, Croatia</span>
-                  </div>
-                </li>
-              </ul>
+                  <h3 className="text-3xl font-black text-gray-900">Get in Touch</h3>
+                </div>
+                <ul className="space-y-5">
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Email</div>
+                      <div className="text-gray-600">conference@example.com</div>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Phone</div>
+                      <div className="text-gray-600">+1 (555) 123-4567</div>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-violet-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 mb-1">Location</div>
+                      <div className="text-gray-600">Zagreb, Croatia</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer CTA */}
-      <section className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Have a new event in mind? Start today</h2>
-          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-            Having a well-planned, well-executed event strategy is the key to success.
+      <section className="relative py-24 bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 text-white overflow-hidden">
+        {/* Background elements */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+          <div className="absolute top-1/2 left-0 w-96 h-96 bg-blue-500/20 rounded-full filter blur-3xl"></div>
+          <div className="absolute top-1/2 right-0 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl"></div>
+        </div>
+
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-block mb-6 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+            <span className="text-sm font-semibold text-blue-200">Ready to get started?</span>
+          </div>
+          
+          <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
+            Start managing your
+            <br />
+            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              conference today
+            </span>
+          </h2>
+          
+          <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto leading-relaxed">
+            Join organizers worldwide who trust our platform for seamless event management
           </p>
+          
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="#registration"
-              className="group bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center gap-2"
+              href="/register"
+              className="group relative bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-5 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-purple-600/40 flex items-center justify-center gap-3"
             >
-              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Register Now
+              <Sparkles className="w-5 h-5" />
+              <span>Start Registration</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
-              href="/admin"
-              className="group bg-gray-700/50 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-semibold hover:bg-gray-700 transition-all duration-200 border-2 border-gray-600 hover:border-gray-500 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center gap-2"
+              href="/abstracts"
+              className="group relative bg-slate-700/50 backdrop-blur-sm text-white px-10 py-5 rounded-xl font-bold hover:bg-slate-700 transition-all duration-300 border border-slate-600 hover:border-slate-500 flex items-center justify-center gap-3"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Admin Dashboard
+              <Upload className="w-5 h-5" />
+              <span>Submit Abstract</span>
             </Link>
           </div>
         </div>
