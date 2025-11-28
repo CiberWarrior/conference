@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
-import { Plus, Calendar, MapPin, Settings, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Calendar, MapPin, Settings, Trash2, Eye, CheckCircle, XCircle, Globe } from 'lucide-react'
 import Link from 'next/link'
 import type { Conference } from '@/types/conference'
 
@@ -155,6 +155,20 @@ export default function ConferencesPage() {
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="w-4 h-4" />
                       <span>{conference.location}</span>
+                    </div>
+                  )}
+                  {conference.published && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <Globe className="w-4 h-4" />
+                      <Link
+                        href={`/conferences/${conference.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                      >
+                        View Public Page
+                      </Link>
+                      <span className="text-gray-400 text-xs">({conference.slug})</span>
                     </div>
                   )}
                 </div>

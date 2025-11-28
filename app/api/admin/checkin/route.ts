@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { registrationId } = body
+    const { registrationId, conferenceId } = body
 
     if (!registrationId) {
       return NextResponse.json(
@@ -15,18 +15,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!conferenceId) {
+      return NextResponse.json(
+        { error: 'Conference ID is required' },
+        { status: 400 }
+      )
+    }
+
     const supabase = createServerClient()
 
-    // Check if registration exists
+    // Check if registration exists and belongs to the conference
     const { data: registration, error: fetchError } = await supabase
       .from('registrations')
-      .select('id, checked_in, checked_in_at, first_name, last_name, email')
+      .select('id, checked_in, checked_in_at, first_name, last_name, email, conference_id')
       .eq('id', registrationId)
+      .eq('conference_id', conferenceId)
       .single()
 
     if (fetchError || !registration) {
       return NextResponse.json(
-        { error: 'Registration not found' },
+        { error: 'Registration not found or does not belong to this conference' },
         { status: 404 }
       )
     }
@@ -89,6 +97,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const registrationId = searchParams.get('registrationId')
+    const conferenceId = searchParams.get('conferenceId')
 
     if (!registrationId) {
       return NextResponse.json(
@@ -97,12 +106,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (!conferenceId) {
+      return NextResponse.json(
+        { error: 'Conference ID is required' },
+        { status: 400 }
+      )
+    }
+
     const supabase = createServerClient()
 
     const { data: registration, error } = await supabase
       .from('registrations')
-      .select('id, checked_in, checked_in_at, first_name, last_name, email')
+      .select('id, checked_in, checked_in_at, first_name, last_name, email, conference_id')
       .eq('id', registrationId)
+      .eq('conference_id', conferenceId)
       .single()
 
     if (error || !registration) {

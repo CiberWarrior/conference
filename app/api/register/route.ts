@@ -17,6 +17,7 @@ const registrationSchema = z
     departureDate: z.string().min(1),
     paymentRequired: z.boolean(),
     paymentByCard: z.boolean(),
+    conferenceId: z.string().uuid().optional(),
   })
   .refine(
     (data) => {
@@ -57,6 +58,33 @@ export async function POST(request: NextRequest) {
       ? 'pending'
       : 'not_required'
 
+    // Verify conference exists if conferenceId is provided
+    if (validatedData.conferenceId) {
+      const { data: conference, error: confError } = await supabase
+        .from('conferences')
+        .select('id, settings')
+        .eq('id', validatedData.conferenceId)
+        .eq('published', true)
+        .eq('active', true)
+        .single()
+
+      if (confError || !conference) {
+        return NextResponse.json(
+          { error: 'Conference not found or not available' },
+          { status: 404 }
+        )
+      }
+
+      // Check if registration is enabled for this conference
+      const settings = conference.settings || {}
+      if (settings.registration_enabled === false) {
+        return NextResponse.json(
+          { error: 'Registration is not enabled for this conference' },
+          { status: 403 }
+        )
+      }
+    }
+
     // Insert registration
     const { data: registration, error: insertError } = await supabase
       .from('registrations')
@@ -72,6 +100,7 @@ export async function POST(request: NextRequest) {
         payment_required: validatedData.paymentRequired,
         payment_by_card: validatedData.paymentByCard,
         payment_status: paymentStatus,
+        conference_id: validatedData.conferenceId || null,
       })
       .select()
       .single()
@@ -111,6 +140,17 @@ export async function POST(request: NextRequest) {
         console.error('Stripe error:', stripeError)
         // Continue even if Stripe fails - registration is saved
       }
+    }
+
+    // Get conference name if conferenceId is provided
+    let conferenceName: string | undefined
+    if (validatedData.conferenceId) {
+      const { data: conference } = await supabase
+        .from('conferences')
+        .select('name, start_date, location')
+        .eq('id', validatedData.conferenceId)
+        .single()
+      conferenceName = conference?.name
     }
 
     // Trigger email confirmation (async, don't wait)

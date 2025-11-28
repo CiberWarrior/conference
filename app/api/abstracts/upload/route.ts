@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAbstractFilePath } from '@/lib/storage'
+import { sendAbstractSubmissionConfirmation } from '@/lib/email'
 import { z } from 'zod'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null
     const email = formData.get('email') as string | null
     const registrationId = formData.get('registrationId') as string | null
+    const conferenceId = formData.get('conferenceId') as string | null
 
     // Validate file exists
     if (!file) {
@@ -75,6 +77,42 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient()
+
+    // Verify conference exists if conferenceId is provided
+    if (conferenceId) {
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(conferenceId)) {
+        return NextResponse.json(
+          { error: 'Invalid conference ID format' },
+          { status: 400 }
+        )
+      }
+
+      const { data: conference, error: confError } = await supabase
+        .from('conferences')
+        .select('id, settings')
+        .eq('id', conferenceId)
+        .eq('published', true)
+        .eq('active', true)
+        .single()
+
+      if (confError || !conference) {
+        return NextResponse.json(
+          { error: 'Conference not found or not available' },
+          { status: 404 }
+        )
+      }
+
+      // Check if abstract submission is enabled for this conference
+      const settings = conference.settings || {}
+      if (settings.abstract_submission_enabled === false) {
+        return NextResponse.json(
+          { error: 'Abstract submission is not enabled for this conference' },
+          { status: 403 }
+        )
+      }
+    }
 
     // If registrationId is provided, verify it exists and matches email
     let verifiedRegistrationId: string | null = null
@@ -139,6 +177,7 @@ export async function POST(request: NextRequest) {
         file_size: file.size,
         email: email || null,
         registration_id: verifiedRegistrationId || null,
+        conference_id: conferenceId || null,
       })
       .select()
       .single()
@@ -151,6 +190,49 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to save abstract metadata' },
         { status: 500 }
       )
+    }
+
+    // Get conference name if conferenceId is provided
+    let conferenceName: string | undefined
+    if (conferenceId) {
+      const { data: conference } = await supabase
+        .from('conferences')
+        .select('name')
+        .eq('id', conferenceId)
+        .single()
+      conferenceName = conference?.name
+    }
+
+    // Send confirmation email (async, don't wait)
+    if (email || verifiedRegistrationId) {
+      const recipientEmail = email || null
+      if (recipientEmail) {
+        sendAbstractSubmissionConfirmation(
+          abstract.id,
+          recipientEmail,
+          file.name,
+          conferenceName
+        ).catch((err) => {
+          console.error('Failed to send abstract confirmation email:', err)
+        })
+      } else if (verifiedRegistrationId) {
+        // Get email from registration
+        const { data: registration } = await supabase
+          .from('registrations')
+          .select('email')
+          .eq('id', verifiedRegistrationId)
+          .single()
+        if (registration?.email) {
+          sendAbstractSubmissionConfirmation(
+            abstract.id,
+            registration.email,
+            file.name,
+            conferenceName
+          ).catch((err) => {
+            console.error('Failed to send abstract confirmation email:', err)
+          })
+        }
+      }
     }
 
     return NextResponse.json({

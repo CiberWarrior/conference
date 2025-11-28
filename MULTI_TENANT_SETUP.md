@@ -1,4 +1,4 @@
-# 🎯 Multi-Tenant Conference Platform - Setup Instructions
+# 🎯 Multi-Tenant MeetFlow Platform - Setup Instructions
 
 ## ✅ Što je Napravljeno
 
@@ -30,7 +30,7 @@ Morate primijeniti novu SQL migraciju u Supabase:
 #### **Opcija B - Preko Supabase CLI:**
 
 ```bash
-cd "/Users/renata/Desktop/Conference Platform"
+cd "/Users/renata/Desktop/conference platform"
 supabase db push
 ```
 

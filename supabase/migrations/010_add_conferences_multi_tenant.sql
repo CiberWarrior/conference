@@ -1,5 +1,5 @@
 -- =====================================================
--- MULTI-TENANT CONFERENCE PLATFORM - Database Schema
+-- MULTI-TENANT MEETFLOW PLATFORM - Database Schema
 -- =====================================================
 
 -- 1. Create conferences table

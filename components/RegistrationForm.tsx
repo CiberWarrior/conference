@@ -37,7 +37,13 @@ const registrationSchema = z
     }
   )
 
-export default function RegistrationForm() {
+interface RegistrationFormProps {
+  conferenceId?: string
+}
+
+export default function RegistrationForm({
+  conferenceId,
+}: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<{
@@ -80,7 +86,10 @@ export default function RegistrationForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          conferenceId,
+        }),
       })
 
       const result = await response.json()

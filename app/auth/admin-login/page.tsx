@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
               </div>
             </div>
             <span className="text-2xl font-black text-white">
-              Conference Platform
+              MeetFlow
             </span>
           </Link>
           <p className="text-slate-400">Admin Login</p>

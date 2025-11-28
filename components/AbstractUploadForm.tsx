@@ -27,7 +27,13 @@ const abstractUploadSchema = z.object({
   registrationId: z.string().uuid('Invalid registration ID').optional().or(z.literal('')),
 })
 
-export default function AbstractUploadForm() {
+interface AbstractUploadFormProps {
+  conferenceId?: string
+}
+
+export default function AbstractUploadForm({
+  conferenceId,
+}: AbstractUploadFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
@@ -63,6 +69,9 @@ export default function AbstractUploadForm() {
       }
       if (data.registrationId) {
         formData.append('registrationId', data.registrationId)
+      }
+      if (conferenceId) {
+        formData.append('conferenceId', conferenceId)
       }
 
       const response = await fetch('/api/abstracts/upload', {

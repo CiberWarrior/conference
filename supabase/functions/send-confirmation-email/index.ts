@@ -9,13 +9,14 @@ type EmailType =
   | 'pre_conference_reminder'
   | 'event_details'
   | 'certificate'
+  | 'abstract_submission_confirmation'
 
 interface EmailRequest {
   emailType: EmailType
-  registrationId: string
+  registrationId?: string
   email: string
-  firstName: string
-  lastName: string
+  firstName?: string
+  lastName?: string
   paymentUrl?: string
   invoiceUrl?: string
   certificateUrl?: string
@@ -23,6 +24,9 @@ interface EmailRequest {
   conferenceLocation?: string
   conferenceProgram?: string
   customMessage?: string
+  abstractId?: string
+  fileName?: string
+  conferenceName?: string
 }
 
 serve(async (req) => {
@@ -56,11 +60,29 @@ serve(async (req) => {
       conferenceLocation,
       conferenceProgram,
       customMessage,
+      abstractId,
+      fileName,
+      conferenceName,
     } = (await req.json()) as EmailRequest
 
-    if (!email || !firstName || !lastName) {
+    // Validate required fields based on email type
+    if (!email) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Email is required' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      )
+    }
+
+    // For abstract submission, we don't need firstName/lastName
+    if (emailType !== 'abstract_submission_confirmation' && (!firstName || !lastName)) {
+      return new Response(
+        JSON.stringify({ error: 'First name and last name are required' }),
         {
           status: 400,
           headers: {
@@ -437,6 +459,60 @@ Thank you for your participation in the conference!
             `,
           }
 
+        case 'abstract_submission_confirmation':
+          return {
+            subject: `Abstract Submission Confirmed - ${conferenceName || 'Conference'}`,
+            html: `
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="${baseStyles}">
+                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">Abstract Submission Confirmed</h1>
+                  </div>
+                  <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <p style="font-size: 16px; margin-bottom: 20px;">
+                      Dear ${email ? email.split('@')[0] : 'Participant'},
+                    </p>
+                    <p style="font-size: 16px; margin-bottom: 20px;">
+                      We are pleased to confirm that your abstract has been successfully submitted!
+                    </p>
+                    ${conferenceName ? `<p style="font-size: 16px; margin-bottom: 20px;"><strong>Conference:</strong> ${conferenceName}</p>` : ''}
+                    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                      <p style="margin: 0; font-size: 14px;"><strong>File Name:</strong> ${fileName}</p>
+                      <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Abstract ID:</strong> ${abstractId}</p>
+                    </div>
+                    ${customMessage ? `<p style="font-size: 16px; margin: 20px 0;">${customMessage}</p>` : ''}
+                    <p style="font-size: 16px; margin-top: 30px;">
+                      Our review team will evaluate your submission and you will be notified of the outcome in due course.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                    <p style="font-size: 12px; color: #6b7280; margin: 0;">
+                      Thank you for your submission!
+                    </p>
+                  </div>
+                </body>
+              </html>
+            `,
+            text: `
+Abstract Submission Confirmed
+
+Dear ${email ? email.split('@')[0] : 'Participant'},
+
+We are pleased to confirm that your abstract has been successfully submitted!
+
+${conferenceName ? `Conference: ${conferenceName}\n` : ''}File Name: ${fileName}
+Abstract ID: ${abstractId}
+${customMessage ? `\n${customMessage}\n` : ''}
+Our review team will evaluate your submission and you will be notified of the outcome in due course.
+
+Thank you for your submission!
+            `,
+          }
+
         default:
           throw new Error(`Unknown email type: ${type}`)
       }
@@ -452,7 +528,7 @@ Thank you for your participation in the conference!
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Conference Registration <noreply@yourdomain.com>', // Update with your domain
+        from: 'MeetFlow <noreply@yourdomain.com>', // Update with your domain
         to: email,
         subject: emailTemplate.subject,
         html: emailTemplate.html,

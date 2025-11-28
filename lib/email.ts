@@ -10,13 +10,14 @@ type EmailType =
   | 'pre_conference_reminder'
   | 'event_details'
   | 'certificate'
+  | 'abstract_submission_confirmation'
 
 interface SendEmailParams {
   emailType: EmailType
-  registrationId: string
+  registrationId?: string
   email: string
-  firstName: string
-  lastName: string
+  firstName?: string
+  lastName?: string
   paymentUrl?: string
   invoiceUrl?: string
   certificateUrl?: string
@@ -24,6 +25,9 @@ interface SendEmailParams {
   conferenceLocation?: string
   conferenceProgram?: string
   customMessage?: string
+  abstractId?: string
+  fileName?: string
+  conferenceName?: string
 }
 
 /**
@@ -198,6 +202,26 @@ export async function sendCertificate(
     firstName,
     lastName,
     certificateUrl,
+    customMessage,
+  })
+}
+
+/**
+ * Send abstract submission confirmation email
+ */
+export async function sendAbstractSubmissionConfirmation(
+  abstractId: string,
+  email: string,
+  fileName: string,
+  conferenceName?: string,
+  customMessage?: string
+): Promise<void> {
+  return sendEmail({
+    emailType: 'abstract_submission_confirmation',
+    abstractId,
+    email,
+    fileName,
+    conferenceName,
     customMessage,
   })
 }

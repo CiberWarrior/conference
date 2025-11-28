@@ -172,6 +172,14 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status') // 'requested', 'approved', 'rejected', 'processed'
+    const conferenceId = searchParams.get('conference_id')
+
+    if (!conferenceId) {
+      return NextResponse.json(
+        { error: 'Conference ID is required' },
+        { status: 400 }
+      )
+    }
 
     const supabase = createServerClient()
 
@@ -179,6 +187,7 @@ export async function GET(request: NextRequest) {
       .from('registrations')
       .select('*')
       .eq('refund_requested', true)
+      .eq('conference_id', conferenceId)
 
     if (status) {
       query = query.eq('refund_status', status)

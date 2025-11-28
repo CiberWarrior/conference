@@ -83,10 +83,19 @@ export default function AbstractsPage() {
 
   // Helper function to prepare data for export
   const prepareExportData = () => {
-    const headers = ['File Name', 'Email', 'File Size (MB)', 'Uploaded At']
+    const headers = [
+      'Conference',
+      'File Name',
+      'Email',
+      'Registration ID',
+      'File Size (MB)',
+      'Uploaded At',
+    ]
     const rows = filteredAbstracts.map((a) => [
+      currentConference?.name || 'N/A',
       a.fileName,
       a.email || '',
+      a.registrationId || '',
       (a.fileSize / 1024 / 1024).toFixed(2),
       new Date(a.uploadedAt).toLocaleString(),
     ])

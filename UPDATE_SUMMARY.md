@@ -1,6 +1,6 @@
 # 🔒 DATA ISOLATION - Primjena Završena
 
-## ✅ Što je Napravljeno - Multi-Tenant Conference Platform
+## ✅ Što je Napravljeno - Multi-Tenant MeetFlow Platform
 
 ### **FAZA 1 - Database Schema** ✅
 - Kreirana `conferences` tablica

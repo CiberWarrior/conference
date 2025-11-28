@@ -22,12 +22,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       registrationId,
+      conferenceId,
       certificateType = 'participation',
       conferenceName = 'International Conference',
       conferenceDate,
       conferenceLocation,
       logoUrl,
-    }: CertificateData = body
+    }: CertificateData & { conferenceId?: string } = body
 
     if (!registrationId) {
       return NextResponse.json(
@@ -36,18 +37,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!conferenceId) {
+      return NextResponse.json(
+        { error: 'Conference ID is required' },
+        { status: 400 }
+      )
+    }
+
     const supabase = createServerClient()
 
-    // Get registration details
+    // Get registration details and verify it belongs to the conference
     const { data: registration, error: regError } = await supabase
       .from('registrations')
       .select('*')
       .eq('id', registrationId)
+      .eq('conference_id', conferenceId)
       .single()
 
     if (regError || !registration) {
       return NextResponse.json(
-        { error: 'Registration not found' },
+        { error: 'Registration not found or does not belong to this conference' },
         { status: 404 }
       )
     }

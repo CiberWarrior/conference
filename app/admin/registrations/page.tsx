@@ -95,6 +95,7 @@ export default function RegistrationsPage() {
   // Helper function to prepare data for export
   const prepareExportData = () => {
     const headers = [
+      'Conference',
       'First Name',
       'Last Name',
       'Email',
@@ -106,9 +107,11 @@ export default function RegistrationsPage() {
       'Payment Required',
       'Payment by Card',
       'Payment Status',
+      'Checked In',
       'Created At',
     ]
     const rows = filteredRegistrations.map((r) => [
+      currentConference?.name || 'N/A',
       r.firstName,
       r.lastName,
       r.email,
@@ -120,6 +123,7 @@ export default function RegistrationsPage() {
       r.paymentRequired ? 'Yes' : 'No',
       r.paymentByCard ? 'Yes' : 'No',
       r.paymentStatus,
+      r.checkedIn ? 'Yes' : 'No',
       new Date(r.createdAt).toLocaleString(),
     ])
     return { headers, rows }

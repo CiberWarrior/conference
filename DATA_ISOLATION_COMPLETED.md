@@ -93,7 +93,7 @@ if (!currentConference) {
 
 **Opcija B - CLI:**
 ```bash
-cd "/Users/renata/Desktop/Conference Platform"
+cd "/Users/renata/Desktop/conference platform"
 supabase db push
 ```
 
@@ -211,7 +211,7 @@ Kreirati javne stranice:
 
 🎉 **ČESTITKE!** 🎉
 
-**Implementirana je kompletna Multi-Tenant Conference Platform!**
+**Implementirana je kompletna Multi-Tenant MeetFlow Platform!**
 
 Sada možete:
 - ✅ Kreirati neograničen broj konferencija

@@ -3,7 +3,7 @@ import './globals.css'
 import ConditionalNavigation from '@/components/ConditionalNavigation'
 
 export const metadata: Metadata = {
-  title: 'Event Management Platform | Conference Registration',
+  title: 'MeetFlow | Event Management Platform',
   description: 'Professional event management platform for conferences. Registration, payment processing, and abstract management all in one place.',
 }
 

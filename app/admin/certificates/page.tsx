@@ -111,6 +111,11 @@ export default function CertificatesPage() {
   }
 
   const generateCertificate = async (registrationId: string) => {
+    if (!currentConference) {
+      alert('Please select a conference first')
+      return
+    }
+
     try {
       setProcessing(true)
       const response = await fetch('/api/admin/certificates/generate', {
@@ -118,6 +123,7 @@ export default function CertificatesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           registrationId,
+          conferenceId: currentConference.id,
           certificateType,
           conferenceName,
           conferenceDate,
@@ -153,6 +159,11 @@ export default function CertificatesPage() {
       return
     }
 
+    if (!currentConference) {
+      alert('Please select a conference first')
+      return
+    }
+
     try {
       setProcessing(true)
       const response = await fetch('/api/admin/certificates/bulk', {
@@ -160,6 +171,7 @@ export default function CertificatesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           registrationIds: Array.from(selectedIds),
+          conferenceId: currentConference.id,
           certificateType,
           conferenceName,
           conferenceDate,

@@ -85,14 +85,17 @@ export default function CheckInPage() {
   }
 
   const handleQRCodeScan = async (registrationId: string) => {
-    if (processing) return
+    if (processing || !currentConference) return
 
     try {
       setProcessing(true)
       const response = await fetch('/api/admin/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registrationId }),
+        body: JSON.stringify({
+          registrationId,
+          conferenceId: currentConference.id,
+        }),
       })
 
       const data = await response.json()

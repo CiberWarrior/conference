@@ -1,4 +1,4 @@
-# Conference Registration Form
+# MeetFlow - Conference Management Platform
 
 Web aplikacija za prijavu na konferenciju s opcionalnim plaćanjem i automatskim email potvrdama.
 

@@ -12,7 +12,7 @@ export default function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-white">Conference Platform</span>
+              <span className="text-xl font-bold text-white">MeetFlow</span>
             </Link>
             <p className="text-gray-400 mb-4 max-w-md">
               Professional event management platform for conferences. Registration, payment processing, and abstract management all in one place.
@@ -60,7 +60,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Conference Platform. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} MeetFlow. All rights reserved.</p>
         </div>
       </div>
     </footer>

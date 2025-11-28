@@ -17,6 +17,7 @@ export default function ConferenceSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +72,7 @@ export default function ConferenceSettingsPage() {
           location: conf.location || '',
           venue: conf.venue || '',
           website_url: conf.website_url || '',
+          logo_url: conf.logo_url || '',
           primary_color: conf.primary_color || '#3B82F6',
           // Pricing
           currency: conf.pricing?.currency || 'EUR',
@@ -111,6 +113,74 @@ export default function ConferenceSettingsPage() {
     }))
   }
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB')
+      return
+    }
+
+    setUploadingLogo(true)
+    try {
+      // Upload to Supabase Storage
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('conferenceId', conferenceId)
+
+      const response = await fetch('/api/admin/conferences/upload-logo', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.url) {
+        // Save logo URL to database immediately
+        const saveResponse = await fetch(`/api/admin/conferences/${conferenceId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logo_url: data.url }),
+        })
+
+        if (saveResponse.ok) {
+          const saveData = await saveResponse.json()
+          console.log('Logo saved to database:', saveData.conference?.logo_url)
+          setFormData((prev) => ({ ...prev, logo_url: data.url }))
+          // Reload conference to show updated logo
+          await loadConference()
+          // Force page refresh to show logo immediately
+          window.location.reload()
+        } else {
+          const saveData = await saveResponse.json()
+          alert(`Logo uploaded but failed to save: ${saveData.error || 'Unknown error'}`)
+          console.error('Save error:', saveData)
+        }
+      } else {
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}${data.hint ? `\n\nHint: ${data.hint}` : ''}`
+          : data.error || 'Failed to upload logo'
+        alert(errorMsg)
+        console.error('Upload error:', data)
+      }
+    } catch (error) {
+      console.error('Logo upload error:', error)
+      alert('Failed to upload logo. Please check the console for details.')
+    } finally {
+      setUploadingLogo(false)
+      // Reset file input
+      e.target.value = ''
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -127,6 +197,7 @@ export default function ConferenceSettingsPage() {
           location: formData.location || undefined,
           venue: formData.venue || undefined,
           website_url: formData.website_url || undefined,
+          logo_url: formData.logo_url || undefined,
           primary_color: formData.primary_color,
           pricing: {
             currency: formData.currency,
@@ -401,6 +472,54 @@ export default function ConferenceSettingsPage() {
                     value={formData.primary_color}
                     onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Logo Upload */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Conference Logo
+              </label>
+              <div className="flex items-start gap-4">
+                {conference.logo_url && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={conference.logo_url}
+                      alt="Current logo"
+                      className="w-24 h-24 object-contain border-2 border-gray-200 rounded-lg p-2 bg-gray-50"
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="logo_upload"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    {uploadingLogo && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-sm font-medium">Uploading...</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Upload a logo image (PNG, JPG, SVG). Max size: 2MB. Or enter a URL below.
+                  </p>
+                  <input
+                    type="url"
+                    placeholder="Or enter logo URL"
+                    value={formData.logo_url || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
+                    className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                 </div>
               </div>

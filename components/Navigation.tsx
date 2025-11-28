@@ -20,7 +20,7 @@ export default function Navigation() {
               </div>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-violet-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-violet-700 transition-all duration-300">
-              Conference Platform
+              MeetFlow
             </span>
           </Link>
         </div>
