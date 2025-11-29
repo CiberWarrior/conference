@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getCurrentUserProfile } from '@/lib/auth-utils'
 
 /**
  * GET /api/admin/users/[id]
@@ -14,10 +13,24 @@ export async function GET(
     const supabase = await createServerClient()
     const { id } = params
     
-    // Verify user is Super Admin
-    const profile = await getCurrentUserProfile()
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!profile || profile.role !== 'super_admin') {
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile || profile.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -64,10 +77,24 @@ export async function PATCH(
     const supabase = await createServerClient()
     const { id } = params
     
-    // Verify user is Super Admin
-    const profile = await getCurrentUserProfile()
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!profile || profile.role !== 'super_admin') {
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile || profile.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -189,10 +216,24 @@ export async function DELETE(
     const supabase = await createServerClient()
     const { id } = params
     
-    // Verify user is Super Admin
-    const profile = await getCurrentUserProfile()
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!profile || profile.role !== 'super_admin') {
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile || profile.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

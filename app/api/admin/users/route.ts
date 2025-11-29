@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getCurrentUserProfile, isSuperAdmin } from '@/lib/auth-utils'
 
 /**
  * GET /api/admin/users
@@ -10,10 +9,26 @@ export async function GET() {
   try {
     const supabase = await createServerClient()
     
-    // Verify user is Super Admin
-    const profile = await getCurrentUserProfile()
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!profile || profile.role !== 'super_admin') {
+    if (authError || !user) {
+      console.log('❌ GET /api/admin/users - No authenticated user')
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile || profile.role !== 'super_admin') {
+      console.log('❌ GET /api/admin/users - User is not super admin')
       return NextResponse.json(
         { error: 'Unauthorized. Only super admins can view users.' },
         { status: 403 }
@@ -69,10 +84,24 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient()
     
-    // Verify user is Super Admin
-    const profile = await getCurrentUserProfile()
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!profile || profile.role !== 'super_admin') {
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile || profile.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unauthorized. Only super admins can create users.' },
         { status: 403 }
