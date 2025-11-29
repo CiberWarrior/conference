@@ -38,11 +38,12 @@ export async function GET() {
     console.log('📋 Fetching all users for super admin:', profile.email)
 
     // Get all user profiles with their conference assignments
+    // Use explicit relationship to avoid ambiguity (user_id foreign key, not granted_by)
     const { data: users, error } = await supabase
       .from('user_profiles')
       .select(`
         *,
-        conference_permissions (
+        conference_permissions!conference_permissions_user_id_fkey (
           conference_id,
           conferences (
             id,

@@ -38,11 +38,12 @@ export async function GET(
     }
 
     // Get user profile with permissions
-    const { data: user, error } = await supabase
+    // Use explicit relationship to avoid ambiguity (user_id foreign key, not granted_by)
+    const { data: userData, error } = await supabase
       .from('user_profiles')
       .select(`
         *,
-        conference_permissions (
+        conference_permissions!conference_permissions_user_id_fkey (
           *,
           conferences (
             id,
@@ -58,7 +59,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ user })
+    return NextResponse.json({ user: userData })
   } catch (error) {
     console.error('Get user error:', error)
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
