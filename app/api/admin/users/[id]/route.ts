@@ -125,13 +125,13 @@ export async function PATCH(
     if (organization !== undefined) profileUpdates.organization = organization
     if (active !== undefined) profileUpdates.active = active
 
-    const { error: profileError } = await supabase
+    const { error: updateProfileError } = await supabase
       .from('user_profiles')
       .update(profileUpdates)
       .eq('id', id)
 
-    if (profileError) {
-      console.error('Profile update error:', profileError)
+    if (updateProfileError) {
+      console.error('Profile update error:', updateProfileError)
       return NextResponse.json(
         { error: 'Failed to update user profile' },
         { status: 500 }
