@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 
 /**
  * GET /api/admin/users
@@ -148,8 +148,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create user in Supabase Auth
-    const { data: authData, error: createAuthError } = await supabase.auth.admin.createUser({
+    // Create user in Supabase Auth using Admin Client (requires SERVICE_ROLE_KEY)
+    const adminClient = createAdminClient()
+    const { data: authData, error: createAuthError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Auto-confirm email
@@ -191,8 +192,8 @@ export async function POST(request: NextRequest) {
     if (createProfileError) {
       console.error('Profile creation error:', createProfileError)
       
-      // Rollback: Delete the auth user
-      await supabase.auth.admin.deleteUser(authData.user.id)
+      // Rollback: Delete the auth user using Admin Client
+      await adminClient.auth.admin.deleteUser(authData.user.id)
       
       return NextResponse.json(
         { error: 'Failed to create user profile' },

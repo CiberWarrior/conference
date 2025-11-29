@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 
 /**
  * GET /api/admin/users/[id]
@@ -140,9 +140,10 @@ export async function PATCH(
 
     console.log('✅ User profile updated')
 
-    // Update password if provided
+    // Update password if provided (requires Admin Client)
     if (password && password.length >= 8) {
-      const { error: passwordError } = await supabase.auth.admin.updateUserById(
+      const adminClient = createAdminClient()
+      const { error: passwordError } = await adminClient.auth.admin.updateUserById(
         id,
         { password }
       )
