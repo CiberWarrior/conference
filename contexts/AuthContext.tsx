@@ -34,7 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
+      console.log('🔄 AuthContext: Loading profile for user:', userId)
       const userProfile = await getCurrentUserProfile()
+      console.log('✅ AuthContext: Profile loaded:', userProfile?.email, 'Role:', userProfile?.role)
       setProfile(userProfile)
       
       // Update last login
@@ -42,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await updateLastLogin(userId)
       }
     } catch (error) {
-      console.error('Error loading user profile:', error)
+      console.error('❌ AuthContext: Error loading user profile:', error)
       setProfile(null)
     }
   }
@@ -57,15 +59,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active session
     const checkSession = async () => {
       try {
+        console.log('🔐 AuthContext: Checking session...')
         const { data: { session } } = await supabase.auth.getSession()
+        console.log('📋 AuthContext: Session found:', !!session, 'User:', session?.user?.email)
         setUser(session?.user ?? null)
         
         if (session?.user) {
           await loadUserProfile(session.user.id)
+        } else {
+          console.log('⚠️ AuthContext: No session found')
         }
       } catch (error) {
-        console.error('Error checking session:', error)
+        console.error('❌ AuthContext: Error checking session:', error)
       } finally {
+        console.log('✅ AuthContext: Loading complete')
         setLoading(false)
       }
     }

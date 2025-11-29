@@ -144,6 +144,11 @@ export default function Sidebar() {
     setMounted(true)
   }, [])
 
+  // DEBUG: Log auth state
+  useEffect(() => {
+    console.log('🔍 Sidebar Auth State:', { isSuperAdmin, role, authLoading })
+  }, [isSuperAdmin, role, authLoading])
+
   // Prevent hydration mismatch by not rendering active state until mounted
   const getIsActive = (href: string) => {
     if (!mounted || !pathname) return false
