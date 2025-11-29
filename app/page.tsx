@@ -319,8 +319,8 @@ export default function Home() {
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Seamless registration with integrated payment processing. Customizable forms that capture exactly what you need.
                 </p>
-                <Link href="#solutions" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 group-hover:gap-4 transition-all text-sm">
-                  Explore Feature
+                <Link href="/contact" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 group-hover:gap-4 transition-all text-sm">
+                  Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -337,8 +337,8 @@ export default function Home() {
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Streamlined submission and review process. Organize, evaluate, and manage research abstracts effortlessly.
                 </p>
-                <Link href="/abstracts" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 group-hover:gap-4 transition-all text-sm">
-                  Explore Feature
+                <Link href="/contact" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 group-hover:gap-4 transition-all text-sm">
+                  Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -355,8 +355,8 @@ export default function Home() {
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Your conference, all in one place. Follow new registrations, payments, and abstract submissions the moment they come in — clearly, simply, and in real time.
                 </p>
-                <Link href="/admin" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 group-hover:gap-4 transition-all text-sm">
-                  Explore Feature
+                <Link href="/contact" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 group-hover:gap-4 transition-all text-sm">
+                  Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>

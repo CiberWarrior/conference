@@ -110,23 +110,14 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-          {currentConference && currentConference.published ? (
+          {currentConference?.published && (
             <Link
               href={`/conferences/${currentConference.slug}`}
               target="_blank"
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-all font-medium"
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all font-medium border border-blue-200"
             >
               <ExternalLink className="w-4 h-4" />
               View Conference Site
-            </Link>
-          ) : (
-            <Link
-              href="/"
-              target="_blank"
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-all font-medium"
-            >
-              <ExternalLink className="w-4 h-4" />
-              View Platform
             </Link>
           )}
           <button

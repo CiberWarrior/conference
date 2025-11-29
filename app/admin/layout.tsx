@@ -3,6 +3,7 @@
 import Sidebar from '@/components/admin/Sidebar'
 import Header from '@/components/admin/Header'
 import { ConferenceProvider } from '@/contexts/ConferenceContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 export default function AdminLayout({
   children,

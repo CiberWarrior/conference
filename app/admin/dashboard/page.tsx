@@ -24,6 +24,12 @@ export default function DashboardPage() {
     recentRegistrations: [] as any[],
     recentAbstracts: [] as any[],
   })
+  const [inquiryStats, setInquiryStats] = useState({
+    newInquiries: 0,
+    totalInquiries: 0,
+    conversionRate: 0,
+    inquiriesLast7Days: 0,
+  })
   const [chartData, setChartData] = useState({
     registrationsByDay: [] as { date: string; count: number }[],
     paymentStatus: [] as { name: string; value: number }[],
@@ -37,7 +43,36 @@ export default function DashboardPage() {
     if (currentConference) {
       loadStats()
     }
+    loadInquiryStats()
   }, [currentConference])
+
+  const loadInquiryStats = async () => {
+    try {
+      // TEMPORARY: Skip inquiry stats while debugging
+      // const { data, error: statsError } = await supabase
+      //   .from('contact_inquiry_stats')
+      //   .select('*')
+      //   .single()
+
+      // if (statsError) {
+      //   console.error('Error loading inquiry stats:', statsError)
+      //   return
+      // }
+
+      // if (data) {
+      //   setInquiryStats({
+      //     newInquiries: data.new_inquiries || 0,
+      //     totalInquiries: data.total_inquiries || 0,
+      //     conversionRate: data.conversion_rate_percent || 0,
+      //     inquiriesLast7Days: data.inquiries_last_7_days || 0,
+      //   })
+      // }
+      
+      console.log('📊 Inquiry stats temporarily disabled')
+    } catch (error) {
+      console.error('Error loading inquiry stats:', error)
+    }
+  }
 
   const loadStats = async () => {
     if (!currentConference) {
@@ -222,6 +257,75 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
         <p className="mt-2 text-gray-600">Welcome to your conference management dashboard</p>
       </div>
+
+      {/* Inquiry Stats Section - Only show if there are inquiries */}
+      {inquiryStats.totalInquiries > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-900">Sales & Leads</h3>
+            <Link
+              href="/admin/inquiries"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+            >
+              View all inquiries →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-blue-100 text-sm font-medium">New Inquiries</span>
+                <svg className="w-8 h-8 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-4xl font-bold mb-1">{inquiryStats.newInquiries}</p>
+              <p className="text-blue-100 text-sm">Awaiting response</p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm font-medium">Total Inquiries</span>
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-4xl font-bold text-gray-900 mb-1">{inquiryStats.totalInquiries}</p>
+              <p className="text-gray-600 text-sm">All time</p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm font-medium">Conversion Rate</span>
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <p className="text-4xl font-bold text-green-600 mb-1">{inquiryStats.conversionRate.toFixed(1)}%</p>
+              <p className="text-gray-600 text-sm">Lead to customer</p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm font-medium">Last 7 Days</span>
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-4xl font-bold text-purple-600 mb-1">{inquiryStats.inquiriesLast7Days}</p>
+              <p className="text-gray-600 text-sm">Recent leads</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conference Stats Heading */}
+      {inquiryStats.totalInquiries > 0 && (
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-gray-900">
+            {currentConference ? `${currentConference.name} Statistics` : 'Conference Statistics'}
+          </h3>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">

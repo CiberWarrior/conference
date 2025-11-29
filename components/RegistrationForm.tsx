@@ -39,10 +39,16 @@ const registrationSchema = z
 
 interface RegistrationFormProps {
   conferenceId?: string
+  conferenceName?: string
+  conferenceDate?: string
+  conferenceLocation?: string
 }
 
 export default function RegistrationForm({
   conferenceId,
+  conferenceName,
+  conferenceDate,
+  conferenceLocation,
 }: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -159,6 +165,9 @@ export default function RegistrationForm({
           <PaymentForm
             registrationId={registrationId}
             amount={paymentAmount}
+            conferenceName={conferenceName}
+            conferenceDate={conferenceDate}
+            conferenceLocation={conferenceLocation}
             onSuccess={handlePaymentSuccess}
             onError={handlePaymentError}
           />
