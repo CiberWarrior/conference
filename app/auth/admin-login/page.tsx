@@ -22,37 +22,47 @@ export default function AdminLoginPage() {
     console.log('🔐 Login attempt:', { email })
 
     try {
-      // Use client-side Supabase login (like yesterday)
-      console.log('📡 Signing in with Supabase...')
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call server-side login API to properly set session cookies
+      console.log('📡 Calling /api/auth/login...')
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Important: Include cookies in request
+        body: JSON.stringify({ email, password }),
       })
 
-      console.log('📥 Supabase response:', { authData, authError })
+      const data = await response.json()
+      console.log('📥 Login response:', { status: response.status, data })
 
-      if (authError) {
-        console.error('❌ Auth error:', authError)
-        setError(authError.message || 'Invalid email or password')
+      if (!response.ok) {
+        console.error('❌ Login failed:', data.error)
+        setError(data.error || 'Invalid email or password')
         setLoading(false)
         return
       }
 
-      if (!authData.user) {
-        setError('Login failed. Please try again.')
-        setLoading(false)
-        return
-      }
-
-      console.log('✅ Login successful! User:', authData.user.email)
+      console.log('✅ Login successful! User:', data.user?.email, 'Role:', data.user?.role)
       
       // Show success state
       setSuccess(true)
       setError('')
       
+      // IMPORTANT: Refresh the client-side Supabase session to sync with server-side cookies
+      console.log('🔄 Refreshing client-side session...')
+      const { error: refreshError } = await supabase.auth.refreshSession()
+      if (refreshError) {
+        console.warn('⚠️ Session refresh warning:', refreshError.message)
+      } else {
+        console.log('✅ Client-side session refreshed')
+      }
+      
       console.log('🚀 Redirecting to dashboard...')
-      // Hard redirect to dashboard
-      window.location.href = '/admin/dashboard'
+      // Use router.push for smoother navigation with session sync
+      router.push('/admin/dashboard')
+      router.refresh()
     } catch (error) {
       console.error('❌ Login error:', error)
       setError('An error occurred. Please try again.')

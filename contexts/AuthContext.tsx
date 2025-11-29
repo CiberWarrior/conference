@@ -85,16 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setLoading(false)
 
-        // Redirect on sign out
+        // Only redirect on explicit sign out, NOT on initial load or session missing
         if (event === 'SIGNED_OUT') {
           console.log('🚪 AuthContext: User signed out, redirecting to login')
           router.push('/auth/admin-login')
+        } else if (event === 'SIGNED_IN') {
+          console.log('✅ AuthContext: User signed in:', session?.user?.email)
         }
-        
-        // TEMPORARY DEBUG: Don't redirect if session is missing
-        // if (!session?.user) {
-        //   console.log('⚠️ AuthContext: No session found but NOT redirecting')
-        // }
       }
     )
 

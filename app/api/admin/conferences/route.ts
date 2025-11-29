@@ -14,15 +14,15 @@ export async function GET() {
   try {
     const supabase = await createServerClient()
     
-    // TEMPORARY: Skip auth check while debugging
     // Verify user is authenticated
-    // const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    // if (authError || !user) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
+    if (authError || !user) {
+      console.log('❌ GET /api/admin/conferences - Unauthorized')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    console.log('📋 Fetching conferences (auth check temporarily disabled)')
+    console.log('📋 Fetching conferences for user:', user.email)
 
     // RLS policies will automatically filter conferences based on:
     // - Super admins see all conferences

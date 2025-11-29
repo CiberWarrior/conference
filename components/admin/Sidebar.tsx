@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// TEMPORARY: Disabled while debugging
-// import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface NavItem {
   name: string
@@ -123,14 +122,7 @@ const navigationSections: NavSection[] = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
-  
-  // TEMPORARY: Make auth optional while debugging
-  let isSuperAdmin = true
-  let role = 'super_admin'
-  let authLoading = false
-  
-  // Uncomment when AuthProvider is restored:
-  // const { isSuperAdmin, role, loading: authLoading } = useAuth()
+  const { isSuperAdmin, role, loading: authLoading } = useAuth()
 
   useEffect(() => {
     setMounted(true)

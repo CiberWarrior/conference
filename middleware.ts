@@ -62,20 +62,18 @@ export async function middleware(request: NextRequest) {
     path: request.nextUrl.pathname,
     hasUser: !!user,
     userEmail: user?.email,
-    error: userError?.message,
-    cookies: request.cookies.getAll().map(c => c.name)
+    error: userError?.message
   })
 
-  // TEMPORARILY DISABLED - Allow all admin access while debugging
   // Check if trying to access admin area
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    // if (!user) {
-    //   console.log('❌ Middleware: No user found, redirecting to login')
-    //   // Not authenticated - redirect to login
-    //   const loginUrl = new URL('/auth/admin-login', request.url)
-    //   return NextResponse.redirect(loginUrl)
-    // }
-    console.log('✅ Middleware: Allowing access (auth check temporarily disabled)')
+    if (!user) {
+      console.log('❌ Middleware: No user found, redirecting to login')
+      // Not authenticated - redirect to login
+      const loginUrl = new URL('/auth/admin-login', request.url)
+      return NextResponse.redirect(loginUrl)
+    }
+    console.log('✅ Middleware: User authenticated, allowing access to', request.nextUrl.pathname)
   }
 
   return response

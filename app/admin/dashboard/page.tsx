@@ -48,29 +48,28 @@ export default function DashboardPage() {
 
   const loadInquiryStats = async () => {
     try {
-      // TEMPORARY: Skip inquiry stats while debugging
-      // const { data, error: statsError } = await supabase
-      //   .from('contact_inquiry_stats')
-      //   .select('*')
-      //   .single()
+      const { data, error: statsError } = await supabase
+        .from('contact_inquiry_stats')
+        .select('*')
+        .single()
 
-      // if (statsError) {
-      //   console.error('Error loading inquiry stats:', statsError)
-      //   return
-      // }
+      if (statsError) {
+        // Silently fail if view doesn't exist yet
+        console.log('ℹ️ Inquiry stats view not available (this is OK)')
+        return
+      }
 
-      // if (data) {
-      //   setInquiryStats({
-      //     newInquiries: data.new_inquiries || 0,
-      //     totalInquiries: data.total_inquiries || 0,
-      //     conversionRate: data.conversion_rate_percent || 0,
-      //     inquiriesLast7Days: data.inquiries_last_7_days || 0,
-      //   })
-      // }
-      
-      console.log('📊 Inquiry stats temporarily disabled')
+      if (data) {
+        setInquiryStats({
+          newInquiries: data.new_inquiries || 0,
+          totalInquiries: data.total_inquiries || 0,
+          conversionRate: data.conversion_rate_percent || 0,
+          inquiriesLast7Days: data.inquiries_last_7_days || 0,
+        })
+      }
     } catch (error) {
-      console.error('Error loading inquiry stats:', error)
+      // Silently catch errors - inquiry stats are optional
+      console.log('ℹ️ Could not load inquiry stats (this is OK)')
     }
   }
 
