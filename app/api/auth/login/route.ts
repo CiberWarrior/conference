@@ -108,9 +108,9 @@ export async function POST(request: NextRequest) {
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.user.id)
 
-    console.log('✅ Login successful, cookies set')
+    console.log('✅ Login successful, returning session data')
 
-    // Return success response with user data
+    // Return success response with session data for client-side sync
     return NextResponse.json(
       {
         success: true,
@@ -120,6 +120,10 @@ export async function POST(request: NextRequest) {
           email: authData.user.email,
           role: profile.role,
           full_name: profile.full_name,
+        },
+        session: {
+          access_token: authData.session.access_token,
+          refresh_token: authData.session.refresh_token,
         },
       },
       { 

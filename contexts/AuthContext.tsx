@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { UserProfile, UserRole } from '@/lib/auth-utils'
-import { getCurrentUserProfile, updateLastLogin } from '@/lib/auth-utils'
 
 interface AuthContextType {
   user: any | null
@@ -35,13 +34,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUserProfile = async (userId: string) => {
     try {
       console.log('🔄 AuthContext: Loading profile for user:', userId)
-      const userProfile = await getCurrentUserProfile()
+      
+      // Directly query user_profiles instead of using getCurrentUserProfile()
+      // because we're in client context and already have the session
+      const { data: userProfile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('❌ AuthContext: Error fetching profile:', error)
+        setProfile(null)
+        return
+      }
+      
       console.log('✅ AuthContext: Profile loaded:', userProfile?.email, 'Role:', userProfile?.role)
       setProfile(userProfile)
       
       // Update last login
       if (userProfile) {
-        await updateLastLogin(userId)
+        await supabase
+          .from('user_profiles')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', userId)
       }
     } catch (error) {
       console.error('❌ AuthContext: Error loading user profile:', error)

@@ -50,13 +50,19 @@ export default function AdminLoginPage() {
       setSuccess(true)
       setError('')
       
-      // IMPORTANT: Refresh the client-side Supabase session to sync with server-side cookies
-      console.log('🔄 Refreshing client-side session...')
-      const { error: refreshError } = await supabase.auth.refreshSession()
-      if (refreshError) {
-        console.warn('⚠️ Session refresh warning:', refreshError.message)
-      } else {
-        console.log('✅ Client-side session refreshed')
+      // IMPORTANT: Set session in client-side Supabase instance
+      if (data.session) {
+        console.log('🔄 Setting client-side session...')
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        })
+        
+        if (sessionError) {
+          console.error('❌ Failed to set client session:', sessionError.message)
+        } else {
+          console.log('✅ Client-side session set successfully')
+        }
       }
       
       console.log('🚀 Redirecting to dashboard...')
