@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: createAuthError } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Auto-confirm email
@@ -157,10 +157,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (authError) {
-      console.error('Auth creation error:', authError)
+    if (createAuthError) {
+      console.error('Auth creation error:', createAuthError)
       return NextResponse.json(
-        { error: authError.message || 'Failed to create user in authentication system' },
+        { error: createAuthError.message || 'Failed to create user in authentication system' },
         { status: 400 }
       )
     }
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ User created in Auth:', authData.user.id)
 
     // Create user profile
-    const { error: profileError } = await supabase
+    const { error: createProfileError } = await supabase
       .from('user_profiles')
       .insert({
         id: authData.user.id,
@@ -187,8 +187,8 @@ export async function POST(request: NextRequest) {
         active: true
       })
 
-    if (profileError) {
-      console.error('Profile creation error:', profileError)
+    if (createProfileError) {
+      console.error('Profile creation error:', createProfileError)
       
       // Rollback: Delete the auth user
       await supabase.auth.admin.deleteUser(authData.user.id)
