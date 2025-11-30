@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { sendEmail } from '@/lib/email'
+import { sendGenericEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -239,7 +239,7 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
   // Send to admin email (you should configure this in your environment variables)
   const adminEmail = process.env.ADMIN_EMAIL || 'info@meetflow.com'
   
-  await sendEmail({
+  await sendGenericEmail({
     to: adminEmail,
     subject,
     html,
@@ -324,7 +324,7 @@ The MeetFlow Team
 MeetFlow - Modern Conference Management Platform
   `
 
-  await sendEmail({
+  await sendGenericEmail({
     to: inquiry.email,
     subject,
     html,

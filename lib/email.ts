@@ -71,6 +71,22 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
 }
 
 /**
+ * Send generic email (for contact forms, notifications, etc.)
+ */
+export async function sendGenericEmail(params: {
+  to: string
+  subject: string
+  html: string
+  text: string
+}): Promise<void> {
+  // For now, just log - you can integrate with Resend, SendGrid, etc.
+  console.log('Sending email to:', params.to)
+  console.log('Subject:', params.subject)
+  // In production, you would integrate with an email service here
+  // Example: await resend.emails.send({ from: 'no-reply@meetflow.com', ...params })
+}
+
+/**
  * Send registration confirmation email
  */
 export async function sendRegistrationConfirmation(
