@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const format = searchParams.get('format') || 'json' // csv ili json
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Dohvati sve registracije
     const { data: registrations, error } = await supabase

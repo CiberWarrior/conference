@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: conference, error } = await supabase
       .from('conferences')
@@ -41,7 +41,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const body: Partial<UpdateConferenceInput> = await request.json()
 
     // Remove id from body if present (we use params.id)
@@ -77,7 +77,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Check if conference exists
     const { data: conference, error: fetchError } = await supabase

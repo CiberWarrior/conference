@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const registrationId = searchParams.get('registrationId')
     const conferenceId = searchParams.get('conference_id')
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // If conference_id provided, filter through registrations
     if (conferenceId) {

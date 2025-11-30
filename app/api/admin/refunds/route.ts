@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get registration
     const { data: registration, error: regError } = await supabase
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     let query = supabase
       .from('registrations')
@@ -240,7 +240,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: updated, error } = await supabase
       .from('registrations')

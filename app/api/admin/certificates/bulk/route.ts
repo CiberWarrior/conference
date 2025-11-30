@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get registrations and verify they belong to the conference
     const { data: registrations, error: regError } = await supabase

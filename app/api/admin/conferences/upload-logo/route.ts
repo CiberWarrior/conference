@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Generate file path: conference-logos/{conferenceId}/{timestamp}_{filename}
     const timestamp = Date.now()

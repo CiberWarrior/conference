@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: conference, error } = await supabase
       .from('conferences')

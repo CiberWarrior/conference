@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = registrationSchema.parse(body)
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Check if email already exists
     const { data: existing } = await supabase

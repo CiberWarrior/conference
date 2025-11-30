@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Verify conference exists if conferenceId is provided
     if (conferenceId) {

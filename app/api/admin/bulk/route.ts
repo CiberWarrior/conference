@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get all registrations
     const { data: registrations, error: fetchError } = await supabase

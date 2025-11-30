@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   // Handle checkout session completed (for redirect-based payments)
   if (event.type === 'checkout.session.completed') {

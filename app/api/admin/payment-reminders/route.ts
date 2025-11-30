@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const maxReminders = parseInt(searchParams.get('maxReminders') || '3')
     const dryRun = searchParams.get('dryRun') === 'true'
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Find registrations that need reminders
     const cutoffDate = new Date()
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: stats, error } = await supabase
       .from('registrations')

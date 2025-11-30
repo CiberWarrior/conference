@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get registration details
     const { data: registration, error: regError } = await supabase

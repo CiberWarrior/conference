@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Check if registration exists and belongs to the conference
     const { data: registration, error: fetchError } = await supabase
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: registration, error } = await supabase
       .from('registrations')
