@@ -27,7 +27,7 @@ export default function ConferenceSettingsPage() {
     location: '',
     venue: '',
     website_url: '',
-    logo_url: '',
+    logo_url: '' as string | undefined,
     primary_color: '#3B82F6',
     // Pricing
     currency: 'EUR',
