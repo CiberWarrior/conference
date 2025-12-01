@@ -7,6 +7,7 @@ import Stripe from 'stripe'
 // Vercel serverless function configuration
 export const runtime = 'nodejs'
 export const maxDuration = 30 // seconds
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
