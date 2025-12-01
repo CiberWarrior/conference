@@ -5,6 +5,8 @@ import { createCheckoutSession } from '@/lib/stripe'
 import { sendRegistrationConfirmation } from '@/lib/email'
 import type { PaymentStatus } from '@/types/registration'
 
+export const dynamic = 'force-dynamic'
+
 const registrationSchema = z
   .object({
     firstName: z.string().min(2),

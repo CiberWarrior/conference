@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/users
  * Get all users (Super Admin only)
