@@ -32,11 +32,14 @@ export default function ConferencePage() {
     const loadConference = async () => {
       try {
         setLoading(true)
-        // Add cache busting to ensure fresh data
-        const response = await fetch(`/api/conferences/${slug}`, {
+        // Add cache busting with timestamp to ensure fresh data
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/conferences/${slug}?t=${timestamp}`, {
           cache: 'no-store',
           headers: {
-            'Cache-Control': 'no-cache',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         })
         const data = await response.json()

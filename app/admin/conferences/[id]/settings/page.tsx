@@ -148,7 +148,10 @@ export default function ConferenceSettingsPage() {
         // Save logo URL to database immediately
         const saveResponse = await fetch(`/api/admin/conferences/${conferenceId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
           body: JSON.stringify({ logo_url: data.url }),
         })
 
@@ -156,10 +159,9 @@ export default function ConferenceSettingsPage() {
           const saveData = await saveResponse.json()
           console.log('Logo saved to database:', saveData.conference?.logo_url)
           setFormData((prev) => ({ ...prev, logo_url: data.url }))
-          // Reload conference to show updated logo
+          // Reload conference to show updated logo without full page refresh
           await loadConference()
-          // Force page refresh to show logo immediately
-          window.location.reload()
+          alert('Logo uploaded successfully!')
         } else {
           const saveData = await saveResponse.json()
           alert(`Logo uploaded but failed to save: ${saveData.error || 'Unknown error'}`)
@@ -318,8 +320,29 @@ export default function ConferenceSettingsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Conference Settings</h1>
             <p className="text-gray-600 mt-2">{conference.name}</p>
+            {conference.slug && (
+              <Link
+                href={`/conferences/${conference.slug}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-2"
+              >
+                <Globe className="w-3 h-3" />
+                View Conference Page
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-3">
+            {/* Preview Button */}
+            {conference.slug && (
+              <Link
+                href={`/conferences/${conference.slug}`}
+                target="_blank"
+                className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </Link>
+            )}
             {/* Publish Toggle */}
             <button
               onClick={() => setFormData(prev => ({ ...prev, published: !prev.published }))}

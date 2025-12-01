@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/admin/conferences/upload-logo
  * Upload conference logo to Supabase Storage
+ * Uses admin client to bypass RLS policies
  */
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +44,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createServerClient()
+    // Use admin client to bypass RLS policies
+    const supabase = createAdminClient()
 
     // Generate file path: conference-logos/{conferenceId}/{timestamp}_{filename}
     const timestamp = Date.now()
@@ -66,31 +68,69 @@ export async function POST(request: NextRequest) {
     let uploadData = uploadResult.data
     let uploadError = uploadResult.error
 
-    // If bucket doesn't exist, provide helpful error message
+    // If bucket doesn't exist, try to create it
     if (uploadError) {
       const errorMessage = uploadError.message || ''
-      if (errorMessage.includes('not found') || errorMessage.includes('Bucket')) {
+      
+      // Check if bucket doesn't exist
+      if (errorMessage.includes('not found') || errorMessage.includes('Bucket') || errorMessage.includes('does not exist')) {
+        console.log('🔧 Bucket not found. Creating conference-logos bucket...')
+        
+        // Try to create the bucket
+        const { data: bucket, error: createError } = await supabase.storage.createBucket('conference-logos', {
+          public: true,
+          fileSizeLimit: 2097152, // 2MB
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'],
+        })
+        
+        if (createError) {
+          console.error('❌ Failed to create bucket:', createError)
+          return NextResponse.json(
+            { 
+              error: 'Storage bucket not configured',
+              details: 'The "conference-logos" bucket does not exist and could not be created automatically',
+              hint: `Please go to Supabase Dashboard → SQL Editor and run:\n\nINSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)\nVALUES ('conference-logos', 'conference-logos', true, 2097152, ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp'])\nON CONFLICT (id) DO NOTHING;`
+            },
+            { status: 500 }
+          )
+        }
+        
+        console.log('✅ Bucket created successfully! Retrying upload...')
+        
+        // Retry upload after creating bucket
+        uploadResult = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, buffer, {
+            contentType: file.type,
+            upsert: true,
+          })
+        
+        uploadData = uploadResult.data
+        uploadError = uploadResult.error
+        
+        if (uploadError) {
+          console.error('❌ Upload still failed after creating bucket:', uploadError)
+          return NextResponse.json(
+            { 
+              error: 'Failed to upload file after creating bucket',
+              details: uploadError.message || 'Unknown error',
+              hint: 'Bucket was created but upload failed. Please check Supabase Storage permissions.'
+            },
+            { status: 500 }
+          )
+        }
+      } else {
+        // Other upload errors
+        console.error('Storage upload error:', uploadError)
         return NextResponse.json(
           { 
-            error: 'Storage bucket not found',
-            details: 'The "conference-logos" bucket does not exist in Supabase Storage',
-            hint: 'Please run the migration SQL file: supabase/migrations/011_create_conference_logos_bucket.sql in your Supabase SQL Editor to create the bucket'
+            error: 'Failed to upload file',
+            details: uploadError.message || 'Unknown error',
+            hint: 'Please check Supabase Storage configuration and ensure the bucket has proper permissions'
           },
           { status: 500 }
         )
       }
-    }
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError)
-      return NextResponse.json(
-        { 
-          error: 'Failed to upload file',
-          details: uploadError.message || 'Unknown error',
-          hint: 'Please create a "conference-logos" bucket in Supabase Storage (public bucket)'
-        },
-        { status: 500 }
-      )
     }
 
     // Get public URL
