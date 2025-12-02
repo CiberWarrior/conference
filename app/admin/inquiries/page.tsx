@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { showSuccess, showError } from '@/utils/toast'
 import {
   Mail,
   Phone,
@@ -185,7 +186,7 @@ export default function InquiriesPage() {
       setSelectedInquiry(null)
     } catch (error) {
       console.error('Error updating inquiry:', error)
-      alert('Failed to update inquiry')
+        showSuccess('Failed to update inquiry')
     } finally {
       setProcessing(false)
     }
@@ -297,11 +298,11 @@ export default function InquiriesPage() {
 
     try {
       await navigator.clipboard.writeText(tsvData)
-      alert('✅ Data copied to clipboard! You can now paste it into Google Sheets or Excel.')
+        showSuccess('✅ Data copied to clipboard! You can now paste it into Google Sheets or Excel.')
       setExportMenuOpen(false)
     } catch (error) {
       console.error('Failed to copy:', error)
-      alert('❌ Failed to copy to clipboard. Please try another export method.')
+        showSuccess('❌ Failed to copy to clipboard. Please try another export method.')
     }
   }
 

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { log } from './logger'
 
 export type UserRole = 'super_admin' | 'conference_admin'
 
@@ -48,13 +49,18 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
       .single()
 
     if (error) {
-      console.error('Error fetching user profile:', error)
+      log.error('Error fetching user profile', error, {
+        userId: user.id,
+        function: 'getCurrentUserProfile',
+      })
       return null
     }
 
     return data as UserProfile
   } catch (error) {
-    console.error('Error getting current user profile:', error)
+    log.error('Error getting current user profile', error, {
+      function: 'getCurrentUserProfile',
+    })
     return null
   }
 }
@@ -67,7 +73,9 @@ export async function isSuperAdmin(): Promise<boolean> {
     const profile = await getCurrentUserProfile()
     return profile?.role === 'super_admin' && profile?.active === true
   } catch (error) {
-    console.error('Error checking super admin status:', error)
+    log.error('Error checking super admin status', error, {
+      function: 'isSuperAdmin',
+    })
     return false
   }
 }
@@ -99,13 +107,20 @@ export async function hasConferencePermission(
 
     if (error) {
       if (error.code === 'PGRST116') return false // No rows found
-      console.error('Error checking conference permission:', error)
+      log.error('Error checking conference permission', error, {
+        conferenceId,
+        userId: checkUserId,
+        function: 'hasConferencePermission',
+      })
       return false
     }
 
     return !!data
   } catch (error) {
-    console.error('Error checking conference permission:', error)
+    log.error('Error checking conference permission', error, {
+      conferenceId,
+      function: 'hasConferencePermission',
+    })
     return false
   }
 }
@@ -132,13 +147,20 @@ export async function getUserConferencePermissions(
 
     if (error) {
       if (error.code === 'PGRST116') return null
-      console.error('Error fetching conference permissions:', error)
+      log.error('Error fetching conference permissions', error, {
+        conferenceId,
+        userId: checkUserId,
+        function: 'getUserConferencePermissions',
+      })
       return null
     }
 
     return data as ConferencePermission
   } catch (error) {
-    console.error('Error getting conference permissions:', error)
+    log.error('Error getting conference permissions', error, {
+      conferenceId,
+      function: 'getUserConferencePermissions',
+    })
     return null
   }
 }
@@ -160,7 +182,10 @@ export async function getAccessibleConferences() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Error fetching conferences:', error)
+        log.error('Error fetching conferences', error, {
+          function: 'getAccessibleConferences',
+          role: 'super_admin',
+        })
         return []
       }
 
@@ -178,13 +203,19 @@ export async function getAccessibleConferences() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching accessible conferences:', error)
+      log.error('Error fetching accessible conferences', error, {
+        userId: profile.id,
+        function: 'getAccessibleConferences',
+        role: 'conference_admin',
+      })
       return []
     }
 
     return data || []
   } catch (error) {
-    console.error('Error getting accessible conferences:', error)
+    log.error('Error getting accessible conferences', error, {
+      function: 'getAccessibleConferences',
+    })
     return []
   }
 }
@@ -199,7 +230,10 @@ export async function updateLastLogin(userId: string): Promise<void> {
       .update({ last_login: new Date().toISOString() })
       .eq('id', userId)
   } catch (error) {
-    console.error('Error updating last login:', error)
+    log.error('Error updating last login', error, {
+      userId,
+      function: 'updateLastLogin',
+    })
   }
 }
 
@@ -220,7 +254,12 @@ export async function logAdminAction(
       p_details: details ? JSON.stringify(details) : null,
     })
   } catch (error) {
-    console.error('Error logging admin action:', error)
+    log.error('Error logging admin action', error, {
+      action,
+      resourceType,
+      resourceId,
+      function: 'logAdminAction',
+    })
   }
 }
 
@@ -253,7 +292,11 @@ export async function checkPermission(
 
     return permissions[permission] === true
   } catch (error) {
-    console.error('Error checking permission:', error)
+    log.error('Error checking permission', error, {
+      conferenceId,
+      permission,
+      function: 'checkPermission',
+    })
     return false
   }
 }

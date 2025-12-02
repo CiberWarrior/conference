@@ -1,19 +1,52 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { log } from '@/lib/logger'
+import {
+  loginRateLimit,
+  getClientIP,
+  checkRateLimit,
+  createRateLimitHeaders,
+} from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/auth/login
  * Server-side login that properly sets httpOnly cookies for session management
+ * Rate limited: 5 attempts per 15 minutes per IP
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const ip = getClientIP(request)
+    const rateLimitResult = await checkRateLimit(loginRateLimit, ip)
+
+    if (rateLimitResult && !rateLimitResult.success) {
+      const retryAfter = Math.ceil(
+        (rateLimitResult.reset - Date.now()) / 1000
+      )
+      log.warn('Rate limit exceeded for login', {
+        ip,
+        retryAfter,
+        action: 'login_rate_limit',
+      })
+      return NextResponse.json(
+        {
+          error: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: createRateLimitHeaders(rateLimitResult),
+        }
+      )
+    }
+
     const body = await request.json()
     const { email, password } = body
 
-    console.log('🔐 Login attempt for:', email)
+    log.info('Login attempt', { email }) // Email will be masked automatically
 
     if (!email || !password) {
       return NextResponse.json(
@@ -50,7 +83,7 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    console.log('📡 Calling Supabase signInWithPassword...')
+    log.debug('Calling Supabase signInWithPassword', { email })
 
     // Sign in with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -59,7 +92,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      console.error('❌ Supabase auth error:', authError.message)
+      log.warn('Login failed - authentication error', { 
+        error: authError.message,
+        email 
+      })
       return NextResponse.json(
         { error: authError.message || 'Invalid email or password' },
         { status: 401 }
@@ -67,14 +103,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.user || !authData.session) {
-      console.error('❌ No user or session returned')
+      log.error('Login failed - no user or session returned', { email })
       return NextResponse.json(
         { error: 'Login failed. Please try again.' },
         { status: 401 }
       )
     }
 
-    console.log('✅ Supabase auth successful for:', authData.user.email)
+    log.info('Login successful', {
+      userId: authData.user.id,
+      email: authData.user.email, // Will be masked
+    })
 
     // Check if user has profile and is active
     const { data: profile, error: profileError } = await supabase
@@ -84,7 +123,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      console.error('❌ Profile error:', profileError?.message)
+      log.error('Login failed - profile not found', profileError instanceof Error ? profileError : undefined, {
+        userId: authData.user.id,
+        email: authData.user.email,
+      })
       // Sign out the user since profile is missing
       await supabase.auth.signOut()
       return NextResponse.json(
@@ -94,7 +136,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!profile.active) {
-      console.log('❌ User account is deactivated')
+      log.warn('Login failed - account deactivated', {
+        userId: authData.user.id,
+        email: authData.user.email,
+      })
       await supabase.auth.signOut()
       return NextResponse.json(
         { error: 'Your account is deactivated. Please contact administrator.' },
@@ -102,7 +147,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ User profile found:', { role: profile.role, active: profile.active })
+    log.debug('User profile found', {
+      userId: authData.user.id,
+      role: profile.role,
+      active: profile.active,
+    })
 
     // Update last login timestamp
     await supabase
@@ -110,9 +159,21 @@ export async function POST(request: NextRequest) {
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.user.id)
 
-    console.log('✅ Login successful, returning session data')
+    log.info('Login completed successfully', {
+      userId: authData.user.id,
+      role: profile.role,
+    })
 
     // Return success response with session data for client-side sync
+    const headers = new Headers(response.headers)
+    if (rateLimitResult) {
+      Object.entries(createRateLimitHeaders(rateLimitResult)).forEach(
+        ([key, value]) => {
+          headers.set(key, value)
+        }
+      )
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -128,13 +189,15 @@ export async function POST(request: NextRequest) {
           refresh_token: authData.session.refresh_token,
         },
       },
-      { 
+      {
         status: 200,
-        headers: response.headers, // Include the cookies we set
+        headers, // Include the cookies and rate limit headers
       }
     )
   } catch (error) {
-    console.error('❌ Login error:', error)
+    log.error('Login error', error, {
+      action: 'login',
+    })
     return NextResponse.json(
       { error: 'An error occurred during login. Please try again.' },
       { status: 500 }

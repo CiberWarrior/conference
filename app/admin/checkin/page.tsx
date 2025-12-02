@@ -6,6 +6,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
+import { showSuccess, showError } from '@/utils/toast'
 
 interface CheckInResult {
   success: boolean
@@ -66,7 +67,7 @@ export default function CheckInPage() {
       setScanning(true)
       setResult(null)
     } catch (error) {
-      alert('Failed to access camera. Please allow camera permissions.')
+        showSuccess('Failed to access camera. Please allow camera permissions.')
       console.error('Camera error:', error)
     }
   }
@@ -130,7 +131,7 @@ export default function CheckInPage() {
 
   const handleManualCheckIn = async () => {
     if (!manualId.trim()) {
-      alert('Please enter a registration ID')
+        showSuccess('Please enter a registration ID')
       return
     }
 

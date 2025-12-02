@@ -1,11 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
+import {
+  paymentIntentRateLimit,
+  getClientIP,
+  checkRateLimit,
+  createRateLimitHeaders,
+} from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const ip = getClientIP(request)
+    const rateLimitResult = await checkRateLimit(
+      paymentIntentRateLimit,
+      ip
+    )
+
+    if (rateLimitResult && !rateLimitResult.success) {
+      const retryAfter = Math.ceil(
+        (rateLimitResult.reset - Date.now()) / 1000
+      )
+      log.warn('Rate limit exceeded for payment intent', {
+        ip,
+        retryAfter,
+        action: 'payment_intent_rate_limit',
+      })
+      return NextResponse.json(
+        {
+          error: `Too many payment requests. Please try again in ${retryAfter} seconds.`,
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: createRateLimitHeaders(rateLimitResult),
+        }
+      )
+    }
+
     const body = await request.json()
     const { registrationId, amount } = body
 
@@ -58,12 +93,21 @@ export async function POST(request: NextRequest) {
       .update({ payment_intent_id: paymentIntent.id })
       .eq('id', registrationId)
 
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-    })
+    const headers = rateLimitResult
+      ? createRateLimitHeaders(rateLimitResult)
+      : {}
+
+    return NextResponse.json(
+      {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      },
+      { headers }
+    )
   } catch (error) {
-    console.error('Error creating payment intent:', error)
+    log.error('Error creating payment intent', error, {
+      action: 'create_payment_intent',
+    })
     return NextResponse.json(
       { error: 'Failed to create payment intent' },
       { status: 500 }

@@ -6,6 +6,7 @@ import { useConference } from '@/contexts/ConferenceContext'
 import type { Registration } from '@/types/registration'
 import * as XLSX from 'xlsx'
 import { QRCodeSVG } from 'qrcode.react'
+import { showSuccess, showError, showInfo } from '@/utils/toast'
 
 export default function RegistrationsPage() {
   const { currentConference, loading: conferenceLoading } = useConference()
@@ -183,13 +184,8 @@ export default function RegistrationsPage() {
     URL.revokeObjectURL(url)
     
     // Show instructions
-    alert(
-      'CSV file downloaded! To import into Google Sheets:\n\n' +
-      '1. Open Google Sheets (sheets.google.com)\n' +
-      '2. Click File → Import\n' +
-      '3. Upload the downloaded CSV file\n' +
-      '4. Choose "Replace spreadsheet" or "Insert new sheet"\n' +
-      '5. Click Import'
+    showInfo(
+      'CSV file downloaded! To import into Google Sheets: Open Google Sheets → File → Import → Upload CSV file'
     )
     setExportMenuOpen(false)
   }
@@ -234,12 +230,12 @@ export default function RegistrationsPage() {
         throw new Error(result.error || 'Failed to update registrations')
       }
 
-      alert(`Successfully updated ${result.updated} registration(s)`)
+      showSuccess(`Successfully updated ${result.updated} registration(s)`)
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
       loadRegistrations()
     } catch (error) {
-      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setBulkProcessing(false)
     }
@@ -267,7 +263,7 @@ export default function RegistrationsPage() {
         throw new Error(result.error || 'Failed to send emails')
       }
 
-      alert(`Sent ${result.sent} email(s), ${result.failed} failed`)
+      showSuccess(`Sent ${result.sent} email(s), ${result.failed} failed`)
       if (result.errors && result.errors.length > 0) {
         console.error('Email errors:', result.errors)
       }
@@ -275,7 +271,7 @@ export default function RegistrationsPage() {
       setBulkEmailModalOpen(false)
       setBulkActionMenuOpen(false)
     } catch (error) {
-      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setBulkProcessing(false)
     }
@@ -903,7 +899,7 @@ export default function RegistrationsPage() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(selectedQRRegistration.id)
-                    alert('Registration ID copied to clipboard!')
+                    showSuccess('Registration ID copied to clipboard!')
                   }}
                   className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
+import { showSuccess, showError } from '@/utils/toast'
 
 interface Refund {
   id: string
@@ -114,13 +115,13 @@ export default function PaymentsPage() {
       )
       const data = await response.json()
       if (response.ok) {
-        alert(data.message)
+        showSuccess(data.message)
         loadReminderStats()
       } else {
-        alert('Error: ' + data.error)
+        showError('Error: ' + data.error)
       }
     } catch (error) {
-      alert('Error sending reminders')
+      showError('Error sending reminders')
     } finally {
       setProcessing(false)
     }
@@ -152,15 +153,15 @@ export default function PaymentsPage() {
 
       const data = await response.json()
       if (response.ok) {
-        alert(data.message)
+        showSuccess(data.message)
         setRefundModalOpen(false)
         setSelectedRefund(null)
         loadRefunds()
       } else {
-        alert('Error: ' + data.error)
+        showError('Error: ' + data.error)
       }
     } catch (error) {
-      alert('Error processing refund')
+      showError('Error processing refund')
     } finally {
       setProcessing(false)
     }
@@ -181,13 +182,13 @@ export default function PaymentsPage() {
 
       const data = await response.json()
       if (response.ok) {
-        alert(data.message)
+        showSuccess(data.message)
         loadRefunds()
       } else {
-        alert('Error: ' + data.error)
+        showError('Error: ' + data.error)
       }
     } catch (error) {
-      alert('Error updating refund status')
+      showError('Error updating refund status')
     } finally {
       setProcessing(false)
     }

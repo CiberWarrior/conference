@@ -6,6 +6,7 @@ import { useConference } from '@/contexts/ConferenceContext'
 import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import type { Conference } from '@/types/conference'
+import { showSuccess, showError, showWarning } from '@/utils/toast'
 
 export default function ConferenceSettingsPage() {
   const router = useRouter()
@@ -120,13 +121,13 @@ export default function ConferenceSettingsPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file')
+      showError('Please upload an image file')
       return
     }
 
     // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be less than 2MB')
+      showError('File size must be less than 2MB')
       return
     }
 
@@ -161,22 +162,22 @@ export default function ConferenceSettingsPage() {
           setFormData((prev) => ({ ...prev, logo_url: data.url }))
           // Reload conference to show updated logo without full page refresh
           await loadConference()
-          alert('Logo uploaded successfully!')
+          showSuccess('Logo uploaded successfully!')
         } else {
           const saveData = await saveResponse.json()
-          alert(`Logo uploaded but failed to save: ${saveData.error || 'Unknown error'}`)
+          showError(`Logo uploaded but failed to save: ${saveData.error || 'Unknown error'}`)
           console.error('Save error:', saveData)
         }
       } else {
         const errorMsg = data.details 
           ? `${data.error}: ${data.details}${data.hint ? `\n\nHint: ${data.hint}` : ''}`
           : data.error || 'Failed to upload logo'
-        alert(errorMsg)
+        showError(errorMsg)
         console.error('Upload error:', data)
       }
     } catch (error) {
       console.error('Logo upload error:', error)
-      alert('Failed to upload logo. Please check the console for details.')
+      showError('Failed to upload logo. Please check the console for details.')
     } finally {
       setUploadingLogo(false)
       // Reset file input
@@ -237,12 +238,12 @@ export default function ConferenceSettingsPage() {
 
       if (response.ok) {
         await refreshConferences()
-        alert('Conference settings saved successfully!')
+        showSuccess('Conference settings saved successfully!')
       } else {
-        alert(`Failed to save: ${data.error}`)
+        showError(`Failed to save: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while saving')
+      showError('An error occurred while saving')
     } finally {
       setSaving(false)
     }
@@ -266,13 +267,14 @@ export default function ConferenceSettingsPage() {
 
       if (response.ok) {
         await refreshConferences()
+        showSuccess('Conference deleted successfully')
         router.push('/admin/conferences')
       } else {
         const data = await response.json()
-        alert(`Failed to delete: ${data.error}`)
+        showError(`Failed to delete: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while deleting')
+      showError('An error occurred while deleting')
     } finally {
       setDeleting(false)
     }

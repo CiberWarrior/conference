@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { UserProfile, UserRole } from '@/lib/auth-utils'
+import { log } from '@/lib/logger'
 
 interface AuthContextType {
   user: any | null
@@ -15,7 +16,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
+export const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   role: null,
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      console.log('🔄 AuthContext: Loading profile for user:', userId)
+      log.debug('Loading user profile', { userId })
       
       // Directly query user_profiles instead of using getCurrentUserProfile()
       // because we're in client context and already have the session
@@ -44,12 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        console.error('❌ AuthContext: Error fetching profile:', error)
+        log.error('Error fetching user profile', error, {
+          userId,
+          context: 'AuthContext',
+        })
         setProfile(null)
         return
       }
       
-      console.log('✅ AuthContext: Profile loaded:', userProfile?.email, 'Role:', userProfile?.role)
+      log.debug('User profile loaded', {
+        userId,
+        email: userProfile?.email,
+        role: userProfile?.role,
+      })
       setProfile(userProfile)
       
       // Update last login
@@ -60,7 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('id', userId)
       }
     } catch (error) {
-      console.error('❌ AuthContext: Error loading user profile:', error)
+      log.error('Error loading user profile', error, {
+        userId,
+        context: 'AuthContext',
+      })
       setProfile(null)
     }
   }
@@ -75,20 +86,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active session
     const checkSession = async () => {
       try {
-        console.log('🔐 AuthContext: Checking session...')
+        log.debug('Checking session', { context: 'AuthContext' })
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('📋 AuthContext: Session found:', !!session, 'User:', session?.user?.email)
+        log.debug('Session check result', {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          email: session?.user?.email,
+        })
         setUser(session?.user ?? null)
         
         if (session?.user) {
           await loadUserProfile(session.user.id)
         } else {
-          console.log('⚠️ AuthContext: No session found')
+          log.debug('No session found', { context: 'AuthContext' })
         }
       } catch (error) {
-        console.error('❌ AuthContext: Error checking session:', error)
+        log.error('Error checking session', error, {
+          context: 'AuthContext',
+        })
       } finally {
-        console.log('✅ AuthContext: Loading complete')
+        log.debug('AuthContext loading complete')
         setLoading(false)
       }
     }
@@ -110,10 +127,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Only redirect on explicit sign out, NOT on initial load or session missing
         if (event === 'SIGNED_OUT') {
-          console.log('🚪 AuthContext: User signed out, redirecting to login')
+          log.info('User signed out', {
+            context: 'AuthContext',
+            event: 'SIGNED_OUT',
+          })
           router.push('/auth/admin-login')
         } else if (event === 'SIGNED_IN') {
-          console.log('✅ AuthContext: User signed in:', session?.user?.email)
+          log.info('User signed in', {
+            userId: session?.user?.id,
+            email: session?.user?.email,
+            context: 'AuthContext',
+            event: 'SIGNED_IN',
+          })
         }
       }
     )
@@ -128,9 +153,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut()
       setUser(null)
       setProfile(null)
+      log.info('User signed out', {
+        context: 'AuthContext',
+        action: 'signOut',
+      })
       router.push('/auth/admin-login')
     } catch (error) {
-      console.error('Error signing out:', error)
+      log.error('Error signing out', error, {
+        context: 'AuthContext',
+        action: 'signOut',
+      })
     }
   }
 

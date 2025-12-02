@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,7 +111,11 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', registrationId)
     } catch (invoiceError) {
-      console.error('Error creating invoice:', invoiceError)
+      log.error('Error creating invoice', invoiceError, {
+        registrationId,
+        paymentIntentId,
+        action: 'create_invoice',
+      })
       // Still update payment status even if invoice creation fails
       await supabase
         .from('registrations')
@@ -124,7 +129,9 @@ export async function POST(request: NextRequest) {
       invoiceUrl,
     })
   } catch (error) {
-    console.error('Error confirming payment:', error)
+    log.error('Error confirming payment', error, {
+      action: 'confirm_payment',
+    })
     return NextResponse.json(
       { error: 'Failed to confirm payment' },
       { status: 500 }

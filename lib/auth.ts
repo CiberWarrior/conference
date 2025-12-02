@@ -1,4 +1,5 @@
 import { createServerClient } from './supabase'
+import { log } from './logger'
 
 /**
  * Check if user is authenticated
@@ -22,7 +23,9 @@ export const isAuthenticated = async (): Promise<boolean> => {
 
     return profile?.active === true
   } catch (error) {
-    console.error('Auth check error:', error)
+    log.error('Auth check error', error, {
+      function: 'isAuthenticated',
+    })
     return false
   }
 }
@@ -41,7 +44,9 @@ export const getCurrentUser = async () => {
 
     return user
   } catch (error) {
-    console.error('Get user error:', error)
+    log.error('Get user error', error, {
+      function: 'getCurrentUser',
+    })
     return null
   }
 }

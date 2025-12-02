@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      console.log('❌ GET /api/admin/users - No authenticated user')
+      log.warn('Unauthorized access attempt to GET /api/admin/users')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -30,14 +31,20 @@ export async function GET() {
       .single()
     
     if (profileError || !profile || profile.role !== 'super_admin') {
-      console.log('❌ GET /api/admin/users - User is not super admin')
+      log.warn('Unauthorized access attempt to GET /api/admin/users - not super admin', {
+        userId: user.id,
+        role: profile?.role,
+      })
       return NextResponse.json(
         { error: 'Unauthorized. Only super admins can view users.' },
         { status: 403 }
       )
     }
 
-    console.log('📋 Fetching all users for super admin:', profile.email)
+    log.info('Fetching all users for super admin', {
+      userId: user.id,
+      email: profile.email,
+    })
 
     // Get all user profiles with their conference assignments
     // Use explicit relationship to avoid ambiguity (user_id foreign key, not granted_by)
@@ -56,7 +63,9 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Get users error:', error)
+      log.error('Get users error', error, {
+        action: 'get_users',
+      })
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
@@ -70,11 +79,16 @@ export async function GET() {
       })) || []
     })) || []
 
-    console.log(`✅ Found ${usersWithConferences.length} users`)
+    log.info('Users fetched successfully', {
+      count: usersWithConferences.length,
+      action: 'get_users',
+    })
     
     return NextResponse.json({ users: usersWithConferences })
   } catch (error) {
-    console.error('Get users error:', error)
+    log.error('Get users error', error, {
+      action: 'get_users',
+    })
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }
@@ -123,7 +137,12 @@ export async function POST(request: NextRequest) {
       permissions = {}
     } = body
 
-    console.log('👤 Creating new user:', { email, role, conference_ids })
+    log.info('Creating new user', {
+      email,
+      role,
+      conferenceCount: conference_ids.length,
+      createdBy: user.id,
+    })
 
     // Validate required fields
     if (!email || !password || !full_name) {
@@ -162,7 +181,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (createAuthError) {
-      console.error('Auth creation error:', createAuthError)
+      log.error('Auth user creation failed', createAuthError, {
+        email,
+        action: 'create_auth_user',
+      })
       return NextResponse.json(
         { error: createAuthError.message || 'Failed to create user in authentication system' },
         { status: 400 }
@@ -170,13 +192,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.user) {
+      log.error('Auth user creation returned no user', undefined, {
+        email,
+        action: 'create_auth_user',
+      })
       return NextResponse.json(
         { error: 'Failed to create user' },
         { status: 500 }
       )
     }
 
-    console.log('✅ User created in Auth:', authData.user.id)
+    log.info('User created in Auth', {
+      userId: authData.user.id,
+      email,
+    })
 
     // Create user profile
     const { error: createProfileError } = await supabase
@@ -192,7 +221,11 @@ export async function POST(request: NextRequest) {
       })
 
     if (createProfileError) {
-      console.error('Profile creation error:', createProfileError)
+      log.error('User profile creation failed', createProfileError, {
+        userId: authData.user.id,
+        email,
+        action: 'create_user_profile',
+      })
       
       // Rollback: Delete the auth user using Admin Client
       await adminClient.auth.admin.deleteUser(authData.user.id)
@@ -203,7 +236,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ User profile created')
+    log.info('User profile created', {
+      userId: authData.user.id,
+      email,
+      role,
+    })
 
     // If Conference Admin, assign conferences with permissions
     if (role === 'conference_admin' && conference_ids.length > 0) {
@@ -226,10 +263,22 @@ export async function POST(request: NextRequest) {
         .insert(conferencePermissions)
 
       if (permError) {
-        console.error('Permissions creation error:', permError)
-        console.warn('⚠️ User created but permissions assignment failed')
+        log.error('Conference permissions assignment failed', permError, {
+          userId: authData.user.id,
+          email,
+          conferenceIds: conference_ids,
+          action: 'assign_permissions',
+        })
+        log.warn('User created but permissions assignment failed', {
+          userId: authData.user.id,
+          email,
+        })
       } else {
-        console.log(`✅ Assigned ${conference_ids.length} conferences with permissions`)
+        log.info('Conference permissions assigned', {
+          userId: authData.user.id,
+          email,
+          conferenceCount: conference_ids.length,
+        })
       }
     }
 
@@ -247,7 +296,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Create user error:', error)
+    log.error('Create user error', error, {
+      action: 'create_user',
+    })
     return NextResponse.json(
       { error: 'An error occurred while creating the user' },
       { status: 500 }

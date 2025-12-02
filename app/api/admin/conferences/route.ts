@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import type { CreateConferenceInput } from '@/types/conference'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,11 +18,16 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      console.log('❌ GET /api/admin/conferences - Unauthorized')
+      log.warn('Unauthorized access attempt to GET /api/admin/conferences', {
+        action: 'get_conferences',
+      })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('📋 Fetching conferences for user:', user.email)
+    log.debug('Fetching conferences for user', {
+      userId: user.id,
+      action: 'get_conferences',
+    })
 
     // RLS policies will automatically filter conferences based on:
     // - Super admins see all conferences
@@ -32,14 +38,23 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Get conferences error:', error)
+      log.error('Get conferences error', error, {
+        userId: user.id,
+        action: 'get_conferences',
+      })
       return NextResponse.json({ error: 'Failed to fetch conferences' }, { status: 500 })
     }
 
-    console.log(`✅ Found ${conferences?.length || 0} conferences`)
+    log.info('Conferences fetched successfully', {
+      userId: user.id,
+      count: conferences?.length || 0,
+      action: 'get_conferences',
+    })
     return NextResponse.json({ conferences })
   } catch (error) {
-    console.error('Get conferences error:', error)
+    log.error('Get conferences error', error, {
+      action: 'get_conferences',
+    })
     return NextResponse.json({ error: 'Failed to fetch conferences' }, { status: 500 })
   }
 }
@@ -122,7 +137,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error) {
-        console.error('Create conference error:', error)
+        log.error('Create conference error', error, {
+          userId: profile.id,
+          conferenceName: body.name,
+          action: 'create_conference',
+        })
         return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
       }
 
@@ -149,7 +168,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Create conference error:', error)
+      log.error('Create conference error', error, {
+        userId: profile.id,
+        conferenceName: body.name,
+        action: 'create_conference',
+      })
       return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
     }
 
@@ -171,13 +194,25 @@ export async function POST(request: NextRequest) {
       })
 
     if (permError) {
-      console.error('Error creating permission:', permError)
+      log.error('Error creating permission', permError, {
+        userId: profile.id,
+        conferenceId: conference.id,
+        action: 'create_conference_permission',
+      })
       // Don't fail the request, just log the error
     }
 
+    log.info('Conference created successfully', {
+      userId: profile.id,
+      conferenceId: conference.id,
+      conferenceName: conference.name,
+      action: 'create_conference',
+    })
     return NextResponse.json({ conference }, { status: 201 })
   } catch (error) {
-    console.error('Create conference error:', error)
+    log.error('Create conference error', error, {
+      action: 'create_conference',
+    })
     return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
   }
 }

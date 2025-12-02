@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
+import { showSuccess, showError, showWarning } from '@/utils/toast'
 
 interface Certificate {
   id: string
@@ -112,7 +113,7 @@ export default function CertificatesPage() {
 
   const generateCertificate = async (registrationId: string) => {
     if (!currentConference) {
-      alert('Please select a conference first')
+      showWarning('Please select a conference first')
       return
     }
 
@@ -140,14 +141,14 @@ export default function CertificatesPage() {
         a.download = `certificate-${registrationId.substring(0, 8)}.pdf`
         a.click()
         window.URL.revokeObjectURL(url)
-        alert('Certificate generated successfully!')
+        showSuccess('Certificate generated successfully!')
         loadCertificates()
       } else {
         const data = await response.json()
-        alert('Error: ' + data.error)
+        showError('Error: ' + data.error)
       }
     } catch (error) {
-      alert('Error generating certificate')
+      showError('Error generating certificate')
     } finally {
       setProcessing(false)
     }
@@ -155,12 +156,12 @@ export default function CertificatesPage() {
 
   const generateBulkCertificates = async () => {
     if (selectedIds.size === 0) {
-      alert('Please select registrations')
+      showWarning('Please select registrations')
       return
     }
 
     if (!currentConference) {
-      alert('Please select a conference first')
+      showWarning('Please select a conference first')
       return
     }
 
@@ -182,14 +183,14 @@ export default function CertificatesPage() {
 
       const data = await response.json()
       if (response.ok) {
-        alert(data.message)
+        showSuccess(data.message)
         setSelectedIds(new Set())
         loadCertificates()
       } else {
-        alert('Error: ' + data.error)
+        showError('Error: ' + data.error)
       }
     } catch (error) {
-      alert('Error generating certificates')
+      showError('Error generating certificates')
     } finally {
       setProcessing(false)
     }

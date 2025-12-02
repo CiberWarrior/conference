@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,13 +58,20 @@ export async function GET(
       .single()
 
     if (error) {
-      console.error('Get user error:', error)
+      log.error('Get user error', error, {
+        userId: id,
+        requestedBy: user.id,
+        action: 'get_user',
+      })
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     return NextResponse.json({ user: userData })
   } catch (error) {
-    console.error('Get user error:', error)
+    log.error('Get user error', error, {
+      userId: params.id,
+      action: 'get_user',
+    })
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
   }
 }
@@ -115,7 +123,11 @@ export async function PATCH(
       permissions
     } = body
 
-    console.log('✏️ Updating user:', id)
+    log.info('Updating user', {
+      userId: id,
+      updatedBy: user.id,
+      action: 'update_user',
+    })
 
     // Update user profile
     const profileUpdates: any = {
@@ -133,14 +145,21 @@ export async function PATCH(
       .eq('id', id)
 
     if (updateProfileError) {
-      console.error('Profile update error:', updateProfileError)
+      log.error('Profile update error', updateProfileError, {
+        userId: id,
+        updatedBy: user.id,
+        action: 'update_user_profile',
+      })
       return NextResponse.json(
         { error: 'Failed to update user profile' },
         { status: 500 }
       )
     }
 
-    console.log('✅ User profile updated')
+    log.info('User profile updated', {
+      userId: id,
+      updatedBy: user.id,
+    })
 
     // Update password if provided (requires Admin Client)
     if (password && password.length >= 8) {
@@ -151,10 +170,19 @@ export async function PATCH(
       )
 
       if (passwordError) {
-        console.error('Password update error:', passwordError)
-        console.warn('⚠️ Profile updated but password update failed')
+        log.error('Password update error', passwordError, {
+          userId: id,
+          updatedBy: user.id,
+          action: 'update_password',
+        })
+        log.warn('Profile updated but password update failed', {
+          userId: id,
+        })
       } else {
-        console.log('✅ Password updated')
+        log.info('Password updated', {
+          userId: id,
+          updatedBy: user.id,
+        })
       }
     }
 
@@ -187,10 +215,21 @@ export async function PATCH(
           .insert(conferencePermissions)
 
         if (permError) {
-          console.error('Permissions update error:', permError)
-          console.warn('⚠️ Profile updated but permissions update failed')
+          log.error('Permissions update error', permError, {
+            userId: id,
+            updatedBy: user.id,
+            conferenceIds: conference_ids,
+            action: 'update_permissions',
+          })
+          log.warn('Profile updated but permissions update failed', {
+            userId: id,
+          })
         } else {
-          console.log(`✅ Updated permissions for ${conference_ids.length} conferences`)
+          log.info('Updated permissions for conferences', {
+            userId: id,
+            updatedBy: user.id,
+            conferenceCount: conference_ids.length,
+          })
         }
       }
     }
@@ -200,7 +239,10 @@ export async function PATCH(
       message: 'User updated successfully'
     })
   } catch (error) {
-    console.error('Update user error:', error)
+    log.error('Update user error', error, {
+      userId: params.id,
+      action: 'update_user',
+    })
     return NextResponse.json(
       { error: 'An error occurred while updating the user' },
       { status: 500 }
@@ -252,7 +294,11 @@ export async function DELETE(
       )
     }
 
-    console.log('🗑️ Deactivating user:', id)
+    log.info('Deactivating user', {
+      userId: id,
+      deactivatedBy: user.id,
+      action: 'deactivate_user',
+    })
 
     // Soft delete - deactivate instead of hard delete
     const { error } = await supabase
@@ -264,21 +310,31 @@ export async function DELETE(
       .eq('id', id)
 
     if (error) {
-      console.error('Deactivation error:', error)
+      log.error('Deactivation error', error, {
+        userId: id,
+        deactivatedBy: user.id,
+        action: 'deactivate_user',
+      })
       return NextResponse.json(
         { error: 'Failed to deactivate user' },
         { status: 500 }
       )
     }
 
-    console.log('✅ User deactivated')
+    log.info('User deactivated successfully', {
+      userId: id,
+      deactivatedBy: user.id,
+    })
 
     return NextResponse.json({
       success: true,
       message: 'User deactivated successfully'
     })
   } catch (error) {
-    console.error('Delete user error:', error)
+    log.error('Delete user error', error, {
+      userId: params.id,
+      action: 'deactivate_user',
+    })
     return NextResponse.json(
       { error: 'An error occurred while deactivating the user' },
       { status: 500 }

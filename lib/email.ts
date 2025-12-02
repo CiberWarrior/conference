@@ -3,6 +3,8 @@
  * Uses Supabase Edge Function: send-confirmation-email
  */
 
+import { log } from './logger'
+
 type EmailType =
   | 'registration_confirmation'
   | 'payment_confirmation'
@@ -39,7 +41,11 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey) {
-    console.error('Supabase URL or Service Role Key not configured')
+    log.error('Supabase URL or Service Role Key not configured', undefined, {
+      function: 'sendEmail',
+      hasUrl: !!supabaseUrl,
+      hasKey: !!serviceRoleKey,
+    })
     return
   }
 
@@ -58,14 +64,26 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('Failed to send email:', error)
+      log.error('Failed to send email', new Error(error), {
+        emailType: params.emailType,
+        email: params.email,
+        function: 'sendEmail',
+      })
       throw new Error(`Failed to send email: ${error}`)
     }
 
     const result = await response.json()
-    console.log('Email sent successfully:', result.messageId)
+    log.info('Email sent successfully', {
+      emailType: params.emailType,
+      email: params.email,
+      messageId: result.messageId,
+    })
   } catch (error) {
-    console.error('Error sending email:', error)
+    log.error('Error sending email', error, {
+      emailType: params.emailType,
+      email: params.email,
+      function: 'sendEmail',
+    })
     throw error
   }
 }
@@ -80,8 +98,11 @@ export async function sendGenericEmail(params: {
   text: string
 }): Promise<void> {
   // For now, just log - you can integrate with Resend, SendGrid, etc.
-  console.log('Sending email to:', params.to)
-  console.log('Subject:', params.subject)
+  log.info('Sending generic email', {
+    to: params.to,
+    subject: params.subject,
+    function: 'sendGenericEmail',
+  })
   // In production, you would integrate with an email service here
   // Example: await resend.emails.send({ from: 'no-reply@meetflow.com', ...params })
 }

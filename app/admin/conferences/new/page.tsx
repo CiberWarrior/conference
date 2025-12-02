@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save } from 'lucide-react'
 import Link from 'next/link'
+import { showSuccess, showError } from '@/utils/toast'
+import { showSuccess, showError } from '@/utils/toast'
 
 export default function NewConferencePage() {
   const router = useRouter()
@@ -86,10 +88,10 @@ export default function NewConferencePage() {
         await refreshConferences()
         router.push('/admin/conferences')
       } else {
-        alert(`Failed to create conference: ${data.error}`)
+        showSuccess(`Failed to create conference: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while creating the conference')
+      showError('An error occurred while creating the conference')
     } finally {
       setLoading(false)
     }

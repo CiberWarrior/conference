@@ -4,6 +4,13 @@ import { createServerClient } from '@/lib/supabase'
 import { createCheckoutSession } from '@/lib/stripe'
 import { sendRegistrationConfirmation } from '@/lib/email'
 import type { PaymentStatus } from '@/types/registration'
+import { log } from '@/lib/logger'
+import {
+  registrationRateLimit,
+  getClientIP,
+  checkRateLimit,
+  createRateLimitHeaders,
+} from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +43,31 @@ const registrationSchema = z
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const ip = getClientIP(request)
+    const rateLimitResult = await checkRateLimit(registrationRateLimit, ip)
+
+    if (rateLimitResult && !rateLimitResult.success) {
+      const retryAfter = Math.ceil(
+        (rateLimitResult.reset - Date.now()) / 1000
+      )
+      log.warn('Rate limit exceeded for registration', {
+        ip,
+        retryAfter,
+        action: 'registration_rate_limit',
+      })
+      return NextResponse.json(
+        {
+          error: `Too many registration attempts. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`,
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: createRateLimitHeaders(rateLimitResult),
+        }
+      )
+    }
+
     const body = await request.json()
     const validatedData = registrationSchema.parse(body)
 
@@ -108,7 +140,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error('Database error:', insertError)
+      log.error('Registration database error', insertError, {
+        email: validatedData.email,
+        action: 'create_registration',
+      })
       return NextResponse.json(
         { error: 'Failed to save registration' },
         { status: 500 }
@@ -139,7 +174,11 @@ export async function POST(request: NextRequest) {
           .update({ stripe_session_id: session.id })
           .eq('id', registration.id)
       } catch (stripeError) {
-        console.error('Stripe error:', stripeError)
+        log.error('Stripe checkout session creation failed', stripeError, {
+          registrationId: registration.id,
+          email: validatedData.email,
+          action: 'create_checkout_session',
+        })
         // Continue even if Stripe fails - registration is saved
       }
     }
@@ -163,17 +202,28 @@ export async function POST(request: NextRequest) {
       validatedData.lastName,
       paymentUrl
     ).catch((err) => {
-      console.error('Failed to send registration confirmation email:', err)
+      log.error('Failed to send registration confirmation email', err, {
+        registrationId: registration.id,
+        email: validatedData.email,
+        action: 'send_confirmation_email',
+      })
     })
 
-    return NextResponse.json({
-      success: true,
-      message: validatedData.paymentRequired
-        ? 'Registration successful! Please proceed to payment.'
-        : 'Registration successful! You will receive a confirmation email shortly.',
-      paymentUrl,
-      registrationId: registration.id,
-    })
+    const headers = rateLimitResult
+      ? createRateLimitHeaders(rateLimitResult)
+      : {}
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: validatedData.paymentRequired
+          ? 'Registration successful! Please proceed to payment.'
+          : 'Registration successful! You will receive a confirmation email shortly.',
+        paymentUrl,
+        registrationId: registration.id,
+      },
+      { headers }
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -182,7 +232,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Registration error:', error)
+    log.error('Registration error', error, {
+      action: 'register',
+    })
     return NextResponse.json(
       { error: 'An error occurred during registration' },
       { status: 500 }

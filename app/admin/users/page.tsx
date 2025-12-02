@@ -17,6 +17,7 @@ import {
   Building2
 } from 'lucide-react'
 import Link from 'next/link'
+import { showError } from '@/utils/toast'
 
 interface User {
   id: string
@@ -116,10 +117,10 @@ export default function UsersPage() {
         await loadUsers()
       } else {
         const data = await response.json()
-        alert(`Failed to deactivate user: ${data.error}`)
+        showError(`Failed to deactivate user: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while deactivating the user')
+      showError('An error occurred while deactivating the user')
     }
   }
 

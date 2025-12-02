@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
 import { sendPaymentConfirmation } from '@/lib/email'
 import Stripe from 'stripe'
+import { log } from '@/lib/logger'
 
 // Vercel serverless function configuration
 export const runtime = 'nodejs'
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
-    console.error('Webhook signature verification failed:', err)
+    log.error('Stripe webhook signature verification failed', err, {
+      action: 'webhook_verification',
+    })
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }
@@ -64,7 +67,10 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (regError) {
-        console.error('Failed to fetch registration:', regError)
+        log.error('Failed to fetch registration for webhook', regError, {
+          registrationId,
+          eventType: 'checkout.session.completed',
+        })
       }
 
       // Update payment status to paid
@@ -74,7 +80,10 @@ export async function POST(request: NextRequest) {
         .eq('id', registrationId)
 
       if (error) {
-        console.error('Failed to update payment status:', error)
+        log.error('Failed to update payment status', error, {
+          registrationId,
+          eventType: 'checkout.session.completed',
+        })
         return NextResponse.json(
           { error: 'Failed to update payment status' },
           { status: 500 }
@@ -123,7 +132,11 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (regError || !registration) {
-          console.error('Registration not found:', regError)
+          log.error('Registration not found for payment intent', regError, {
+            registrationId,
+            paymentIntentId: paymentIntent.id,
+            eventType: 'payment_intent.succeeded',
+          })
           return NextResponse.json(
             { error: 'Registration not found' },
             { status: 404 }
@@ -192,7 +205,11 @@ export async function POST(request: NextRequest) {
           .eq('id', registrationId)
 
         if (updateError) {
-          console.error('Failed to update registration:', updateError)
+          log.error('Failed to update registration', updateError, {
+            registrationId,
+            paymentIntentId: paymentIntent.id,
+            eventType: 'payment_intent.succeeded',
+          })
           return NextResponse.json(
             { error: 'Failed to update registration' },
             { status: 500 }
@@ -219,10 +236,18 @@ export async function POST(request: NextRequest) {
           registration.last_name,
           invoiceUrl || undefined
         ).catch((err) => {
-          console.error('Failed to send payment confirmation email:', err)
+          log.error('Failed to send payment confirmation email', err, {
+            registrationId,
+            email: registration.email,
+            eventType: 'payment_intent.succeeded',
+          })
         })
       } catch (invoiceError) {
-        console.error('Error creating invoice:', invoiceError)
+        log.error('Error creating invoice', invoiceError, {
+          registrationId,
+          paymentIntentId: paymentIntent.id,
+          eventType: 'payment_intent.succeeded',
+        })
         // Still update payment status even if invoice creation fails
         await supabase
           .from('registrations')

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +75,10 @@ export async function POST(request: NextRequest) {
       
       // Check if bucket doesn't exist
       if (errorMessage.includes('not found') || errorMessage.includes('Bucket') || errorMessage.includes('does not exist')) {
-        console.log('🔧 Bucket not found. Creating conference-logos bucket...')
+        log.info('Bucket not found, creating conference-logos bucket', {
+          conferenceId,
+          action: 'create_bucket',
+        })
         
         // Try to create the bucket
         const { data: bucket, error: createError } = await supabase.storage.createBucket('conference-logos', {
@@ -84,7 +88,11 @@ export async function POST(request: NextRequest) {
         })
         
         if (createError) {
-          console.error('❌ Failed to create bucket:', createError)
+          log.error('Failed to create bucket', createError, {
+            conferenceId,
+            bucketName: 'conference-logos',
+            action: 'create_bucket',
+          })
           return NextResponse.json(
             { 
               error: 'Storage bucket not configured',
@@ -95,7 +103,11 @@ export async function POST(request: NextRequest) {
           )
         }
         
-        console.log('✅ Bucket created successfully! Retrying upload...')
+        log.info('Bucket created successfully, retrying upload', {
+          conferenceId,
+          bucketName: 'conference-logos',
+          action: 'create_bucket',
+        })
         
         // Retry upload after creating bucket
         uploadResult = await supabase.storage
@@ -109,7 +121,12 @@ export async function POST(request: NextRequest) {
         uploadError = uploadResult.error
         
         if (uploadError) {
-          console.error('❌ Upload still failed after creating bucket:', uploadError)
+          log.error('Upload failed after creating bucket', uploadError, {
+            conferenceId,
+            bucketName,
+            filePath,
+            action: 'upload_logo',
+          })
           return NextResponse.json(
             { 
               error: 'Failed to upload file after creating bucket',
@@ -121,7 +138,12 @@ export async function POST(request: NextRequest) {
         }
       } else {
         // Other upload errors
-        console.error('Storage upload error:', uploadError)
+        log.error('Storage upload error', uploadError, {
+          conferenceId,
+          bucketName,
+          filePath,
+          action: 'upload_logo',
+        })
         return NextResponse.json(
           { 
             error: 'Failed to upload file',
@@ -139,10 +161,11 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(filePath)
 
     // Log for debugging
-    console.log('Logo uploaded successfully:', {
+    log.info('Logo uploaded successfully', {
+      conferenceId,
       bucket: bucketName,
       path: filePath,
-      publicUrl: urlData.publicUrl,
+      action: 'upload_logo',
     })
 
     return NextResponse.json({
@@ -152,7 +175,9 @@ export async function POST(request: NextRequest) {
       bucket: bucketName,
     })
   } catch (error) {
-    console.error('Logo upload error:', error)
+    log.error('Logo upload error', error, {
+      action: 'upload_logo',
+    })
     return NextResponse.json(
       { error: 'Failed to upload logo' },
       { status: 500 }

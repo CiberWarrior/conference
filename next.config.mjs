@@ -16,6 +16,14 @@ const nextConfig = {
       config.externals.push({
         'https://deno.land/std@0.168.0/http/server.ts': 'commonjs https://deno.land/std@0.168.0/http/server.ts',
       })
+    } else {
+      // Exclude winston from client bundle
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      }
     }
     return config
   },

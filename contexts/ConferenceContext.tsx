@@ -11,7 +11,7 @@ interface ConferenceContextType {
   refreshConferences: () => Promise<void>
 }
 
-const ConferenceContext = createContext<ConferenceContextType | undefined>(undefined)
+export const ConferenceContext = createContext<ConferenceContextType | undefined>(undefined)
 
 export function ConferenceProvider({ children }: { children: React.ReactNode }) {
   const [currentConference, setCurrentConferenceState] = useState<Conference | null>(null)

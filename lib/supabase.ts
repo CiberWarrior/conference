@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient as createSSRClient } from '@supabase/ssr'
+import { log } from './logger'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -18,8 +19,14 @@ const isValidUrl = (url: string | undefined): boolean => {
 // Check if Supabase is properly configured
 const isConfigured = supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl) && supabaseAnonKey !== 'your_supabase_anon_key'
 
+// Only log warnings on client-side if not configured
 if (!isConfigured && typeof window !== 'undefined') {
-  console.warn('⚠️ Supabase is not configured properly.')
+  // Use console directly in browser to avoid Winston import issues
+  console.warn('Supabase is not configured properly', {
+    context: 'supabase_init',
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+  })
   console.warn('Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local')
 }
 

@@ -6,6 +6,7 @@ import { useConference } from '@/contexts/ConferenceContext'
 import { Plus, Calendar, MapPin, Settings, Trash2, Eye, CheckCircle, XCircle, Globe } from 'lucide-react'
 import Link from 'next/link'
 import type { Conference } from '@/types/conference'
+import { showSuccess, showError } from '@/utils/toast'
 
 export default function ConferencesPage() {
   const router = useRouter()
@@ -28,10 +29,10 @@ export default function ConferencesPage() {
         await refreshConferences()
       } else {
         const data = await response.json()
-        alert(`Failed to delete conference: ${data.error}`)
+        showSuccess(`Failed to delete conference: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while deleting the conference')
+      showError('An error occurred while deleting the conference')
     } finally {
       setDeleting(null)
     }

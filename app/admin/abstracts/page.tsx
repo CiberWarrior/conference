@@ -11,6 +11,7 @@ import jsPDF from 'jspdf'
 import { saveAs } from 'file-saver'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
+import { showSuccess, showError } from '@/utils/toast'
 
 export default function AbstractsPage() {
   const { currentConference, loading: conferenceLoading } = useConference()
@@ -77,7 +78,7 @@ export default function AbstractsPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert('Failed to download file: ' + (err instanceof Error ? err.message : 'Unknown error'))
+        showSuccess('Failed to download file: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -156,7 +157,7 @@ export default function AbstractsPage() {
     URL.revokeObjectURL(url)
     
     // Show instructions
-    alert(
+        showSuccess(
       'CSV file downloaded! To import into Google Sheets:\n\n' +
       '1. Open Google Sheets (sheets.google.com)\n' +
       '2. Click File → Import\n' +
@@ -256,7 +257,7 @@ export default function AbstractsPage() {
       setExportMenuOpen(false)
     } catch (error) {
       console.error('Error exporting to Word:', error)
-      alert('Failed to export to Word format')
+        showSuccess('Failed to export to Word format')
     }
   }
 
@@ -331,7 +332,7 @@ export default function AbstractsPage() {
       setExportMenuOpen(false)
     } catch (error) {
       console.error('Error exporting to PDF:', error)
-      alert('Failed to export to PDF format')
+        showSuccess('Failed to export to PDF format')
     }
   }
 
