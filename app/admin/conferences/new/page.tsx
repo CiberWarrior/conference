@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save } from 'lucide-react'
 import Link from 'next/link'
-import { showSuccess, showError } from '@/utils/toast'
 import { showSuccess, showError } from '@/utils/toast'
 
 export default function NewConferencePage() {
   const router = useRouter()
   const { refreshConferences } = useConference()
+  const { isSuperAdmin, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +33,30 @@ export default function NewConferencePage() {
     abstract_submission_enabled: true,
     payment_required: true,
   })
+
+  // Redirect if not Super Admin
+  useEffect(() => {
+    if (!authLoading && !isSuperAdmin) {
+      router.push('/admin/conferences')
+    }
+  }, [isSuperAdmin, authLoading, router])
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render form if not Super Admin (will redirect)
+  if (!isSuperAdmin) {
+    return null
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target

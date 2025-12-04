@@ -52,6 +52,7 @@ export default function CertificatesPage() {
       
       loadCertificates()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConference])
 
   const loadCertificates = async () => {

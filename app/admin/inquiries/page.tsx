@@ -23,8 +23,12 @@ import {
   ChevronUp,
   Star,
   Info,
+  Send,
+  DollarSign,
+  CreditCard,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import type { SubscriptionPlan } from '@/types/subscription'
 
 interface ContactInquiry {
   id: string
@@ -82,11 +86,40 @@ export default function InquiriesPage() {
   })
   const [processing, setProcessing] = useState(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  
+  // Payment offer state
+  const [offerModalOpen, setOfferModalOpen] = useState(false)
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([])
+  const [offerData, setOfferData] = useState({
+    planId: '',
+    billingCycle: 'yearly' as 'monthly' | 'yearly',
+    customPrice: '',
+    discountPercent: 0,
+  })
+  const [sendingOffer, setSendingOffer] = useState(false)
+  const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null)
 
   useEffect(() => {
     loadInquiries()
     loadStats()
+    loadSubscriptionPlans()
+    checkStripeConfiguration()
   }, [])
+
+  const checkStripeConfiguration = async () => {
+    // Check if Stripe is configured by trying to fetch subscription plans
+    // If Stripe is not configured, the API will return an error
+    try {
+      const response = await fetch('/api/admin/payment-offers?inquiryId=test', {
+        method: 'GET',
+      })
+      // If we get a 503, Stripe is not configured
+      setStripeConfigured(response.status !== 503)
+    } catch (error) {
+      // Assume not configured if check fails
+      setStripeConfigured(false)
+    }
+  }
 
   // Close export menu when clicking outside
   useEffect(() => {
@@ -134,9 +167,83 @@ export default function InquiriesPage() {
     }
   }
 
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await fetch('/api/admin/subscription-plans')
+      const data = await response.json()
+
+      if (response.ok) {
+        setSubscriptionPlans(data.plans || [])
+      }
+    } catch (error) {
+      console.error('Error loading subscription plans:', error)
+    }
+  }
+
   const handleOpenDetails = (inquiry: ContactInquiry) => {
     setSelectedInquiry(inquiry)
     setDetailsModalOpen(true)
+  }
+
+  const handleOpenOffer = (inquiry: ContactInquiry) => {
+    setSelectedInquiry(inquiry)
+    setOfferData({
+      planId: subscriptionPlans[0]?.id || '',
+      billingCycle: 'yearly',
+      customPrice: '',
+      discountPercent: 0,
+    })
+    setOfferModalOpen(true)
+  }
+
+  const handleSendOffer = async () => {
+    if (!selectedInquiry || !offerData.planId) {
+      showError('Please select a subscription plan')
+      return
+    }
+
+    setSendingOffer(true)
+
+    try {
+      const response = await fetch('/api/admin/payment-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: selectedInquiry.id,
+          planId: offerData.planId,
+          billingCycle: offerData.billingCycle,
+          customPrice: offerData.customPrice ? parseFloat(offerData.customPrice) : undefined,
+          discountPercent: offerData.discountPercent,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        showSuccess('Payment offer sent successfully!')
+        setOfferModalOpen(false)
+        await loadInquiries()
+        
+        // Copy payment link to clipboard
+        if (data.paymentLinkUrl) {
+          navigator.clipboard.writeText(data.paymentLinkUrl)
+          showSuccess('Payment link copied to clipboard!')
+        }
+      } else {
+        const errorMsg = data.error || 'Failed to send payment offer'
+        showError(errorMsg)
+        
+        // If Stripe is not configured, update state
+        if (response.status === 503 && errorMsg.includes('not yet configured')) {
+          setStripeConfigured(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error sending payment offer:', error)
+      showError('An error occurred while sending the payment offer')
+    } finally {
+      setSendingOffer(false)
+    }
   }
 
   const handleOpenUpdate = (inquiry: ContactInquiry) => {
@@ -800,22 +907,45 @@ export default function InquiriesPage() {
                 </p>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-between gap-3">
               <button
                 onClick={() => setDetailsModalOpen(false)}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  setDetailsModalOpen(false)
-                  handleOpenUpdate(selectedInquiry)
-                }}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Update Status
-              </button>
+              <div className="flex gap-3">
+                {selectedInquiry.status !== 'converted' && stripeConfigured !== false && (
+                  <button
+                    onClick={() => {
+                      setDetailsModalOpen(false)
+                      handleOpenOffer(selectedInquiry)
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
+                    title={stripeConfigured === null ? 'Checking Stripe configuration...' : undefined}
+                    disabled={stripeConfigured === null}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Send Payment Offer
+                  </button>
+                )}
+                {selectedInquiry.status !== 'converted' && stripeConfigured === false && (
+                  <div className="inline-flex items-center gap-2 px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed font-medium" title="Stripe payment processing is not yet configured">
+                    <CreditCard className="w-4 h-4" />
+                    Send Payment Offer
+                    <span className="text-xs">(Stripe not configured)</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setDetailsModalOpen(false)
+                    handleOpenUpdate(selectedInquiry)
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Update Status
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -914,6 +1044,225 @@ export default function InquiriesPage() {
                   <>
                     <CheckCircle className="w-4 h-4" />
                     Update Inquiry
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Offer Modal */}
+      {offerModalOpen && selectedInquiry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Send Payment Offer</h3>
+                  <p className="text-gray-600 mt-1">
+                    Create and send a payment link to {selectedInquiry.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setOfferModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Customer Info */}
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-gray-600" />
+                  <span className="font-semibold">{selectedInquiry.organization}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-700">{selectedInquiry.email}</span>
+                </div>
+              </div>
+
+              {/* Plan Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Subscription Plan *
+                </label>
+                <select
+                  value={offerData.planId}
+                  onChange={(e) => setOfferData({ ...offerData, planId: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Select a plan...</option>
+                  {subscriptionPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} - €{offerData.billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly}
+                      {offerData.billingCycle === 'monthly' ? '/month' : '/year'}
+                    </option>
+                  ))}
+                </select>
+                {offerData.planId && (
+                  <div className="mt-3 p-4 bg-blue-50 rounded-lg">
+                    {(() => {
+                      const selectedPlan = subscriptionPlans.find(p => p.id === offerData.planId)
+                      return selectedPlan ? (
+                        <>
+                          <h4 className="font-semibold text-gray-900 mb-2">{selectedPlan.name} Features:</h4>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {selectedPlan.features.map((feature, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* Billing Cycle */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Billing Cycle *
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setOfferData({ ...offerData, billingCycle: 'monthly' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      offerData.billingCycle === 'monthly'
+                        ? 'border-green-600 bg-green-50 text-green-900'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">Monthly</div>
+                    <div className="text-sm text-gray-600 mt-1">Billed every month</div>
+                  </button>
+                  <button
+                    onClick={() => setOfferData({ ...offerData, billingCycle: 'yearly' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      offerData.billingCycle === 'yearly'
+                        ? 'border-green-600 bg-green-50 text-green-900'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">Yearly</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Save up to 17%
+                      <span className="ml-1 px-2 py-0.5 bg-green-600 text-white text-xs rounded-full">
+                        Best Value
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Price (optional) */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Custom Price (Optional)
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="number"
+                    value={offerData.customPrice}
+                    onChange={(e) => setOfferData({ ...offerData, customPrice: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder={`Default: ${subscriptionPlans.find(p => p.id === offerData.planId)?.[offerData.billingCycle === 'monthly' ? 'price_monthly' : 'price_yearly'] || 0}`}
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Leave empty to use the default plan price
+                </p>
+              </div>
+
+              {/* Discount Percentage */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Discount % (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={offerData.discountPercent}
+                  onChange={(e) => setOfferData({ ...offerData, discountPercent: parseInt(e.target.value) || 0 })}
+                  min="0"
+                  max="100"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="0"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Applied on top of custom price if set
+                </p>
+              </div>
+
+              {/* Price Summary */}
+              {offerData.planId && (
+                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Price Summary</h4>
+                  {(() => {
+                    const selectedPlan = subscriptionPlans.find(p => p.id === offerData.planId)
+                    if (!selectedPlan) return null
+                    const basePrice = offerData.billingCycle === 'monthly' ? selectedPlan.price_monthly : selectedPlan.price_yearly
+                    const price = parseFloat(offerData.customPrice) || basePrice
+                    const discount = (price * offerData.discountPercent) / 100
+                    const finalPrice = price - discount
+                    return (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Base Price:</span>
+                          <span className={offerData.customPrice ? 'line-through text-gray-500' : 'font-semibold'}>
+                            €{basePrice.toFixed(2)}
+                          </span>
+                        </div>
+                        {offerData.customPrice && (
+                          <div className="flex justify-between">
+                            <span>Custom Price:</span>
+                            <span className="font-semibold">€{price.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {offerData.discountPercent > 0 && (
+                          <div className="flex justify-between text-green-700">
+                            <span>Discount ({offerData.discountPercent}%):</span>
+                            <span>-€{discount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-lg font-bold text-green-800 pt-2 border-t border-green-200">
+                          <span>Final Price:</span>
+                          <span>€{finalPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setOfferModalOpen(false)}
+                disabled={sendingOffer}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendOffer}
+                disabled={sendingOffer || !offerData.planId}
+                className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {sendingOffer ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Generating Link...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Generate & Send Offer
                   </>
                 )}
               </button>

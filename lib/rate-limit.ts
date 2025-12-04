@@ -9,11 +9,11 @@
  * 
  * Different rate limits for different endpoints:
  * - Login: 5 attempts per 15 minutes
- * - Magic Link: 3 attempts per hour
  * - Registration: 3 attempts per hour
  * - Payment Intent: 10 attempts per minute
  * - API Routes (authenticated): 100 requests per minute
  * - API Routes (public): 50 requests per minute
+ * - Abstract Upload: 5 uploads per minute
  */
 
 import { Ratelimit } from '@upstash/ratelimit'
@@ -83,18 +83,6 @@ export const loginRateLimit = isConfigured && redis
       limiter: Ratelimit.slidingWindow(5, '15 m'),
       analytics: true,
       prefix: '@upstash/ratelimit/login',
-    })
-  : null
-
-/**
- * Magic Link rate limiter: 3 attempts per hour
- */
-export const magicLinkRateLimit = isConfigured && redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(3, '1 h'),
-      analytics: true,
-      prefix: '@upstash/ratelimit/magic-link',
     })
   : null
 

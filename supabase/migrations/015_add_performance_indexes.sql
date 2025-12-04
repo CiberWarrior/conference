@@ -105,3 +105,6 @@ WHERE converted = true;
 -- - These indexes will significantly improve dashboard and analytics queries
 -- ============================================
 
+
+
+

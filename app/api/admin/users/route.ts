@@ -242,6 +242,29 @@ export async function POST(request: NextRequest) {
       role,
     })
 
+    // Send welcome email with login credentials (for Conference Admin)
+    if (role === 'conference_admin') {
+      try {
+        const { sendAdminWelcomeEmail } = await import('@/lib/email')
+        await sendAdminWelcomeEmail(
+          email,
+          full_name,
+          password // Send the password that was set
+        )
+        log.info('Welcome email sent successfully', {
+          userId: authData.user.id,
+          email,
+        })
+      } catch (emailError) {
+        log.error('Failed to send welcome email', emailError, {
+          userId: authData.user.id,
+          email,
+          action: 'send_welcome_email',
+        })
+        // Don't fail user creation if email fails
+      }
+    }
+
     // If Conference Admin, assign conferences with permissions
     if (role === 'conference_admin' && conference_ids.length > 0) {
       const conferencePermissions = conference_ids.map((conferenceId: string) => ({

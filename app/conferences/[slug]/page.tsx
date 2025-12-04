@@ -189,6 +189,7 @@ export default function ConferencePage() {
             {conference.logo_url && (
               <div className="flex justify-center md:justify-end">
                 <div className="p-10 md:p-12 rounded-3xl bg-white shadow-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={conference.logo_url}
                     alt={conference.name}

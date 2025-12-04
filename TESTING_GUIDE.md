@@ -76,15 +76,17 @@ npm run test:rate-limit
 # ❌ Request 6: Rate Limited (429)
 ```
 
-#### C. Testirati magic link rate limiting
+#### C. Testirati registration rate limiting
 
-1. Otvoriti: `http://localhost:3000/auth/magic-link`
-2. Unijeti email i poslati 4 puta u 1 sat
+1. Otvoriti: `http://localhost:3000/conferences/[slug]/register`
+2. Ispuniti formu i poslati 4 puta u 1 sat
 3. Provjeriti da 4. zahtjev vraća error
 
 **Očekivano (sa Upstash):**
 - Prva 3 zahtjeva: ✅ Success
 - 4. zahtjev: ❌ Rate Limited
+
+**Napomena:** Magic link login je uklonjen. Korisnici konferencija ne trebaju dashboard pristup - sve informacije se šalju na email.
 
 ---
 
@@ -242,4 +244,7 @@ Aplikacija je uspješno testirana ako:
 ---
 
 **Sretno testiranje!** 🚀
+
+
+
 

@@ -265,6 +265,8 @@ export async function logAdminAction(
 
 /**
  * Check specific permission for conference
+ * SIMPLIFIED: If user has access to conference, they have all permissions for it
+ * Granular permissions are kept in DB for future flexibility but not enforced
  */
 export async function checkPermission(
   conferenceId: string,
@@ -286,11 +288,14 @@ export async function checkPermission(
       return true
     }
 
-    const permissions = await getUserConferencePermissions(conferenceId)
-    
-    if (!permissions) return false
+    // Simplified: If user has conference access, they have all permissions
+    // Only Super Admin can edit conference and delete data
+    if (permission === 'can_edit_conference' || permission === 'can_delete_data') {
+      return await isSuperAdmin()
+    }
 
-    return permissions[permission] === true
+    // For all other permissions, just check if user has access to conference
+    return await hasConferencePermission(conferenceId)
   } catch (error) {
     log.error('Error checking permission', error, {
       conferenceId,

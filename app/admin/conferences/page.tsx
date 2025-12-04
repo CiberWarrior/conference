@@ -3,15 +3,41 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Plus, Calendar, MapPin, Settings, Trash2, Eye, CheckCircle, XCircle, Globe } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Conference } from '@/types/conference'
-import { showSuccess, showError } from '@/utils/toast'
 
 export default function ConferencesPage() {
   const router = useRouter()
   const { conferences, loading, refreshConferences, setCurrentConference } = useConference()
+  const { isSuperAdmin, loading: authLoading } = useAuth()
   const [deleting, setDeleting] = useState<string | null>(null)
+
+  // Redirect if not Super Admin
+  useEffect(() => {
+    if (!authLoading && !isSuperAdmin) {
+      router.push('/admin/dashboard')
+    }
+  }, [isSuperAdmin, authLoading, router])
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not Super Admin (will redirect)
+  if (!isSuperAdmin) {
+    return null
+  }
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all registrations, abstracts, and related data.`)) {
@@ -29,10 +55,10 @@ export default function ConferencesPage() {
         await refreshConferences()
       } else {
         const data = await response.json()
-        showSuccess(`Failed to delete conference: ${data.error}`)
+        alert(`Failed to delete conference: ${data.error}`)
       }
     } catch (error) {
-      showError('An error occurred while deleting the conference')
+      alert('An error occurred while deleting the conference')
     } finally {
       setDeleting(null)
     }
@@ -62,13 +88,15 @@ export default function ConferencesPage() {
           <h1 className="text-3xl font-bold text-gray-900">My Conferences</h1>
           <p className="text-gray-600 mt-2">Manage your conference events</p>
         </div>
-        <Link
-          href="/admin/conferences/new"
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-        >
-          <Plus className="w-5 h-5" />
-          Create New Conference
-        </Link>
+        {isSuperAdmin && (
+          <Link
+            href="/admin/conferences/new"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-5 h-5" />
+            Create New Conference
+          </Link>
+        )}
       </div>
 
       {/* Empty State */}
@@ -80,15 +108,19 @@ export default function ConferencesPage() {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conferences Yet</h2>
             <p className="text-gray-600 mb-6">
-              Get started by creating your first conference event. You can manage registrations, abstracts, payments, and more.
+              {isSuperAdmin
+                ? 'Get started by creating your first conference event. You can manage registrations, abstracts, payments, and more.'
+                : 'You don\'t have any conferences assigned yet. Please contact your administrator to get access to a conference.'}
             </p>
-            <Link
-              href="/admin/conferences/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-5 h-5" />
-              Create Your First Conference
-            </Link>
+            {isSuperAdmin && (
+              <Link
+                href="/admin/conferences/new"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5" />
+                Create Your First Conference
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -107,10 +139,13 @@ export default function ConferencesPage() {
                 style={conference.primary_color ? { background: conference.primary_color } : {}}
               >
                 {conference.logo_url ? (
-                  <img
+                  <Image
                     src={conference.logo_url}
                     alt={conference.name}
+                    width={200}
+                    height={128}
                     className="max-h-full max-w-full object-contain p-4"
+                    unoptimized
                   />
                 ) : (
                   <h3 className="text-2xl font-bold text-white px-4 text-center">
@@ -189,13 +224,15 @@ export default function ConferencesPage() {
                   >
                     <Settings className="w-4 h-4" />
                   </Link>
-                  <button
-                    onClick={() => handleDelete(conference.id, conference.name)}
-                    disabled={deleting === conference.id}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => handleDelete(conference.id, conference.name)}
+                      disabled={deleting === conference.id}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -205,4 +242,3 @@ export default function ConferencesPage() {
     </div>
   )
 }
-

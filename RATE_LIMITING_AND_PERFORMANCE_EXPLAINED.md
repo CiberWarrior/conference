@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 | Endpoint | Limit | Window | Razlog |
 |----------|-------|--------|--------|
 | **Login** | 5 | 15 min | Zaštita od brute force |
-| **Magic Link** | 3 | 1 sat | Spam prevention |
+| **Registration** | 3 | 1 sat | Spam prevention |
 | **Registration** | 3 | 1 sat | Spam prevention |
 | **Payment Intent** | 10 | 1 min | Fraud prevention |
 | **API Routes (auth)** | 100 | 1 min | Normal usage |
@@ -544,7 +544,7 @@ import Image from 'next/image'
 **Dan 2: Implementacija**
 - [ ] Kreirati `lib/rate-limit.ts`
 - [ ] Dodati rate limiting na login endpoint
-- [ ] Dodati rate limiting na magic-link endpoint
+- [x] Rate limiting na registration endpoint (✅ Gotovo)
 - [ ] Dodati rate limiting na registration endpoint
 
 **Dan 3: Testiranje**

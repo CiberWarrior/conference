@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
-import { sendPaymentConfirmation } from '@/lib/email'
+import { sendPaymentConfirmation, sendWelcomeEmail } from '@/lib/email'
 import Stripe from 'stripe'
 import { log } from '@/lib/logger'
 
@@ -56,6 +56,13 @@ export async function POST(request: NextRequest) {
   // Handle checkout session completed (for redirect-based payments)
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
+    
+    // Check if this is a subscription payment (from Payment Link)
+    if (session.metadata?.inquiry_id) {
+      return await handleSubscriptionPayment(session, supabase)
+    }
+    
+    // Otherwise, it's a conference registration payment
     const registrationId = session.metadata?.registrationId
 
     if (registrationId) {
@@ -258,4 +265,211 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ received: true })
+}
+
+/**
+ * Handle subscription payment from Payment Link
+ * Auto-creates Conference Admin user and sends credentials
+ */
+async function handleSubscriptionPayment(
+  session: Stripe.Checkout.Session,
+  supabase: any
+) {
+  try {
+    const inquiryId = session.metadata!.inquiry_id
+    const planId = session.metadata!.plan_id
+    const billingCycle = session.metadata!.billing_cycle as 'monthly' | 'yearly'
+    const customerEmail = session.metadata!.customer_email
+    const customerName = session.metadata!.customer_name
+    const organization = session.metadata!.organization
+
+    log.info('Processing subscription payment', {
+      inquiryId,
+      planId,
+      customerEmail,
+      sessionId: session.id,
+    })
+
+    // Get inquiry details
+    const { data: inquiry, error: inquiryError } = await supabase
+      .from('contact_inquiries')
+      .select('*')
+      .eq('id', inquiryId)
+      .single()
+
+    if (inquiryError || !inquiry) {
+      log.error('Inquiry not found for subscription payment', inquiryError, {
+        inquiryId,
+        sessionId: session.id,
+      })
+      return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
+    }
+
+    // Check if user already exists
+    const { data: existingUser } = await supabase.auth.admin.listUsers()
+    const userExists = existingUser?.users?.find((u: any) => u.email === customerEmail)
+
+    let userId: string
+
+    if (userExists) {
+      userId = userExists.id
+      log.info('User already exists, using existing user', { userId, email: customerEmail })
+    } else {
+      // Create Conference Admin user in Supabase Auth
+      const tempPassword = generateSecurePassword()
+      
+      const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+        email: customerEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: customerName,
+          organization: organization,
+          created_via: 'subscription_payment',
+        },
+      })
+
+      if (createUserError || !newUser.user) {
+        log.error('Failed to create user', createUserError, {
+          email: customerEmail,
+          inquiryId,
+        })
+        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+      }
+
+      userId = newUser.user.id
+
+      // Create user profile
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: customerEmail,
+          full_name: customerName,
+          role: 'conference_admin',
+          active: true,
+          organization: organization,
+        })
+
+      if (profileError) {
+        log.error('Failed to create user profile', profileError, {
+          userId,
+          email: customerEmail,
+        })
+        return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
+      }
+
+      // Send welcome email with credentials
+      try {
+        await sendWelcomeEmail(
+          customerEmail,
+          customerName,
+          tempPassword,
+          'Conference Platform'
+        )
+        log.info('Welcome email sent successfully', {
+          userId,
+          email: customerEmail,
+        })
+      } catch (emailError) {
+        log.error('Failed to send welcome email', emailError, {
+          userId,
+          email: customerEmail,
+        })
+      }
+      
+      log.info('New Conference Admin user created', {
+        userId,
+        email: customerEmail,
+        tempPassword: '[REDACTED]',
+      })
+    }
+
+    // Calculate subscription dates
+    const startsAt = new Date()
+    const expiresAt = new Date()
+    if (billingCycle === 'monthly') {
+      expiresAt.setMonth(expiresAt.getMonth() + 1)
+    } else {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+    }
+
+    // Create subscription record
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        plan_id: planId,
+        inquiry_id: inquiryId,
+        status: 'active',
+        billing_cycle: billingCycle,
+        price: (session.amount_total || 0) / 100,
+        currency: session.currency?.toUpperCase() || 'EUR',
+        stripe_subscription_id: session.subscription,
+        stripe_customer_id: session.customer,
+        stripe_payment_intent_id: session.payment_intent as string,
+        stripe_invoice_id: session.invoice as string,
+        starts_at: startsAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single()
+
+    if (subError) {
+      log.error('Failed to create subscription', subError, {
+        userId,
+        planId,
+        inquiryId,
+      })
+      return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
+    }
+
+    // Update payment offer status
+    await supabase
+      .from('payment_offers')
+      .update({
+        status: 'paid',
+        paid_at: new Date().toISOString(),
+      })
+      .eq('inquiry_id', inquiryId)
+      .eq('status', 'sent')
+
+    // Mark inquiry as converted
+    await supabase
+      .from('contact_inquiries')
+      .update({
+        status: 'converted',
+        converted: true,
+        converted_at: new Date().toISOString(),
+      })
+      .eq('id', inquiryId)
+
+    log.info('Subscription created successfully', {
+      subscriptionId: subscription.id,
+      userId,
+      inquiryId,
+      planId,
+    })
+
+    return NextResponse.json({ received: true, subscriptionId: subscription.id })
+  } catch (error) {
+    log.error('Error handling subscription payment', error, {
+      sessionId: session.id,
+    })
+    return NextResponse.json({ error: 'Failed to process subscription payment' }, { status: 500 })
+  }
+}
+
+/**
+ * Generate a secure random password
+ */
+function generateSecurePassword(): string {
+  const length = 16
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+  let password = ''
+  const values = crypto.getRandomValues(new Uint8Array(length))
+  for (let i = 0; i < length; i++) {
+    password += charset[values[i] % charset.length]
+  }
+  return password
 }

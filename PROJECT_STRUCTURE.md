@@ -73,10 +73,8 @@ Conference Platform/
 │   │   ├── auth/                  # Authentication API endpoints
 │   │   │   ├── login/
 │   │   │   │   └── route.ts     # Admin login endpoint
-│   │   │   ├── magic-link/
-│   │   │   │   └── route.ts     # Magic link login endpoint
-│   │   │   └── user-logout/
-│   │   │       └── route.ts     # User logout endpoint
+│   │   │   └── callback/
+│   │   │       └── route.ts     # Auth callback (disabled - redirects to homepage)
 │   │   │
 │   │   ├── admin/                # Admin API endpoints
 │   │   │   ├── logout/

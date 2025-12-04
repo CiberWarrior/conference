@@ -84,6 +84,7 @@ export default function EditUserPage() {
       loadUser()
       loadConferences()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuperAdmin, authLoading, router, userId])
 
   const loadUser = async () => {

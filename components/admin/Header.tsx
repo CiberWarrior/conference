@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, ExternalLink, ChevronDown, CheckCircle } from 'lucide-react'
+import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users } from 'lucide-react'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { currentConference, conferences, setCurrentConference } = useConference()
+  const { isSuperAdmin, role } = useAuth()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -37,19 +39,39 @@ export default function Header() {
         router.refresh()
       }
     } catch (error) {
-      console.error('Logout error:', error)
+      // Logout error - silently fail
     } finally {
       setLoggingOut(false)
     }
   }
 
+  // Different header colors based on role
+  const headerBorderColor = isSuperAdmin 
+    ? 'border-yellow-200' 
+    : 'border-slate-300'
+  const headerGradient = isSuperAdmin
+    ? 'from-yellow-600 to-yellow-500'
+    : 'from-slate-700 to-slate-600'
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className={`bg-white shadow-sm border-b-2 ${headerBorderColor}`}>
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Admin Dashboard
-          </h1>
+          {role && (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400">
+              {isSuperAdmin ? (
+                <>
+                  <Shield className="w-4 h-4" />
+                  <span>Super Admin</span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-4 h-4" />
+                  <span>Conference Admin</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Conference Switcher */}
           {conferences.length > 0 && (
@@ -120,6 +142,15 @@ export default function Header() {
               View Conference Site
             </Link>
           )}
+          <Link
+            href="/admin/account"
+            className="text-sm text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Account
+          </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}

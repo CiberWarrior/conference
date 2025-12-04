@@ -1,0 +1,546 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useConference } from '@/contexts/ConferenceContext'
+import { supabase } from '@/lib/supabase'
+import { showSuccess, showError } from '@/utils/toast'
+import {
+  User,
+  Mail,
+  Building2,
+  Phone,
+  Calendar,
+  Shield,
+  Key,
+  Save,
+  Edit,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
+import Link from 'next/link'
+
+export default function AccountPage() {
+  const { user, profile, refreshProfile } = useAuth()
+  const { conferences } = useConference()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  
+  // Profile form state
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({
+    full_name: '',
+    organization: '',
+    phone: '',
+  })
+  
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  })
+  
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        organization: profile.organization || '',
+        phone: profile.phone || '',
+      })
+    }
+    setLoading(false)
+  }, [profile])
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) return
+
+    try {
+      setSaving(true)
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          full_name: formData.full_name,
+          organization: formData.organization,
+          phone: formData.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await refreshProfile()
+      setIsEditing(false)
+      showSuccess('Profile updated successfully!')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      showError('Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!user?.id) return
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showError('New passwords do not match')
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      showError('Password must be at least 8 characters long')
+      return
+    }
+
+    try {
+      setChangingPassword(true)
+
+      // Update password via Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      })
+
+      if (error) throw error
+
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+      setShowPasswordForm(false)
+      showSuccess('Password changed successfully!')
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      showError(error.message || 'Failed to change password')
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading account information...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
+          <p className="text-gray-600">Unable to load your profile information.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
+        <p className="text-gray-600 mt-2">Manage your profile and security settings</p>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Left Column - Profile & Security */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Profile Information */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                    <User className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+                    <p className="text-sm text-gray-600">Your personal details</p>
+                  </div>
+                </div>
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Email (read-only) */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Mail className="w-4 h-4 inline mr-2" />
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={profile.email}
+                  disabled
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              </div>
+
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Full Name
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Your full name"
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.full_name || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Organization */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Building2 className="w-4 h-4 inline mr-2" />
+                  Organization
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.organization}
+                    onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Your organization"
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.organization || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Phone Number
+                </label>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.phone || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Account Status
+                </label>
+                <div className="flex items-center gap-2">
+                  {profile.active ? (
+                    <>
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="text-green-700 font-medium">Active</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                      <span className="text-red-700 font-medium">Inactive</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Edit Actions */}
+              {isEditing && (
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false)
+                      setFormData({
+                        full_name: profile.full_name || '',
+                        organization: profile.organization || '',
+                        phone: profile.phone || '',
+                      })
+                    }}
+                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Security Settings */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Security</h2>
+                  <p className="text-sm text-gray-600">Manage your password and security</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {!showPasswordForm ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Password</h3>
+                      <p className="text-sm text-gray-600">Last changed: {profile.last_login ? new Date(profile.last_login).toLocaleDateString() : 'Never'}</p>
+                    </div>
+                    <button
+                      onClick={() => setShowPasswordForm(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Key className="w-4 h-4" />
+                      Change Password
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.current ? 'text' : 'password'}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        placeholder="Enter current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPasswords.current ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.new ? 'text' : 'password'}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        placeholder="Enter new password (min. 8 characters)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.confirm ? 'text' : 'password'}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={changingPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                      className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {changingPassword ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Changing...
+                        </>
+                      ) : (
+                        <>
+                          <Key className="w-4 h-4" />
+                          Change Password
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPasswordForm(false)
+                        setPasswordData({
+                          currentPassword: '',
+                          newPassword: '',
+                          confirmPassword: '',
+                        })
+                      }}
+                      className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Conferences */}
+        <div className="space-y-6">
+          {/* My Conferences */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">My Conferences</h2>
+                  <p className="text-sm text-gray-600">{conferences.length} conference(s)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {conferences.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-600">No conferences assigned</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {conferences.slice(0, 5).map((conference) => (
+                    <Link
+                      key={conference.id}
+                      href={`/admin/conferences/${conference.id}/settings`}
+                      className="block p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      <p className="font-semibold text-gray-900">{conference.name}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {conference.start_date ? new Date(conference.start_date).toLocaleDateString() : 'No date set'}
+                      </p>
+                    </Link>
+                  ))}
+                  {conferences.length > 5 && (
+                    <Link
+                      href="/admin/conferences"
+                      className="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium py-2"
+                    >
+                      View all {conferences.length} conferences →
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Account Info */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Account Info</h2>
+            </div>
+            <div className="p-6 space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
+                <p className="text-gray-900 font-medium">
+                  {profile.role === 'super_admin' ? 'Super Admin' : 'Conference Admin'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Member Since</label>
+                <p className="text-gray-900">
+                  {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                </p>
+              </div>
+              {profile.last_login && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Last Login</label>
+                  <p className="text-gray-900">
+                    {new Date(profile.last_login).toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+

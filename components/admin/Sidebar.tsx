@@ -24,9 +24,20 @@ const navigationSections: NavSection[] = [
       {
         name: 'Dashboard',
         href: '/admin/dashboard',
+        superAdminOnly: true,
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+        ),
+      },
+      {
+        name: 'My Account',
+        href: '/admin/account',
+        superAdminOnly: true,
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         ),
       },
@@ -37,7 +48,7 @@ const navigationSections: NavSection[] = [
     items: [
       {
         name: 'My Conferences',
-        href: '/admin/conferences',
+        href: '/admin/conferences', // Will be overridden for Conference Admin in render
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -79,7 +90,6 @@ const navigationSections: NavSection[] = [
     ]
   },
   {
-    title: 'Event Management',
     items: [
       {
         name: 'Registrations',
@@ -144,14 +154,21 @@ export default function Sidebar() {
     setMounted(true)
   }, [])
 
-  // DEBUG: Log auth state
-  useEffect(() => {
-    console.log('🔍 Sidebar Auth State:', { isSuperAdmin, role, authLoading })
-  }, [isSuperAdmin, role, authLoading])
+  // Different sidebar colors based on role
+  const sidebarBgColor = isSuperAdmin 
+    ? 'bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900' 
+    : 'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900'
+  const sidebarBorderColor = isSuperAdmin 
+    ? 'border-gray-700' 
+    : 'border-slate-700'
 
   // Prevent hydration mismatch by not rendering active state until mounted
-  const getIsActive = (href: string) => {
+  const getIsActive = (href: string, itemName?: string) => {
     if (!mounted || !pathname) return false
+    // For "My Conferences" when Conference Admin is on Dashboard
+    if (itemName === 'My Conferences' && !isSuperAdmin && pathname === '/admin/dashboard') {
+      return true
+    }
     return pathname === href || (href !== '/admin' && href !== '/admin/dashboard' && pathname.startsWith(href))
   }
 
@@ -179,10 +196,10 @@ export default function Sidebar() {
   return (
     <div className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto bg-gray-900 border-r border-gray-800">
+        <div className={`flex flex-col flex-grow pt-5 pb-4 overflow-y-auto ${sidebarBgColor} border-r ${sidebarBorderColor}`}>
           <div className="flex items-center flex-shrink-0 px-4 mb-8">
             <Link href="/admin/dashboard" className="flex items-center">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+              <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gradient-to-br from-slate-600 to-slate-700'} rounded-lg flex items-center justify-center mr-3 shadow-lg`}>
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
@@ -208,15 +225,26 @@ export default function Sidebar() {
                   )}
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      const isActive = getIsActive(item.href)
+                      // For Conference Admin, "My Conferences" should link to Dashboard
+                      const href = !isSuperAdmin && item.name === 'My Conferences' 
+                        ? '/admin/dashboard' 
+                        : item.href
+                      const isActive = getIsActive(href, item.name)
+                      const activeBgColor = isSuperAdmin
+                        ? 'bg-gradient-to-r from-yellow-600 to-yellow-500'
+                        : 'bg-gradient-to-r from-slate-700 to-slate-600'
+                      const hoverBgColor = isSuperAdmin
+                        ? 'hover:bg-gray-800'
+                        : 'hover:bg-slate-800'
+                      
                       return (
                         <Link
                           key={item.name}
-                          href={item.href}
+                          href={href}
                           className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
                             isActive
-                              ? 'bg-blue-600 text-white'
-                              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                              ? `${activeBgColor} text-white shadow-lg`
+                              : `text-gray-300 ${hoverBgColor} hover:text-white`
                           }`}
                         >
                           <span className={`mr-3 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}>
@@ -234,12 +262,18 @@ export default function Sidebar() {
             
             {/* Role Badge */}
             {!authLoading && role && (
-              <div className="px-4 py-2 border-t border-gray-800">
-                <div className="flex items-center gap-2 text-xs">
-                  <div className={`w-2 h-2 rounded-full ${
-                    role === 'super_admin' ? 'bg-yellow-400' : 'bg-blue-400'
+              <div className={`px-4 py-3 border-t ${isSuperAdmin ? 'border-gray-700' : 'border-slate-700'}`}>
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                  isSuperAdmin 
+                    ? 'bg-gradient-to-r from-yellow-600/20 to-yellow-500/20 border border-yellow-500/30' 
+                    : 'bg-gradient-to-r from-slate-700/30 to-slate-600/30 border border-slate-500/40'
+                }`}>
+                  <div className={`w-3 h-3 rounded-full ${
+                    role === 'super_admin' ? 'bg-yellow-400 shadow-lg shadow-yellow-400/50' : 'bg-slate-400 shadow-lg shadow-slate-400/50'
                   }`}></div>
-                  <span className="text-gray-400">
+                  <span className={`text-xs font-bold ${
+                    role === 'super_admin' ? 'text-yellow-300' : 'text-slate-300'
+                  }`}>
                     {role === 'super_admin' ? 'Super Admin' : 'Conference Admin'}
                   </span>
                 </div>
@@ -255,7 +289,7 @@ export default function Sidebar() {
               <div className="flex items-center">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
-                    View Marketing Site
+                    Homepage
                   </p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

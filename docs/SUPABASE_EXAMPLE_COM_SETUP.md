@@ -69,7 +69,7 @@ Konfiguriraj custom SMTP server u Supabase Dashboardu koji će prihvatiti `examp
    - Koristi taj password umjesto obične lozinke
 
 4. **Testiraj:**
-   - Pošalji test magic link sa `testuser@example.com`
+   - Provjeri da email funkcionalnost radi (npr. registration confirmation email)
    - Provjeri da email stiže
 
 ---
@@ -95,7 +95,7 @@ Umjesto `example.com`, koristi pravi email domen za testiranje:
    );
    ```
 
-2. **Testiraj magic link sa tim emailom**
+2. **Provjeri da email funkcionalnost radi**
 
 ---
 
@@ -138,22 +138,25 @@ enable_confirmations = false
 
 ---
 
-### 3. Test Magic Link
+### 3. Test Email Functionality
 
 **Komanda:**
 ```bash
-curl -X POST http://localhost:3000/api/auth/magic-link \
+# Test registration confirmation email
+curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"testuser@example.com"}'
+  -d '{
+    "conference_id": "your-conference-id",
+    "first_name": "Test",
+    "last_name": "User",
+    "email": "testuser@example.com",
+    "phone": "+1234567890"
+  }'
 ```
 
 **Očekivani rezultat:**
-```json
-{
-  "success": true,
-  "message": "Check your email for a login link. The link will expire in 1 hour."
-}
-```
+- Registration successful
+- Confirmation email sent
 
 ---
 
@@ -162,8 +165,7 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
 - [ ] SMTP server konfigurisan u Supabase Dashboardu
 - [ ] Sender email postavljen
 - [ ] Test email radi
-- [ ] Redirect URLs dodati (`/auth/callback`)
-- [ ] Magic link testiran sa `example.com` emailom
+- [ ] Registration confirmation email testiran
 
 ---
 
@@ -209,5 +211,4 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
 
 **Za detaljne upute o SMTP konfiguraciji, pogledaj:**
 - [Supabase SMTP Documentation](https://supabase.com/docs/guides/auth/auth-smtp)
-- `docs/MAGIC_LINK_SETUP.md` - Magic Link setup vodič
 

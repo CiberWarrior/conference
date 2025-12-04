@@ -34,6 +34,7 @@ export default function RegistrationsPage() {
     if (currentConference) {
       loadRegistrations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConference])
 
   const loadRegistrations = async () => {

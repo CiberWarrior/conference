@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Conference } from '@/types/conference'
 import { showSuccess, showError, showWarning } from '@/utils/toast'
 
@@ -12,6 +14,7 @@ export default function ConferenceSettingsPage() {
   const router = useRouter()
   const params = useParams()
   const { refreshConferences } = useConference()
+  const { isSuperAdmin } = useAuth()
   const conferenceId = params.id as string
 
   const [conference, setConference] = useState<Conference | null>(null)
@@ -54,6 +57,7 @@ export default function ConferenceSettingsPage() {
 
   useEffect(() => {
     loadConference()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conferenceId])
 
   const loadConference = async () => {
@@ -511,10 +515,13 @@ export default function ConferenceSettingsPage() {
               <div className="flex items-start gap-4">
                 {conference.logo_url && (
                   <div className="flex-shrink-0">
-                    <img
+                    <Image
                       src={conference.logo_url}
                       alt="Current logo"
+                      width={120}
+                      height={120}
                       className="w-24 h-24 object-contain border-2 border-gray-200 rounded-lg p-2 bg-gray-50"
+                      unoptimized
                     />
                   </div>
                 )}
@@ -775,17 +782,19 @@ export default function ConferenceSettingsPage() {
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-4 pt-6 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Trash2 className="w-5 h-5" />
-            {deleting ? 'Deleting...' : 'Delete Conference'}
-          </button>
+          {isSuperAdmin && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="w-5 h-5" />
+              {deleting ? 'Deleting...' : 'Delete Conference'}
+            </button>
+          )}
 
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${!isSuperAdmin ? 'ml-auto' : ''}`}>
             <Link
               href="/admin/conferences"
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"

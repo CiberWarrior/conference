@@ -1,20 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 import StatsCard from '@/components/admin/StatsCard'
 import {
   RegistrationsByDayChart,
   PaymentStatusChart,
-  RegistrationsByCountryChart,
   RevenueByPeriodChart,
 } from '@/components/admin/Charts'
 import Link from 'next/link'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Plus, Download, Mail, FileText, Users as UsersIcon, CreditCard, Calendar, MapPin, Globe, Eye, CheckCircle, XCircle } from 'lucide-react'
+import type { Conference } from '@/types/conference'
 
 export default function DashboardPage() {
-  const { currentConference, loading: conferenceLoading } = useConference()
+  const router = useRouter()
+  const { currentConference, conferences, loading: conferenceLoading, setCurrentConference } = useConference()
+  const { isSuperAdmin } = useAuth()
   const [stats, setStats] = useState({
     totalRegistrations: 0,
     paidRegistrations: 0,
@@ -39,39 +43,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Auto-select if only one conference
   useEffect(() => {
-    if (currentConference) {
-      loadStats()
+    if (!currentConference && conferences.length === 1 && !conferenceLoading) {
+      setCurrentConference(conferences[0])
     }
-    loadInquiryStats()
-  }, [currentConference])
-
-  const loadInquiryStats = async () => {
-    try {
-      const { data, error: statsError } = await supabase
-        .from('contact_inquiry_stats')
-        .select('*')
-        .single()
-
-      if (statsError) {
-        // Silently fail if view doesn't exist yet
-        console.log('ℹ️ Inquiry stats view not available (this is OK)')
-        return
-      }
-
-      if (data) {
-        setInquiryStats({
-          newInquiries: data.new_inquiries || 0,
-          totalInquiries: data.total_inquiries || 0,
-          conversionRate: data.conversion_rate_percent || 0,
-          inquiriesLast7Days: data.inquiries_last_7_days || 0,
-        })
-      }
-    } catch (error) {
-      // Silently catch errors - inquiry stats are optional
-      console.log('ℹ️ Could not load inquiry stats (this is OK)')
-    }
-  }
+  }, [conferences, currentConference, conferenceLoading, setCurrentConference])
 
   const loadStats = async () => {
     if (!currentConference) {
@@ -195,6 +172,41 @@ export default function DashboardPage() {
     }
   }
 
+  useEffect(() => {
+    if (currentConference) {
+      loadStats()
+    }
+    loadInquiryStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConference])
+
+  const loadInquiryStats = async () => {
+    try {
+      const { data, error: statsError } = await supabase
+        .from('contact_inquiry_stats')
+        .select('*')
+        .single()
+
+      if (statsError) {
+        // Silently fail if view doesn't exist yet
+        console.log('ℹ️ Inquiry stats view not available (this is OK)')
+        return
+      }
+
+      if (data) {
+        setInquiryStats({
+          newInquiries: data.new_inquiries || 0,
+          totalInquiries: data.total_inquiries || 0,
+          conversionRate: data.conversion_rate_percent || 0,
+          inquiriesLast7Days: data.inquiries_last_7_days || 0,
+        })
+      }
+    } catch (error) {
+      // Silently catch errors - inquiry stats are optional
+      console.log('ℹ️ Could not load inquiry stats (this is OK)')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -203,7 +215,7 @@ export default function DashboardPage() {
     )
   }
 
-  // No conference selected
+  // No conference selected - show simple message
   if (!currentConference && !conferenceLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -213,14 +225,30 @@ export default function DashboardPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
           <p className="text-gray-600 mb-6">
-            Please select a conference from the header dropdown or create a new one to view the dashboard.
+            {conferences.length > 0
+              ? 'Please select a conference from the dropdown menu in the header to view its dashboard and statistics.'
+              : isSuperAdmin
+                ? 'Get started by creating your first conference event.'
+                : 'You don\'t have any conferences assigned yet. Please contact your administrator.'}
           </p>
-          <Link
-            href="/admin/conferences"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
-          >
-            Go to My Conferences
-          </Link>
+          {conferences.length === 0 && isSuperAdmin && (
+            <Link
+              href="/admin/conferences/new"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              Create Your First Conference
+            </Link>
+          )}
+          {conferences.length > 0 && isSuperAdmin && (
+            <Link
+              href="/admin/conferences"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+            >
+              <Calendar className="w-5 h-5" />
+              View All Conferences
+            </Link>
+          )}
         </div>
       </div>
     )
@@ -256,6 +284,46 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
         <p className="mt-2 text-gray-600">Welcome to your conference management dashboard</p>
       </div>
+
+      {/* Quick Actions */}
+      {currentConference && (
+        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link
+              href={`/admin/registrations?conference=${currentConference.id}`}
+              className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+            >
+              <UsersIcon className="w-5 h-5 text-blue-600" />
+              <span className="font-medium text-gray-900">View Registrations</span>
+            </Link>
+            <Link
+              href={`/admin/abstracts?conference=${currentConference.id}`}
+              className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
+            >
+              <FileText className="w-5 h-5 text-purple-600" />
+              <span className="font-medium text-gray-900">View Abstracts</span>
+            </Link>
+            <Link
+              href={`/admin/payments?conference=${currentConference.id}`}
+              className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
+            >
+              <CreditCard className="w-5 h-5 text-green-600" />
+              <span className="font-medium text-gray-900">View Payments</span>
+            </Link>
+            <Link
+              href={`/admin/conferences/${currentConference.id}/settings`}
+              className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="font-medium text-gray-900">Settings</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Inquiry Stats Section - Only show if there are inquiries */}
       {inquiryStats.totalInquiries > 0 && (
@@ -392,9 +460,6 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="grid grid-cols-1 gap-6 mb-6">
-          {chartData.registrationsByCountry.length > 0 && (
-            <RegistrationsByCountryChart data={chartData.registrationsByCountry} />
-          )}
           {chartData.revenueByPeriod.length > 0 && (
             <RevenueByPeriodChart data={chartData.revenueByPeriod} />
           )}

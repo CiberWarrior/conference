@@ -11,7 +11,6 @@ import jsPDF from 'jspdf'
 import { saveAs } from 'file-saver'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
-import { showSuccess, showError } from '@/utils/toast'
 
 export default function AbstractsPage() {
   const { currentConference, loading: conferenceLoading } = useConference()
@@ -25,6 +24,7 @@ export default function AbstractsPage() {
     if (currentConference) {
       loadAbstracts()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConference])
 
   const loadAbstracts = async () => {
@@ -78,7 +78,7 @@ export default function AbstractsPage() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-        showSuccess('Failed to download file: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      alert('Failed to download file: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -157,7 +157,7 @@ export default function AbstractsPage() {
     URL.revokeObjectURL(url)
     
     // Show instructions
-        showSuccess(
+    alert(
       'CSV file downloaded! To import into Google Sheets:\n\n' +
       '1. Open Google Sheets (sheets.google.com)\n' +
       '2. Click File → Import\n' +
@@ -257,7 +257,7 @@ export default function AbstractsPage() {
       setExportMenuOpen(false)
     } catch (error) {
       console.error('Error exporting to Word:', error)
-        showSuccess('Failed to export to Word format')
+      alert('Failed to export to Word format')
     }
   }
 
@@ -332,7 +332,7 @@ export default function AbstractsPage() {
       setExportMenuOpen(false)
     } catch (error) {
       console.error('Error exporting to PDF:', error)
-        showSuccess('Failed to export to PDF format')
+      alert('Failed to export to PDF format')
     }
   }
 
@@ -590,4 +590,3 @@ export default function AbstractsPage() {
     </div>
   )
 }
-

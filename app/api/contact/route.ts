@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       phone,
       conferenceType,
       expectedAttendees,
+      serviceType,
       message,
     } = body
 
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         conference_type: conferenceType || null,
         expected_attendees: expectedAttendees || null,
+        service_type: serviceType || null,
         message,
         status: 'new',
         priority: determinePriority(expectedAttendees, conferenceType),
@@ -239,7 +241,7 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
   `
 
   // Send to admin email (you should configure this in your environment variables)
-  const adminEmail = process.env.ADMIN_EMAIL || 'info@meetflow.com'
+  const adminEmail = process.env.ADMIN_EMAIL || 'screatives.info@gmail.com'
   
   await sendGenericEmail({
     to: adminEmail,

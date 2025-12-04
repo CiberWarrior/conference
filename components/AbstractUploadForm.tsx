@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import LoadingSpinner from './LoadingSpinner'
+import { showSuccess, showError } from '@/utils/toast'
 import type { AbstractFormData } from '@/types/abstract'
 
 const abstractUploadSchema = z.object({
@@ -85,16 +86,16 @@ export default function AbstractUploadForm({
         throw new Error(result.error || 'Upload failed')
       }
 
-      setSubmitSuccess(
-        result.message || 'Abstract uploaded successfully!'
-      )
+      const successMessage = result.message || 'Abstract uploaded successfully!'
+      setSubmitSuccess(successMessage)
+      showSuccess(successMessage)
 
       // Reset form
       reset()
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : 'An error occurred'
-      )
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
+      setSubmitError(errorMessage)
+      showError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }

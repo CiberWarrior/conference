@@ -1,3 +1,10 @@
+/**
+ * Permission Guard Component
+ * SIMPLIFIED APPROACH:
+ * - Super Admin: automatic access
+ * - Conference Admin: access if they have the conference assigned
+ * - Only checks for edit_conference and delete_data specifically restrict to Super Admin
+ */
 'use client'
 
 import { useEffect, useState } from 'react'

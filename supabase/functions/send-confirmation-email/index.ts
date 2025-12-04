@@ -528,7 +528,7 @@ Thank you for your submission!
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'MeetFlow <noreply@yourdomain.com>', // Update with your domain
+        from: 'MeetFlow <noreply@renatahorvat.com>',
         to: email,
         subject: emailTemplate.subject,
         html: emailTemplate.html,

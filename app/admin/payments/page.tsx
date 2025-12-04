@@ -58,6 +58,7 @@ export default function PaymentsPage() {
         loadPaymentHistory()
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, currentConference])
 
   const loadReminderStats = async () => {

@@ -27,10 +27,11 @@
 - ✅ `/api/admin/conferences/[id]/route.ts`
 
 **Remaining (use console.log for now - LOW PRIORITY):**
-- `/api/auth/magic-link/route.ts` (19 poziva)
 - `/api/abstracts/upload/route.ts` (5 poziva)
 - `/api/contact/route.ts` (4 poziva)
 - ... + 15 drugih
+
+**Note:** `/api/auth/magic-link/route.ts` has been removed (user login system simplified)
 
 ---
 

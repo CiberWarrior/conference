@@ -9,6 +9,7 @@ import PaymentForm from './PaymentForm'
 import SupportedCards from './SupportedCards'
 import SuccessMessage from './SuccessMessage'
 import LoadingSpinner from './LoadingSpinner'
+import { showSuccess, showError } from '@/utils/toast'
 import type { RegistrationFormData } from '@/types/registration'
 
 const registrationSchema = z
@@ -108,11 +109,13 @@ export default function RegistrationForm({
       if (data.paymentRequired && data.paymentByCard && result.registrationId) {
         setRegistrationId(result.registrationId)
         setShowPaymentForm(true)
+        showSuccess('Registration successful! Please complete your payment.')
       } else {
         setSubmitSuccess({
           message: result.message || 'Registration successful!',
           paymentUrl: result.paymentUrl,
         })
+        showSuccess('Registration successful! You will receive a confirmation email shortly.')
 
         // Reset form
         if (typeof window !== 'undefined') {
@@ -121,9 +124,9 @@ export default function RegistrationForm({
         }
       }
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : 'An error occurred'
-      )
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
+      setSubmitError(errorMessage)
+      showError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -135,10 +138,12 @@ export default function RegistrationForm({
       message: 'Registration and payment successful! You will receive a confirmation email with your invoice shortly.',
       paymentUrl: invoiceUrl,
     })
+    showSuccess('Payment completed! You will receive a confirmation email with your invoice shortly.')
   }
 
   const handlePaymentError = (error: string) => {
     setSubmitError(error)
+    showError(error)
   }
 
   if (submitSuccess && !showPaymentForm) {
