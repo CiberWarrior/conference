@@ -318,27 +318,38 @@ export default function PaymentForm({
   // Check if Stripe is configured (after hooks)
   if (!stripePromise) {
     return (
-      <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-        <div className="flex items-start">
-          <svg
-            className="w-5 h-5 text-yellow-600 mr-2 mt-0.5"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <div>
-            <p className="text-sm font-medium text-yellow-800">
-              Payment processing is not configured
+      <div className="p-6 bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 rounded-xl">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-amber-600"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+          </div>
+          <div className="flex-1">
+            <h4 className="text-base font-bold text-amber-900 mb-1">
+              Payment Processing Not Available
+            </h4>
+            <p className="text-sm text-amber-800 mb-3">
+              Your registration was successful! However, online payment processing is not currently configured.
             </p>
-            <p className="text-xs text-yellow-700 mt-1">
-              Please configure Stripe keys in your environment variables to enable
-              payment processing.
-            </p>
+            <div className="bg-white/60 rounded-lg p-3 border border-amber-200">
+              <p className="text-xs text-amber-900 font-semibold mb-1">Next Steps:</p>
+              <ul className="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li>You will receive a confirmation email with your registration details</li>
+                <li>Payment instructions will be sent separately</li>
+                <li>Contact the conference organizers for payment arrangements</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

@@ -65,8 +65,16 @@ export default function ConferencesPage() {
   }
 
   const handleSelectConference = (conference: Conference) => {
-    setCurrentConference(conference)
-    router.push('/admin/dashboard')
+    try {
+      // Set the current conference first (this also saves to localStorage)
+      setCurrentConference(conference)
+      // Navigate to dashboard
+      router.push('/admin/dashboard')
+    } catch (error) {
+      console.error('Error selecting conference:', error)
+      // Fallback: use window.location if router fails
+      window.location.href = '/admin/dashboard'
+    }
   }
 
   if (loading) {

@@ -204,6 +204,8 @@ export default function ConferenceRegisterPage() {
                 `${conference.location}${conference.venue ? `, ${conference.venue}` : ''}`
                 : undefined
               }
+              pricing={conference.pricing}
+              conferenceStartDate={conference.start_date}
             />
           </div>
         </div>

@@ -49,6 +49,7 @@ export interface ConferencePricing {
     amount: number
   }
   student_discount: number
+  accompanying_person_price?: number // Price for accompanying persons (early bird)
 }
 
 export interface ConferenceSettings {

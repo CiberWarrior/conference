@@ -81,31 +81,40 @@ export default function SupportedCards({ show }: SupportedCardsProps) {
   ]
 
   return (
-    <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 animate-slide-in">
-      <div className="flex items-center mb-3">
-        <svg
-          className="w-5 h-5 text-blue-600 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <p className="text-sm font-semibold text-gray-800">
-          Podržane kartice:
-        </p>
+    <div className="mt-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 animate-slide-in">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="flex-shrink-0 mt-0.5">
+          <svg
+            className="w-5 h-5 text-blue-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-gray-900 mb-1">
+            Supported Payment Cards
+          </p>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            We accept the following payment cards. Simply enter your card details in the payment form below - the system will automatically detect your card type.
+          </p>
+        </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         {cards.map((card, index) => (
           <div
             key={card.name}
-            className={`flex flex-col items-center justify-center p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 border-2 border-gray-100`}
+            className="flex flex-col items-center justify-center p-3 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200"
             style={{ animationDelay: `${index * 0.05}s` }}
+            title={`${card.name} cards are accepted`}
           >
             <div className="w-full h-8 mb-2 flex items-center justify-center">
               {card.svg}
@@ -116,10 +125,11 @@ export default function SupportedCards({ show }: SupportedCardsProps) {
           </div>
         ))}
       </div>
-      <div className="mt-3 pt-3 border-t border-blue-200">
+      
+      <div className="pt-4 border-t border-blue-200">
         <div className="flex items-center justify-center gap-2">
           <svg
-            className="w-4 h-4 text-green-600"
+            className="w-4 h-4 text-green-600 flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -132,7 +142,7 @@ export default function SupportedCards({ show }: SupportedCardsProps) {
             />
           </svg>
           <p className="text-xs text-gray-600 text-center">
-            Sigurno plaćanje putem Stripe platforme
+            Secure payment processing via Stripe. Your card details are encrypted and never stored on our servers.
           </p>
         </div>
       </div>

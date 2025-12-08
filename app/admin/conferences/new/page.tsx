@@ -28,6 +28,7 @@ export default function NewConferencePage() {
     regular_amount: 200,
     late_amount: 250,
     student_discount: 50,
+    accompanying_person_price: 140,
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
@@ -97,6 +98,7 @@ export default function NewConferencePage() {
               amount: formData.late_amount,
             },
             student_discount: formData.student_discount,
+            accompanying_person_price: formData.accompanying_person_price || undefined,
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -365,6 +367,26 @@ export default function NewConferencePage() {
                 step="0.01"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div>
+              <label htmlFor="accompanying_person_price" className="block text-sm font-semibold text-gray-700 mb-2">
+                Accompanying Person Price (Early Bird)
+              </label>
+              <input
+                type="number"
+                id="accompanying_person_price"
+                name="accompanying_person_price"
+                value={formData.accompanying_person_price}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Price for each accompanying person (early bird rate)
+              </p>
             </div>
           </div>
         </div>

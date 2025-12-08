@@ -1,5 +1,12 @@
 export type PaymentStatus = 'pending' | 'paid' | 'not_required'
 
+export interface AccompanyingPerson {
+  firstName: string
+  lastName: string
+  arrivalDate: string
+  departureDate: string
+}
+
 export interface RegistrationData {
   firstName: string
   lastName: string
@@ -11,6 +18,11 @@ export interface RegistrationData {
   departureDate: string
   paymentRequired: boolean
   paymentByCard: boolean
+  accompanyingPersons: boolean
+  accompanyingPersonsData?: AccompanyingPerson[]
+  galaDinner: boolean
+  presentationType: boolean
+  abstractSubmission: boolean
 }
 
 export interface Registration extends RegistrationData {
@@ -36,5 +48,10 @@ export interface RegistrationFormData {
   departureDate: string
   paymentRequired: boolean
   paymentByCard: boolean
+  accompanyingPersons: boolean
+  accompanyingPersonsData?: AccompanyingPerson[]
+  galaDinner: boolean
+  presentationType: boolean
+  abstractSubmission: boolean
 }
 

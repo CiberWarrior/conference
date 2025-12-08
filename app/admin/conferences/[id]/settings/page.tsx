@@ -40,6 +40,7 @@ export default function ConferenceSettingsPage() {
     regular_amount: 200,
     late_amount: 250,
     student_discount: 50,
+    accompanying_person_price: 140,
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
@@ -87,6 +88,7 @@ export default function ConferenceSettingsPage() {
           regular_amount: conf.pricing?.regular?.amount || 200,
           late_amount: conf.pricing?.late?.amount || 250,
           student_discount: conf.pricing?.student_discount || 50,
+          accompanying_person_price: conf.pricing?.accompanying_person_price || 0,
           // Settings
           registration_enabled: conf.settings?.registration_enabled ?? true,
           abstract_submission_enabled: conf.settings?.abstract_submission_enabled ?? true,
@@ -220,6 +222,7 @@ export default function ConferenceSettingsPage() {
               amount: formData.late_amount,
             },
             student_discount: formData.student_discount,
+            accompanying_person_price: formData.accompanying_person_price || undefined,
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -562,7 +565,12 @@ export default function ConferenceSettingsPage() {
 
         {/* Pricing */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Pricing</h2>
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Pricing</h2>
+            <p className="text-sm text-gray-600">
+              Set registration fees for different pricing tiers. The system automatically applies the correct price based on the current date and early bird deadline.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -611,6 +619,9 @@ export default function ConferenceSettingsPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                After this date, regular pricing will apply automatically
+              </p>
             </div>
 
             <div>
@@ -660,7 +671,75 @@ export default function ConferenceSettingsPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            <div>
+              <label htmlFor="accompanying_person_price" className="block text-sm font-semibold text-gray-700 mb-2">
+                Accompanying Person Price
+              </label>
+              <input
+                type="number"
+                id="accompanying_person_price"
+                name="accompanying_person_price"
+                value={formData.accompanying_person_price}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Price for each accompanying person. This price applies to all pricing tiers (early bird, regular, late).
+              </p>
+            </div>
           </div>
+
+          {/* Pricing Preview */}
+          {formData.early_bird_amount > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Current Pricing Preview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <div className="text-gray-600 font-medium">Participant (Early Bird)</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {formData.currency} {formData.early_bird_amount.toFixed(2)}
+                  </div>
+                </div>
+                {formData.student_discount > 0 && (
+                  <div>
+                    <div className="text-gray-600 font-medium">Student (Early Bird)</div>
+                    <div className="text-lg font-bold text-green-600">
+                      {formData.currency}{' '}
+                      {(formData.early_bird_amount - formData.student_discount).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Save {formData.currency} {formData.student_discount.toFixed(2)}
+                    </div>
+                  </div>
+                )}
+                {formData.accompanying_person_price > 0 && (
+                  <div>
+                    <div className="text-gray-600 font-medium">Accompanying Person</div>
+                    <div className="text-lg font-bold text-purple-600">
+                      {formData.currency} {formData.accompanying_person_price.toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {formData.early_bird_deadline && (
+                <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-gray-600">
+                  <strong>Early Bird Deadline:</strong>{' '}
+                  {new Date(formData.early_bird_deadline).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                  {' → '}
+                  <span className="font-semibold">Regular Price:</span>{' '}
+                  {formData.currency} {formData.regular_amount.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Conference Settings */}

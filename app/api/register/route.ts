@@ -26,6 +26,28 @@ const registrationSchema = z
     departureDate: z.string().min(1),
     paymentRequired: z.boolean(),
     paymentByCard: z.boolean(),
+    accompanyingPersons: z.boolean({
+      required_error: 'Please indicate if you will bring accompanying persons',
+    }),
+    accompanyingPersonsData: z
+      .array(
+        z.object({
+          firstName: z.string().min(1, 'First name is required'),
+          lastName: z.string().min(1, 'Last name is required'),
+          arrivalDate: z.string().min(1, 'Arrival date is required'),
+          departureDate: z.string().min(1, 'Departure date is required'),
+        })
+      )
+      .optional(),
+    galaDinner: z.boolean({
+      required_error: 'Please indicate if you will attend Gala Dinner',
+    }),
+    presentationType: z.boolean({
+      required_error: 'Please indicate if you intend to have poster/spoken presentation',
+    }),
+    abstractSubmission: z.boolean({
+      required_error: 'Please indicate if you will submit an abstract',
+    }),
     conferenceId: z.string().uuid().optional(),
   })
   .refine(
@@ -38,6 +60,30 @@ const registrationSchema = z
     {
       message: 'Departure date must be after or equal to arrival date',
       path: ['departureDate'],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.accompanyingPersons === true) {
+        if (
+          !data.accompanyingPersonsData ||
+          data.accompanyingPersonsData.length === 0
+        ) {
+          return false
+        }
+        // Validate each accompanying person
+        return data.accompanyingPersonsData.every((person) => {
+          if (!person.firstName || !person.lastName) return false
+          if (!person.arrivalDate || !person.departureDate) return false
+          return new Date(person.departureDate) >= new Date(person.arrivalDate)
+        })
+      }
+      return true
+    },
+    {
+      message:
+        'Please add at least one accompanying person with complete details (name, surname, arrival and departure dates)',
+      path: ['accompanyingPersons'],
     }
   )
 
@@ -133,6 +179,11 @@ export async function POST(request: NextRequest) {
         departure_date: validatedData.departureDate,
         payment_required: validatedData.paymentRequired,
         payment_by_card: validatedData.paymentByCard,
+        accompanying_persons: validatedData.accompanyingPersons,
+        accompanying_persons_data: validatedData.accompanyingPersonsData || [],
+        gala_dinner: validatedData.galaDinner,
+        presentation_type: validatedData.presentationType,
+        abstract_submission: validatedData.abstractSubmission,
         payment_status: paymentStatus,
         conference_id: validatedData.conferenceId || null,
       })
@@ -143,9 +194,14 @@ export async function POST(request: NextRequest) {
       log.error('Registration database error', insertError, {
         email: validatedData.email,
         action: 'create_registration',
+        errorDetails: insertError,
       })
       return NextResponse.json(
-        { error: 'Failed to save registration' },
+        { 
+          error: 'Failed to save registration',
+          details: insertError.message || 'Database error occurred',
+          code: insertError.code,
+        },
         { status: 500 }
       )
     }

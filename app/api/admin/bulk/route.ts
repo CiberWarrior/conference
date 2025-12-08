@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
 interface BulkUpdateRequest {
-  action: 'update_status' | 'send_email' | 'export'
+  action: 'update_status' | 'send_email' | 'export' | 'delete'
   registrationIds: string[]
   newStatus?: 'paid' | 'pending' | 'not_required'
   emailType?: 'payment_reminder' | 'pre_conference_reminder' | 'event_details'
@@ -31,6 +31,37 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient()
+
+    // ✅ SECURITY: Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // ✅ SECURITY: Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role, active')
+      .eq('id', user.id)
+      .single()
+    
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 403 }
+      )
+    }
+
+    if (!profile.active) {
+      return NextResponse.json(
+        { error: 'Your account is deactivated' },
+        { status: 403 }
+      )
+    }
 
     // Get all registrations
     const { data: registrations, error: fetchError } = await supabase
@@ -138,6 +169,30 @@ export async function POST(request: NextRequest) {
           sent: results.sent,
           failed: results.failed,
           errors: results.errors,
+        })
+
+      case 'delete':
+        // Use admin client to delete (bypasses RLS)
+        const adminSupabase = createAdminClient()
+        
+        // Delete registrations
+        const { error: deleteError } = await adminSupabase
+          .from('registrations')
+          .delete()
+          .in('id', registrationIds)
+
+        if (deleteError) {
+          console.error('Delete error:', deleteError)
+          return NextResponse.json(
+            { error: `Failed to delete registrations: ${deleteError.message}` },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Successfully deleted ${registrations.length} registration(s)`,
+          deleted: registrations.length,
         })
 
       default:

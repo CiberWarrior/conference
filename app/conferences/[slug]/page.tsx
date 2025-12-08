@@ -215,14 +215,14 @@ export default function ConferencePage() {
             {/* Section Header */}
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4">
-                Get Started
+                Registration
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
                 Join us at the conference. Register now or submit your research abstract.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            <div className="flex flex-col gap-8 max-w-4xl mx-auto">
               {/* Registration Form Card */}
               {registrationEnabled && (
                 <div className="relative bg-white rounded-3xl p-8 border-2 border-gray-100 shadow-xl overflow-hidden">
@@ -283,7 +283,11 @@ export default function ConferencePage() {
 
                     {/* Registration Form */}
                     <div className="border-t-2 border-gray-100 pt-8">
-                      <RegistrationForm conferenceId={conference.id} />
+                      <RegistrationForm
+                        conferenceId={conference.id}
+                        pricing={conference.pricing}
+                        conferenceStartDate={conference.start_date}
+                      />
                     </div>
                   </div>
                 </div>
@@ -341,162 +345,235 @@ export default function ConferencePage() {
                   </div>
                 </div>
               )}
+
+              {/* Divider with elegant styling */}
+              {(abstractSubmissionEnabled && (conference.start_date || pricing.early_bird?.deadline || pricing.regular)) && (
+                <div className="my-16">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-gradient-to-br from-gray-50 to-white px-6 py-2 text-gray-500 text-sm font-semibold tracking-wide uppercase">
+                        Additional Information
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Important Dates and Registration Fee Section - Premium Design */}
+              {(conference.start_date || pricing.early_bird?.deadline || pricing.regular) && (
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Important Dates Card - Enhanced */}
+                  {(conference.start_date || pricing.early_bird?.deadline) && (
+                    <div className="group relative bg-white rounded-3xl p-8 md:p-10 border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                      {/* Subtle gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-blue-50/0 to-purple-50/0 group-hover:from-blue-50/50 group-hover:via-blue-50/30 group-hover:to-purple-50/50 transition-all duration-500"></div>
+                      
+                      <div className="relative z-10">
+                        {/* Header with icon */}
+                        <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
+                          <div className="relative">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                              <Clock className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-400 rounded-full border-2 border-white animate-pulse"></div>
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                              Important Dates
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-0.5">Key deadlines to remember</p>
+                          </div>
+                        </div>
+
+                        {/* Dates list with enhanced styling */}
+                        <ul className="space-y-5">
+                          {pricing.early_bird?.deadline && (
+                            <li className="group/item relative">
+                              <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 hover:border-green-200 hover:shadow-md transition-all duration-200">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
+                                    <Users className="w-6 h-6 text-white" />
+                                  </div>
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Early Registration</span>
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Limited Time</span>
+                                  </div>
+                                  <div className="text-lg font-bold text-gray-900">
+                                    {new Date(
+                                      pricing.early_bird.deadline
+                                    ).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                    })}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Save with early bird pricing
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          )}
+                          {conference.start_date && (
+                            <li className="group/item relative">
+                              <div className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-100 hover:border-purple-200 hover:shadow-md transition-all duration-200">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
+                                    <Calendar className="w-6 h-6 text-white" />
+                                  </div>
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full border-2 border-white"></div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Conference Dates</span>
+                                  </div>
+                                  <div className="text-lg font-bold text-gray-900">
+                                    {new Date(
+                                      conference.start_date
+                                    ).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                    })}
+                                    {conference.end_date &&
+                                      ` - ${new Date(
+                                        conference.end_date
+                                      ).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                      })}`}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Mark your calendar
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Registration Fee Card - Enhanced */}
+                  {pricing && (
+                    <div className="group relative bg-white rounded-3xl p-8 md:p-10 border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                      {/* Subtle gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 via-violet-50/0 to-fuchsia-50/0 group-hover:from-purple-50/50 group-hover:via-violet-50/30 group-hover:to-fuchsia-50/50 transition-all duration-500"></div>
+                      
+                      <div className="relative z-10">
+                        {/* Header with icon */}
+                        <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
+                          <div className="relative">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-violet-600 to-fuchsia-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                              <Globe className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full border-2 border-white animate-pulse"></div>
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                              Registration Fee
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-0.5">Pricing tiers available</p>
+                          </div>
+                        </div>
+
+                        {/* Pricing list with enhanced styling */}
+                        <ul className="space-y-5">
+                          {pricing.early_bird?.amount && (
+                            <li className="group/item relative">
+                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100 hover:border-blue-200 hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                  <div className="relative flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
+                                      <CheckCircle className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full border-2 border-white"></div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-bold text-gray-900">Early Bird</span>
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">Best Value</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500">Register early and save</div>
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 ml-4">
+                                  <div className="text-2xl font-black text-blue-600">
+                                    {pricing.currency} {pricing.early_bird.amount.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          )}
+                          {pricing.regular?.amount && (
+                            <li className="group/item relative">
+                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-100 hover:border-purple-200 hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                  <div className="relative flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
+                                      <CheckCircle className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full border-2 border-white"></div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold text-gray-900 mb-1">Regular</div>
+                                    <div className="text-xs text-gray-500">Standard pricing</div>
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 ml-4">
+                                  <div className="text-2xl font-black text-purple-600">
+                                    {pricing.currency} {pricing.regular.amount.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          )}
+                          {pricing.student_discount && (
+                            <li className="group/item relative">
+                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-100 hover:border-violet-200 hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                  <div className="relative flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
+                                      <Users className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-400 rounded-full border-2 border-white"></div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-bold text-gray-900">Student Discount</span>
+                                      <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">Special Offer</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500">Valid student ID required</div>
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 ml-4 text-right">
+                                  <div className="text-xl font-black text-violet-600">
+                                    {pricing.currency} {pricing.student_discount.toFixed(2)}
+                                  </div>
+                                  <div className="text-xs text-gray-500 font-medium">off</div>
+                                </div>
+                              </div>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </section>
       )}
 
-      {/* Conference Info - Modern Cards */}
-      <section className="relative py-24 bg-white overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-100/30 to-transparent rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-purple-100/30 to-transparent rounded-full filter blur-3xl"></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Important Dates Card */}
-            {(conference.start_date ||
-              pricing.early_bird?.deadline ||
-              pricing.regular) && (
-              <div className="group relative p-10 rounded-3xl bg-gradient-to-br from-white via-blue-50/50 to-white border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 overflow-hidden">
-                {/* Animated background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                
-                <div className="relative z-10">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                      <Clock className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-3xl font-black text-gray-900">
-                      Important Dates
-                    </h3>
-                  </div>
-                  <ul className="space-y-6">
-                    {pricing.early_bird?.deadline && (
-                      <li className="flex items-start gap-4 group/item">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
-                          <Users className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900 mb-2 text-lg">
-                            Early Registration
-                          </div>
-                          <div className="text-gray-600 font-medium">
-                            {new Date(
-                              pricing.early_bird.deadline
-                            ).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                            })}
-                          </div>
-                        </div>
-                      </li>
-                    )}
-                    {conference.start_date && (
-                      <li className="flex items-start gap-4 group/item">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
-                          <Calendar className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900 mb-2 text-lg">
-                            Conference Dates
-                          </div>
-                          <div className="text-gray-600 font-medium">
-                            {new Date(
-                              conference.start_date
-                            ).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                            })}
-                            {conference.end_date &&
-                              ` - ${new Date(
-                                conference.end_date
-                              ).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}`}
-                          </div>
-                        </div>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Pricing Info Card */}
-            {pricing && (
-              <div className="group relative p-10 rounded-3xl bg-gradient-to-br from-white via-purple-50/50 to-white border-2 border-purple-100 hover:border-purple-300 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 overflow-hidden">
-                {/* Animated background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                
-                <div className="relative z-10">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-600 flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                      <Globe className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-3xl font-black text-gray-900">
-                      Registration Fees
-                    </h3>
-                  </div>
-                  <ul className="space-y-6">
-                    {pricing.early_bird?.amount && (
-                      <li className="flex items-start gap-4 group/item">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
-                          <CheckCircle className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900 mb-2 text-lg">
-                            Early Bird
-                          </div>
-                          <div className="text-2xl font-black text-blue-600">
-                            {pricing.currency} {pricing.early_bird.amount}
-                          </div>
-                        </div>
-                      </li>
-                    )}
-                    {pricing.regular?.amount && (
-                      <li className="flex items-start gap-4 group/item">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
-                          <CheckCircle className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900 mb-2 text-lg">
-                            Regular
-                          </div>
-                          <div className="text-2xl font-black text-purple-600">
-                            {pricing.currency} {pricing.regular.amount}
-                          </div>
-                        </div>
-                      </li>
-                    )}
-                    {pricing.student_discount && (
-                      <li className="flex items-start gap-4 group/item">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
-                          <Users className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900 mb-2 text-lg">
-                            Student Discount
-                          </div>
-                          <div className="text-xl font-black text-violet-600">
-                            {pricing.currency} {pricing.student_discount} off
-                          </div>
-                        </div>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
     </>
   )
 }

@@ -66,6 +66,11 @@ export default function RegistrationsPage() {
           departureDate: r.departure_date || '',
           paymentRequired: r.payment_required,
           paymentByCard: r.payment_by_card || false,
+          accompanyingPersons: r.accompanying_persons || false,
+          accompanyingPersonsData: r.accompanying_persons_data || [],
+          galaDinner: r.gala_dinner || false,
+          presentationType: r.presentation_type || false,
+          abstractSubmission: r.abstract_submission || false,
           paymentStatus: r.payment_status,
           createdAt: r.created_at,
           checkedIn: r.checked_in || false,
@@ -232,6 +237,42 @@ export default function RegistrationsPage() {
       }
 
       showSuccess(`Successfully updated ${result.updated} registration(s)`)
+      setSelectedIds(new Set())
+      setBulkActionMenuOpen(false)
+      loadRegistrations()
+    } catch (error) {
+      showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    const confirmMessage = `Are you sure you want to delete ${selectedIds.size} registration(s)? This action cannot be undone.`
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      setBulkProcessing(true)
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          registrationIds: Array.from(selectedIds),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete registrations')
+      }
+
+      showSuccess(`Successfully deleted ${result.deleted} registration(s)`)
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
       loadRegistrations()
@@ -533,6 +574,17 @@ export default function RegistrationsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           Export Selected
+                        </button>
+                        <div className="border-t border-red-200 my-1" />
+                        <button
+                          onClick={handleBulkDelete}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          disabled={bulkProcessing}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete Selected
                         </button>
                       </div>
                     </div>
