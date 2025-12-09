@@ -360,9 +360,6 @@ export default function Home() {
 
               {/* Main Heading */}
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.1]">
-                <span className="block text-white">
-                  Modern
-                </span>
                 <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-violet-400 bg-clip-text text-transparent">
                   Conference
                 </span>
