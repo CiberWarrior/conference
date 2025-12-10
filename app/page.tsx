@@ -435,17 +435,17 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Registration + Payment */}
-            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-20 -mt-20 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <Users className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Smart Registration</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Seamless registration with integrated payment processing. Customizable forms that capture exactly what you need.
                 </p>
-                <Link href="/features#smart-registration" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 group-hover:gap-4 transition-all text-sm">
+                <Link href="/features#smart-registration" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 transition-all text-sm">
                   Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -453,17 +453,17 @@ export default function Home() {
             </div>
 
             {/* Abstract Management */}
-            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-purple-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-purple-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full -mr-20 -mt-20 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <FileText className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Abstract Hub</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Streamlined submission and review process. Organize, evaluate, and manage research abstracts effortlessly.
                 </p>
-                <Link href="/features#abstract-hub" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 group-hover:gap-4 transition-all text-sm">
+                <Link href="/features#abstract-hub" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 transition-all text-sm">
                   Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -471,17 +471,17 @@ export default function Home() {
             </div>
 
             {/* Event Management */}
-            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-20 -mt-20 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-green-500 via-green-600 to-teal-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-green-500 via-green-600 to-teal-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <BarChart3 className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Organizer Dashboard</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Your conference, all in one place. Follow new registrations, payments, and abstract submissions the moment they come in — clearly, simply, and in real time.
                 </p>
-                <Link href="/features#organizer-dashboard" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 group-hover:gap-4 transition-all text-sm">
+                <Link href="/features#organizer-dashboard" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-all text-sm">
                   Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -489,17 +489,17 @@ export default function Home() {
             </div>
 
             {/* Conference Websites */}
-            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full -mr-20 -mt-20 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full -mr-20 -mt-20 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <Monitor className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Conference Websites</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
                   Professional, custom-designed websites for your conference. Beautiful, responsive, and fully integrated with our platform for seamless registration and management.
                 </p>
-                <Link href="/features#conference-websites" className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 group-hover:gap-4 transition-all text-sm">
+                <Link href="/features#conference-websites" className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-all text-sm">
                   Learn More
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -582,10 +582,10 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {/* Virtual Conference */}
-            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-indigo-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full -mr-16 -mt-16 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <Globe className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Virtual Conference</h3>
@@ -596,10 +596,10 @@ export default function Home() {
             </div>
 
             {/* Hybrid Conference */}
-            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full -mr-16 -mt-16 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <GitMerge className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">Hybrid Conference</h3>
@@ -610,10 +610,10 @@ export default function Home() {
             </div>
 
             {/* On-site Conference */}
-            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-16 -mt-16 opacity-10 group-hover:opacity-20 transition-opacity blur-2xl"></div>
+            <div className="group relative p-8 rounded-3xl bg-white border-2 border-gray-100 hover:border-green-300 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-green-600 rounded-full -mr-16 -mt-16 opacity-10 blur-2xl"></div>
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <MapPin className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-4">On-site Conference</h3>
