@@ -61,10 +61,22 @@ export async function POST(request: NextRequest) {
     // Create a response that we'll use to set cookies
     const response = NextResponse.json({ success: false })
 
+    // Validate environment variables
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      log.error('Supabase environment variables not configured in login route')
+      return NextResponse.json(
+        { error: 'Server configuration error. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
     // Create Supabase client with proper cookie handling for server-side
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           get(name: string) {

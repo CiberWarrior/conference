@@ -76,7 +76,7 @@ function hashEmail(email: string): string {
   for (let i = 0; i < email.length; i++) {
     const char = email.charCodeAt(i)
     hash = (hash << 5) - hash + char
-    hash = hash & hash // Convert to 32-bit integer
+    hash = hash & 0xffffffff // Convert to 32-bit integer
   }
   // Return positive hash as hex string
   return Math.abs(hash).toString(16).substring(0, 8)

@@ -1,6 +1,36 @@
 import { supabase } from './supabase'
 import { log } from './logger'
 
+/**
+ * Get appropriate Supabase client based on context
+ * - Server context: uses createServerClient (reads from cookies)
+ * - Client context: uses client-side supabase
+ * 
+ * Note: In client components, this will always use client-side supabase.
+ * In server components/API routes, this will use createServerClient.
+ */
+async function getSupabaseClient() {
+  // Client context - always use client-side supabase
+  // This prevents issues with dynamic imports in client components
+  if (typeof window !== 'undefined') {
+    return supabase
+  }
+  
+  // Server context - use createServerClient
+  // Dynamic import to avoid bundling createServerClient in client bundle
+  try {
+    const { createServerClient } = await import('./supabase')
+    return await createServerClient()
+  } catch (error) {
+    // If dynamic import fails, log error and throw
+    // This should not happen in normal server context
+    log.error('Failed to create server client', error, {
+      function: 'getSupabaseClient',
+    })
+    throw new Error('Failed to create Supabase server client. This function should only be called from server context.')
+  }
+}
+
 export type UserRole = 'super_admin' | 'conference_admin'
 
 export interface UserProfile {
@@ -38,11 +68,12 @@ export interface ConferencePermission {
  */
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const client = await getSupabaseClient()
+    const { data: { user } } = await client.auth.getUser()
     
     if (!user) return null
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('user_profiles')
       .select('*')
       .eq('id', user.id)
@@ -93,12 +124,13 @@ export async function hasConferencePermission(
       return true
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const client = await getSupabaseClient()
+    const { data: { user } } = await client.auth.getUser()
     const checkUserId = userId || user?.id
     
     if (!checkUserId) return false
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('conference_permissions')
       .select('id')
       .eq('user_id', checkUserId)
@@ -133,12 +165,13 @@ export async function getUserConferencePermissions(
   userId?: string
 ): Promise<ConferencePermission | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const client = await getSupabaseClient()
+    const { data: { user } } = await client.auth.getUser()
     const checkUserId = userId || user?.id
     
     if (!checkUserId) return null
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('conference_permissions')
       .select('*')
       .eq('user_id', checkUserId)
@@ -174,9 +207,11 @@ export async function getAccessibleConferences() {
     
     if (!profile) return []
 
+    const client = await getSupabaseClient()
+    
     // Super admin gets all conferences
     if (profile.role === 'super_admin') {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('conferences')
         .select('*')
         .order('created_at', { ascending: false })
@@ -193,7 +228,7 @@ export async function getAccessibleConferences() {
     }
 
     // Conference admin gets only assigned conferences
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('conferences')
       .select(`
         *,
@@ -225,7 +260,8 @@ export async function getAccessibleConferences() {
  */
 export async function updateLastLogin(userId: string): Promise<void> {
   try {
-    await supabase
+    const client = await getSupabaseClient()
+    await client
       .from('user_profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', userId)
@@ -247,7 +283,8 @@ export async function logAdminAction(
   details?: any
 ): Promise<void> {
   try {
-    await supabase.rpc('log_admin_action', {
+    const client = await getSupabaseClient()
+    await client.rpc('log_admin_action', {
       p_action: action,
       p_resource_type: resourceType || null,
       p_resource_id: resourceId || null,

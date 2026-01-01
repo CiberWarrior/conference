@@ -124,9 +124,26 @@ function determinePriority(expectedAttendees: string, conferenceType: string): s
   return 'medium'
 }
 
+// Escape HTML to prevent XSS in email templates
+function escapeHtml(text: string | null | undefined): string {
+  if (!text) return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+// Escape text for plain text emails (remove HTML tags)
+function escapeText(text: string | null | undefined): string {
+  if (!text) return ''
+  return String(text).replace(/<[^>]*>/g, '')
+}
+
 // Send notification email to admin team
 async function sendInquiryNotificationEmail(inquiry: any) {
-  const subject = `🔔 New Inquiry: ${inquiry.organization} - ${inquiry.expected_attendees || 'Size not specified'}`
+  const subject = `🔔 New Inquiry: ${escapeText(inquiry.organization)} - ${escapeText(inquiry.expected_attendees || 'Size not specified')}`
   
   const html = `
     <!DOCTYPE html>
@@ -157,53 +174,53 @@ async function sendInquiryNotificationEmail(inquiry: any) {
           <div class="content">
             <div class="field">
               <span class="label">Priority:</span>
-              <span class="priority priority-${inquiry.priority}">${inquiry.priority.toUpperCase()}</span>
+              <span class="priority priority-${escapeHtml(inquiry.priority || 'medium')}">${escapeHtml((inquiry.priority || 'medium').toUpperCase())}</span>
             </div>
 
             <div class="field">
               <span class="label">Contact Person:</span>
-              <div class="value">${inquiry.name}</div>
+              <div class="value">${escapeHtml(inquiry.name)}</div>
             </div>
 
             <div class="field">
               <span class="label">Email:</span>
-              <div class="value"><a href="mailto:${inquiry.email}">${inquiry.email}</a></div>
+              <div class="value"><a href="mailto:${escapeHtml(inquiry.email)}">${escapeHtml(inquiry.email)}</a></div>
             </div>
 
             <div class="field">
               <span class="label">Organization:</span>
-              <div class="value">${inquiry.organization}</div>
+              <div class="value">${escapeHtml(inquiry.organization)}</div>
             </div>
 
             ${inquiry.phone ? `
               <div class="field">
                 <span class="label">Phone:</span>
-                <div class="value">${inquiry.phone}</div>
+                <div class="value">${escapeHtml(inquiry.phone)}</div>
               </div>
             ` : ''}
 
             ${inquiry.conference_type ? `
               <div class="field">
                 <span class="label">Conference Type:</span>
-                <div class="value">${formatConferenceType(inquiry.conference_type)}</div>
+                <div class="value">${escapeHtml(formatConferenceType(inquiry.conference_type))}</div>
               </div>
             ` : ''}
 
             ${inquiry.expected_attendees ? `
               <div class="field">
                 <span class="label">Expected Attendees:</span>
-                <div class="value">${inquiry.expected_attendees}</div>
+                <div class="value">${escapeHtml(inquiry.expected_attendees)}</div>
               </div>
             ` : ''}
 
             <div class="field">
               <span class="label">Message:</span>
-              <div class="value" style="white-space: pre-wrap;">${inquiry.message}</div>
+              <div class="value" style="white-space: pre-wrap;">${escapeHtml(inquiry.message)}</div>
             </div>
 
             <div class="field">
               <span class="label">Submitted:</span>
-              <div class="value">${new Date(inquiry.created_at).toLocaleString()}</div>
+              <div class="value">${inquiry.created_at ? new Date(inquiry.created_at).toLocaleString() : 'N/A'}</div>
             </div>
 
             <div style="text-align: center;">
@@ -224,18 +241,18 @@ async function sendInquiryNotificationEmail(inquiry: any) {
   const text = `
 New Inquiry Received
 
-Priority: ${inquiry.priority.toUpperCase()}
-Name: ${inquiry.name}
-Email: ${inquiry.email}
-Organization: ${inquiry.organization}
-${inquiry.phone ? `Phone: ${inquiry.phone}` : ''}
-${inquiry.conference_type ? `Conference Type: ${formatConferenceType(inquiry.conference_type)}` : ''}
-${inquiry.expected_attendees ? `Expected Attendees: ${inquiry.expected_attendees}` : ''}
+Priority: ${(inquiry.priority || 'medium').toUpperCase()}
+Name: ${escapeText(inquiry.name)}
+Email: ${escapeText(inquiry.email)}
+Organization: ${escapeText(inquiry.organization)}
+${inquiry.phone ? `Phone: ${escapeText(inquiry.phone)}` : ''}
+${inquiry.conference_type ? `Conference Type: ${escapeText(formatConferenceType(inquiry.conference_type))}` : ''}
+${inquiry.expected_attendees ? `Expected Attendees: ${escapeText(inquiry.expected_attendees)}` : ''}
 
 Message:
-${inquiry.message}
+${escapeText(inquiry.message)}
 
-Submitted: ${new Date(inquiry.created_at).toLocaleString()}
+Submitted: ${inquiry.created_at ? new Date(inquiry.created_at).toLocaleString() : 'N/A'}
 
 View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/inquiries
   `
@@ -275,7 +292,7 @@ async function sendCustomerConfirmationEmail(inquiry: any) {
             <p style="margin: 15px 0 0 0; opacity: 0.95; font-size: 16px;">Thank you for your interest in MeetFlow</p>
           </div>
           <div class="content">
-            <p>Dear ${inquiry.name},</p>
+            <p>Dear ${escapeHtml(inquiry.name)},</p>
             
             <p>Thank you for reaching out to us! We have received your inquiry about our conference management platform.</p>
 
@@ -286,9 +303,9 @@ async function sendCustomerConfirmationEmail(inquiry: any) {
 
             <p><strong>Your inquiry details:</strong></p>
             <ul>
-              <li>Organization: ${inquiry.organization}</li>
-              ${inquiry.conference_type ? `<li>Conference Type: ${formatConferenceType(inquiry.conference_type)}</li>` : ''}
-              ${inquiry.expected_attendees ? `<li>Expected Attendees: ${inquiry.expected_attendees}</li>` : ''}
+              <li>Organization: ${escapeHtml(inquiry.organization)}</li>
+              ${inquiry.conference_type ? `<li>Conference Type: ${escapeHtml(formatConferenceType(inquiry.conference_type))}</li>` : ''}
+              ${inquiry.expected_attendees ? `<li>Expected Attendees: ${escapeHtml(inquiry.expected_attendees)}</li>` : ''}
             </ul>
 
             <p>In the meantime, feel free to explore our <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}">platform features</a> or check out our <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}#features">documentation</a>.</p>
@@ -307,7 +324,7 @@ async function sendCustomerConfirmationEmail(inquiry: any) {
   `
 
   const text = `
-Dear ${inquiry.name},
+Dear ${escapeText(inquiry.name)},
 
 Thank you for reaching out to us! We have received your inquiry about our conference management platform.
 
@@ -315,9 +332,9 @@ What happens next?
 Our team will review your requirements and get back to you within 24 hours (usually much sooner!).
 
 Your inquiry details:
-- Organization: ${inquiry.organization}
-${inquiry.conference_type ? `- Conference Type: ${formatConferenceType(inquiry.conference_type)}` : ''}
-${inquiry.expected_attendees ? `- Expected Attendees: ${inquiry.expected_attendees}` : ''}
+- Organization: ${escapeText(inquiry.organization)}
+${inquiry.conference_type ? `- Conference Type: ${escapeText(formatConferenceType(inquiry.conference_type))}` : ''}
+${inquiry.expected_attendees ? `- Expected Attendees: ${escapeText(inquiry.expected_attendees)}` : ''}
 
 If you have any urgent questions, you can reply directly to this email.
 
