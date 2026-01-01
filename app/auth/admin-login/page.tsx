@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, LogIn, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -13,6 +13,21 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
+
+  // Check for success message from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('message') === 'password_reset_success') {
+      setError('')
+      setSuccess(true)
+      // Clear message from URL after showing
+      setTimeout(() => {
+        router.replace('/auth/admin-login')
+        setSuccess(false)
+      }, 5000)
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,10 +203,40 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-700/50">
+          <div className="mt-6 pt-6 border-t border-slate-700/50 space-y-3">
+            <button
+              onClick={async () => {
+                if (!email) {
+                  setError('Please enter your email address first')
+                  return
+                }
+                try {
+                  setError('')
+                  setResetEmailSent(false)
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth/reset-password`,
+                  })
+                  if (error) throw error
+                  setResetEmailSent(true)
+                } catch (error: any) {
+                  setError(error.message || 'Failed to send reset email')
+                  setResetEmailSent(false)
+                }
+              }}
+              className="w-full text-sm text-slate-400 hover:text-white transition-colors"
+            >
+              Forgot password?
+            </button>
+            {resetEmailSent && (
+              <div className="p-3 bg-green-500/10 border border-green-500/50 rounded-lg">
+                <p className="text-sm text-green-400 text-center">
+                  ✓ Password reset email sent! Check your inbox.
+                </p>
+              </div>
+            )}
             <Link
               href="/"
-              className="text-sm text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+              className="block text-sm text-slate-400 hover:text-white transition-colors text-center"
             >
               ← Back to homepage
             </Link>
