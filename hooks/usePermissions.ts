@@ -29,6 +29,9 @@ export function usePermissions() {
         canGenerateCertificates: false,
         canEditConference: false,
         canDeleteData: false,
+        canManageRegistrationForm: false,
+        canViewAllRegistrations: false,
+        canViewAnalytics: false,
       }
     }
 
@@ -48,6 +51,10 @@ export function usePermissions() {
       canManageAbstracts: isAdmin || hasConferenceAccess,
       canCheckIn: isAdmin || hasConferenceAccess,
       canGenerateCertificates: isAdmin || hasConferenceAccess,
+      // New permissions
+      canManageRegistrationForm: isAdmin || hasConferenceAccess,
+      canViewAllRegistrations: isAdmin || hasConferenceAccess,
+      canViewAnalytics: isAdmin || hasConferenceAccess,
       // RESTRICTED: Only Super Admin can edit conference settings and delete data
       canEditConference: isAdmin,
       canDeleteData: isAdmin,

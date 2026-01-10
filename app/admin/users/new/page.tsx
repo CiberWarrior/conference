@@ -43,7 +43,10 @@ export default function NewUserPage() {
     can_check_in: true,
     can_generate_certificates: true,
     can_edit_conference: false,
-    can_delete_data: false
+    can_delete_data: false,
+    can_manage_registration_form: true,
+    can_view_all_registrations: true,
+    can_view_analytics: true,
   })
   
   // UI state
@@ -354,6 +357,9 @@ export default function NewUserPage() {
               { key: 'can_manage_abstracts', label: 'Manage Abstracts', description: 'Can review and manage abstracts' },
               { key: 'can_check_in', label: 'Check-in Participants', description: 'Can check-in attendees' },
               { key: 'can_generate_certificates', label: 'Generate Certificates', description: 'Can create and issue certificates' },
+              { key: 'can_manage_registration_form', label: 'Manage Registration Form', description: 'Can create and edit custom registration fields' },
+              { key: 'can_view_all_registrations', label: 'View All Registrations', description: 'Full access to all registration data' },
+              { key: 'can_view_analytics', label: 'View Analytics', description: 'Can view conference statistics and analytics' },
               { key: 'can_edit_conference', label: 'Edit Conference Settings', description: 'Can modify conference details' },
               { key: 'can_delete_data', label: 'Delete Data', description: 'Can delete registrations and data' },
             ].map((perm) => (

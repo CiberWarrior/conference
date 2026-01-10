@@ -6,39 +6,6 @@
  */
 
 /**
- * Generate organized file path for abstracts
- * Structure: abstracts/{registrationId}/{filename}
- * If no registrationId, uses email hash or timestamp
- */
-export function getAbstractFilePath(
-  fileName: string,
-  registrationId?: string | null,
-  email?: string | null
-): string {
-  const sanitizedFileName = sanitizeFileName(fileName)
-  const timestamp = Date.now()
-  const uniqueFileName = `${timestamp}_${sanitizedFileName}`
-
-  // If registrationId is provided, organize by registration
-  if (registrationId) {
-    return `abstracts/${registrationId}/${uniqueFileName}`
-  }
-
-  // If email is provided but no registrationId, use email hash
-  if (email) {
-    // Simple hash function for email (for folder organization)
-    const emailHash = hashEmail(email)
-    return `abstracts/by-email/${emailHash}/${uniqueFileName}`
-  }
-
-  // Fallback: organize by date if no identifiers
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `abstracts/${year}/${month}/${uniqueFileName}`
-}
-
-/**
  * Generate file path for invoices
  * Structure: invoices/{registrationId}/invoice-{invoiceId}.pdf
  */
@@ -98,4 +65,3 @@ export function extractRegistrationIdFromPath(filePath: string): string | null {
 export function getAbstractPathsForRegistration(registrationId: string): string {
   return `abstracts/${registrationId}/`
 }
-

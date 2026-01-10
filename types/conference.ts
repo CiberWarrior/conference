@@ -36,6 +36,25 @@ export interface Conference {
   updated_at: string
 }
 
+export interface CustomPricingField {
+  id: string
+  name: string // Naziv polja (npr. "VIP Price", "Group Discount")
+  value: number // Vrijednost/cijena
+  description: string // Opis polja
+}
+
+export interface HotelOption {
+  id: string
+  name: string // Naziv hotela i tip sobe (npr. "HOTEL VIS / KOMODOR 3 - Double SINGLE USE room standard park view")
+  occupancy: string // "1 person", "2 people", etc.
+  pricePerNight: number // Cijena po noći
+  description?: string // Dodatne informacije
+  order: number // Redoslijed prikazivanja
+  available_from?: string // ISO date string - od kada je hotel dostupan za rezervacije
+  available_until?: string // ISO date string - do kada je hotel dostupan za rezervacije
+  max_rooms?: number // Maksimalni broj soba dostupan za rezervaciju (opcionalno)
+}
+
 export interface ConferencePricing {
   currency: string
   early_bird: {
@@ -50,6 +69,35 @@ export interface ConferencePricing {
   }
   student_discount: number
   accompanying_person_price?: number // Price for accompanying persons (early bird)
+  custom_fields?: CustomPricingField[] // Custom pricing polja koja korisnik definira
+}
+
+export interface CustomRegistrationField {
+  id: string
+  name: string // Naziv polja (npr. "Dietary Requirements", "Special Needs")
+  type: 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' // Tip polja
+  label: string // Label koji se prikazuje u formi
+  placeholder?: string // Placeholder tekst
+  description?: string // Opis polja (help text)
+  required: boolean // Je li polje obavezno
+  options?: string[] // Opcije za select tip (razdvojene zarezom ili array)
+  validation?: {
+    min?: number // Minimalna vrijednost za number
+    max?: number // Maksimalna vrijednost za number
+    minLength?: number // Minimalna duljina za text
+    maxLength?: number // Maksimalna duljina za text
+    pattern?: string // Regex pattern za validaciju
+  }
+}
+
+export interface ParticipantSettings {
+  enabled: boolean
+  minParticipants: number
+  maxParticipants: number
+  requireUniqueEmails: boolean
+  participantFields: string[]
+  customFieldsPerParticipant: boolean
+  participantLabel?: string
 }
 
 export interface ConferenceSettings {
@@ -58,6 +106,10 @@ export interface ConferenceSettings {
   payment_required: boolean
   max_registrations?: number
   timezone: string
+  registration_info_text?: string // Informativni tekst koji se prikazuje na vrhu registration forme
+  custom_registration_fields?: CustomRegistrationField[] // Custom polja za registracijski obrazac
+  participant_settings?: ParticipantSettings // Settings for multiple participants
+  hotel_options?: HotelOption[] // Dostupni hoteli za accommodation
 }
 
 export interface EmailSettings {

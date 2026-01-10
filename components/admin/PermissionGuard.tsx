@@ -26,6 +26,9 @@ interface PermissionGuardProps {
     | 'can_generate_certificates'
     | 'can_edit_conference'
     | 'can_delete_data'
+    | 'can_manage_registration_form'
+    | 'can_view_all_registrations'
+    | 'can_view_analytics'
   >
   fallback?: React.ReactNode
   requireConference?: boolean

@@ -186,26 +186,14 @@ export default function ConferenceRegisterPage() {
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
             <RegistrationForm 
               conferenceId={conference.id}
-              conferenceName={conference.name}
-              conferenceDate={conference.start_date ? 
-                `${new Date(conference.start_date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}${conference.end_date ? 
-                  ` - ${new Date(conference.end_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}` : ''}`
-                : undefined
-              }
-              conferenceLocation={conference.location ? 
-                `${conference.location}${conference.venue ? `, ${conference.venue}` : ''}`
-                : undefined
-              }
+              customFields={conference.settings?.custom_registration_fields || []}
+              participantSettings={conference.settings?.participant_settings}
+              registrationInfoText={conference.settings?.registration_info_text}
               pricing={conference.pricing}
+              hotelOptions={conference.settings?.hotel_options || []}
+              currency={conference.pricing?.currency || 'EUR'}
               conferenceStartDate={conference.start_date}
+              conferenceEndDate={conference.end_date}
             />
           </div>
         </div>

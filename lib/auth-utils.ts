@@ -58,6 +58,9 @@ export interface ConferencePermission {
   can_generate_certificates: boolean
   can_edit_conference: boolean
   can_delete_data: boolean
+  can_manage_registration_form: boolean
+  can_view_all_registrations: boolean
+  can_view_analytics: boolean
   granted_by: string | null
   granted_at: string
   notes: string | null

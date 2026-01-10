@@ -1,1748 +1,715 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import PaymentSection from './PaymentSection'
-import PaymentForm from './PaymentForm'
-import SupportedCards from './SupportedCards'
-import SuccessMessage from './SuccessMessage'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import type { RegistrationFormData, AccompanyingPerson } from '@/types/registration'
-import type { ConferencePricing } from '@/types/conference'
-import { getCurrentPricing, formatPrice, getTierDisplayName } from '@/utils/pricing'
-import { Plus, X, Clock, AlertCircle } from 'lucide-react'
-
-const registrationSchema = z
-  .object({
-    firstName: z.string().min(2, 'First name must be at least 2 characters'),
-    lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-    email: z.string().email('Invalid email address'),
-    phone: z.string().min(5, 'Phone number must be at least 5 characters'),
-    country: z.string().min(2, 'Country is required'),
-    institution: z.string().min(2, 'Institution is required'),
-    arrivalDate: z.string().min(1, 'Arrival date is required'),
-    departureDate: z.string().min(1, 'Departure date is required'),
-    paymentRequired: z.boolean(),
-    paymentByCard: z.boolean(),
-    accompanyingPersons: z.boolean({
-      required_error: 'Please indicate if you will bring accompanying persons',
-    }),
-    galaDinner: z.boolean({
-      required_error: 'Please indicate if you will attend Gala Dinner',
-    }),
-    presentationType: z.boolean({
-      required_error: 'Please indicate if you intend to have poster/spoken presentation',
-    }),
-    abstractSubmission: z.boolean({
-      required_error: 'Please indicate if you will submit an abstract',
-    }),
-  })
-  .refine(
-    (data) => {
-      if (data.arrivalDate && data.departureDate) {
-        return new Date(data.departureDate) >= new Date(data.arrivalDate)
-      }
-      return true
-    },
-    {
-      message: 'Departure date must be after or equal to arrival date',
-      path: ['departureDate'],
-    }
-  )
+import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption } from '@/types/conference'
+import type { Participant } from '@/types/participant'
+import ParticipantManager from '@/components/admin/ParticipantManager'
+import { AlertCircle, Euro, UserPlus, Bed } from 'lucide-react'
 
 interface RegistrationFormProps {
   conferenceId?: string
-  conferenceName?: string
-  conferenceDate?: string
-  conferenceLocation?: string
-  pricing?: ConferencePricing
-  conferenceStartDate?: string // ISO date string for late registration logic
+  customFields?: CustomRegistrationField[] // Custom registration fields from conference settings
+  participantSettings?: ParticipantSettings // Settings for multiple participants
+  registrationInfoText?: string // Informational text to display at the top of the form
+  pricing?: ConferencePricing // Pricing information for registration fee selection
+  hotelOptions?: HotelOption[] // Available hotels for accommodation
+  currency?: string // Currency symbol (EUR, USD, etc.)
+  conferenceStartDate?: string // Conference start date (ISO string)
+  conferenceEndDate?: string // Conference end date (ISO string)
 }
 
 export default function RegistrationForm({
   conferenceId,
-  conferenceName,
-  conferenceDate,
-  conferenceLocation,
+  customFields = [],
+  participantSettings,
+  registrationInfoText,
   pricing,
+  hotelOptions = [],
+  currency = 'EUR',
   conferenceStartDate,
+  conferenceEndDate,
 }: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitSuccess, setSubmitSuccess] = useState<{
-    message: string
-    paymentUrl?: string
-  } | null>(null)
-  const [showPaymentForm, setShowPaymentForm] = useState(false)
-  const [registrationId, setRegistrationId] = useState<string | null>(null)
-  const [paymentAmount] = useState(50) // Default amount - can be made configurable
-  const [accompanyingPersonsList, setAccompanyingPersonsList] = useState<
-    AccompanyingPerson[]
-  >([])
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<RegistrationFormData>({
-    resolver: zodResolver(registrationSchema),
-    defaultValues: {
-      paymentRequired: false,
-      paymentByCard: false,
-      accompanyingPersons: false,
-      galaDinner: false,
-      presentationType: false,
-      abstractSubmission: false,
-      country: '',
-      institution: '',
-      arrivalDate: '',
-      departureDate: '',
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
+  const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
+  
+  // Accommodation state
+  const [arrivalDate, setArrivalDate] = useState<string>('')
+  const [departureDate, setDepartureDate] = useState<string>('')
+  const [numberOfNights, setNumberOfNights] = useState<number>(0)
+  const [selectedHotel, setSelectedHotel] = useState<string>('') // Selected hotel ID
+  
+  // Multiple participants state
+  const [participants, setParticipants] = useState<Participant[]>([
+    {
+      customFields: {},
     },
-  })
+  ])
 
-  const paymentRequired = watch('paymentRequired')
-  const paymentByCard = watch('paymentByCard')
-  const accompanyingPersons = watch('accompanyingPersons')
-
-  // Functions to manage accompanying persons list
-  const addAccompanyingPerson = () => {
-    setAccompanyingPersonsList([
-      ...accompanyingPersonsList,
-      {
-        firstName: '',
-        lastName: '',
-        arrivalDate: '',
-        departureDate: '',
-      },
-    ])
+  // Calculate number of nights when dates change
+  const calculateNights = (arrival: string, departure: string) => {
+    if (arrival && departure) {
+      const arrivalTime = new Date(arrival).getTime()
+      const departureTime = new Date(departure).getTime()
+      const nights = Math.round((departureTime - arrivalTime) / (1000 * 60 * 60 * 24))
+      setNumberOfNights(nights > 0 ? nights : 0)
+    } else {
+      setNumberOfNights(0)
+    }
   }
 
-  const removeAccompanyingPerson = (index: number) => {
-    setAccompanyingPersonsList(
-      accompanyingPersonsList.filter((_, i) => i !== index)
-    )
+  // Filter hotels based on availability dates
+  const getAvailableHotels = () => {
+    if (!arrivalDate || !departureDate) return []
+
+    const arrival = new Date(arrivalDate)
+    const departure = new Date(departureDate)
+    const conferenceStart = conferenceStartDate ? new Date(conferenceStartDate) : null
+    const conferenceEnd = conferenceEndDate ? new Date(conferenceEndDate) : null
+
+    return hotelOptions.filter((hotel) => {
+      // Check if hotel has availability dates set
+      const hotelAvailableFrom = hotel.available_from ? new Date(hotel.available_from) : conferenceStart
+      const hotelAvailableUntil = hotel.available_until ? new Date(hotel.available_until) : conferenceEnd
+
+      // If no dates are set and no conference dates, make hotel available
+      if (!hotelAvailableFrom && !hotelAvailableUntil) return true
+
+      // Check if selected dates fall within hotel availability
+      const isAvailable = (!hotelAvailableFrom || arrival >= hotelAvailableFrom) &&
+                          (!hotelAvailableUntil || departure <= hotelAvailableUntil)
+
+      return isAvailable
+    })
   }
 
-  const updateAccompanyingPerson = (
-    index: number,
-    field: keyof AccompanyingPerson,
-    value: string
-  ) => {
-    const updated = [...accompanyingPersonsList]
-    updated[index] = { ...updated[index], [field]: value }
-    setAccompanyingPersonsList(updated)
+  // Validate required fields before submission
+  const validateForm = (): boolean => {
+    console.log('🔍 Starting validation...')
+    
+    // Check if there's at least one participant
+    if (participants.length === 0) {
+      console.log('❌ Validation failed: No participants')
+      showError('At least one participant is required')
+      return false
+    }
+
+    // Check if registration fee is selected (if pricing is available)
+    if (pricing && !selectedFee) {
+      console.log('❌ Validation failed: No registration fee selected')
+      console.log('Pricing exists:', !!pricing, 'Selected fee:', selectedFee)
+      showError('Please select a registration fee option')
+      return false
+    }
+
+    // Check all required custom fields for each participant
+    for (let i = 0; i < participants.length; i++) {
+      const participant = participants[i]
+      console.log(`🔍 Validating Participant ${i + 1}:`, participant.customFields)
+      
+      for (const field of customFields) {
+        if (field.required) {
+          const value = participant.customFields?.[field.name]
+          console.log(`  Checking field "${field.name}" (${field.label}): value =`, value, 'required =', field.required)
+          
+          // Check if required field is empty
+          if (
+            value === undefined ||
+            value === null ||
+            value === '' ||
+            (field.type === 'checkbox' && value !== true)
+          ) {
+            console.log(`❌ Validation failed: Participant ${i + 1}, field "${field.label}" is empty`)
+            showError(`Participant ${i + 1}: ${field.label} is required`)
+            return false
+          }
+        }
+      }
+    }
+
+    console.log('✅ Validation passed!')
+    return true
   }
 
-  const onSubmit = async (data: RegistrationFormData) => {
-    setIsSubmitting(true)
-    setSubmitError(null)
-    setSubmitSuccess(null)
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    console.log('🔍 Form submission started')
+    console.log('📊 Participants:', participants)
+    console.log('💶 Selected Fee:', selectedFee)
+    console.log('📝 Custom Fields:', customFields)
+
+    if (!validateForm()) {
+      console.log('❌ Validation failed')
+      return
+    }
+
+    console.log('✅ Validation passed')
 
     try {
-      // Prepare form data
-      const formData = {
-        ...data,
-        accompanyingPersonsData:
-          accompanyingPersons && accompanyingPersonsList.length > 0
-            ? accompanyingPersonsList
-            : [],
-        conferenceId,
+      setIsSubmitting(true)
+
+      const payload = {
+        conference_id: conferenceId,
+        custom_data: {}, // No global custom data anymore, everything is per-participant
+        participants: participants,
+        registration_fee_type: selectedFee || null, // Include selected fee type
+        accommodation: arrivalDate && departureDate ? {
+          arrival_date: arrivalDate,
+          departure_date: departureDate,
+          number_of_nights: numberOfNights,
+          hotel_id: selectedHotel || null, // Include selected hotel
+        } : null,
       }
+
+      console.log('📤 Sending payload:', JSON.stringify(payload, null, 2))
 
       const response = await fetch('/api/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
 
-      const result = await response.json()
+      console.log('📥 Response status:', response.status)
 
       if (!response.ok) {
-        // Show detailed error message
-        const errorMsg = result.error || 'Registration failed'
-        const details = result.details ? ` Details: ${result.details}` : ''
-        const code = result.code ? ` (Code: ${result.code})` : ''
-        throw new Error(`${errorMsg}${details}${code}`)
+        const errorData = await response.json()
+        console.log('❌ Error from API:', errorData)
+        throw new Error(errorData.error || 'Registration failed')
       }
 
-      // If payment is required and paymentByCard is true, show payment form
-      if (data.paymentRequired && data.paymentByCard && result.registrationId) {
-        setRegistrationId(result.registrationId)
-        setShowPaymentForm(true)
-        showSuccess('Registration successful! Please complete your payment.')
-      } else {
-        setSubmitSuccess({
-          message: result.message || 'Registration successful!',
-          paymentUrl: result.paymentUrl,
-        })
-        showSuccess('Registration successful! You will receive a confirmation email shortly.')
+      const successData = await response.json()
+      console.log('✅ Registration successful:', successData)
 
-        // Reset form
-        if (typeof window !== 'undefined') {
-          const form = document.querySelector('form')
-          form?.reset()
-        }
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
-      setSubmitError(errorMessage)
-      showError(errorMessage)
+      setSubmitSuccess(true)
+      showSuccess('Registration submitted successfully!')
+    } catch (error: any) {
+      console.error('❌ Registration error:', error)
+      showError(error.message || 'Failed to submit registration')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handlePaymentSuccess = (invoiceId?: string, invoiceUrl?: string) => {
-    setShowPaymentForm(false)
-    setSubmitSuccess({
-      message: 'Registration and payment successful! You will receive a confirmation email with your invoice shortly.',
-      paymentUrl: invoiceUrl,
-    })
-    showSuccess('Payment completed! You will receive a confirmation email with your invoice shortly.')
-  }
-
-  const handlePaymentError = (error: string) => {
-    setSubmitError(error)
-    showError(error)
-  }
-
-  if (submitSuccess && !showPaymentForm) {
+  if (submitSuccess) {
     return (
-      <SuccessMessage
-        message={submitSuccess.message}
-        paymentUrl={submitSuccess.paymentUrl}
-      />
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white p-8 md:p-10 rounded-xl shadow-xl border border-gray-200">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h2>
+            <p className="text-gray-600">Thank you for registering. You will receive a confirmation email shortly.</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
-  // Calculate current pricing dynamically based on date
-  const conferenceStart = conferenceStartDate ? new Date(conferenceStartDate) : undefined
-  const currentPricing = pricing
-    ? getCurrentPricing(pricing, new Date(), conferenceStart)
-    : null
-  const tierDisplayName = currentPricing ? getTierDisplayName(currentPricing.tier) : ''
-
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={onSubmit}
       className="max-w-4xl mx-auto animate-fade-in"
     >
       <div className="bg-white p-8 md:p-10 rounded-xl shadow-xl border border-gray-200 hover:shadow-2xl transition-shadow duration-300">
-        {/* Pricing Information Section */}
-        {currentPricing &&
-          (currentPricing.participantPrice > 0 ||
-            currentPricing.studentPrice > 0 ||
-            currentPricing.accompanyingPersonPrice > 0) && (
-            <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                  <svg
-                    className="w-5 h-5 mr-2 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  Registration Fees ({tierDisplayName})
-                </h3>
-                {currentPricing.tier === 'early_bird' && currentPricing.deadline && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200">
-                    <Clock className="w-4 h-4 text-yellow-600" />
-                    <span className="font-semibold">
-                      Until{' '}
-                      {new Date(currentPricing.deadline).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                {currentPricing.participantPrice > 0 && (
-                  <div className="bg-white p-4 rounded-lg border-2 border-blue-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-sm font-semibold text-gray-600 mb-1">
-                      Participant
-                    </div>
-                    <div className="text-2xl font-black text-blue-600">
-                      {formatPrice(
-                        currentPricing.participantPrice,
-                        currentPricing.currency
-                      )}
-                    </div>
-                  </div>
-                )}
-                {currentPricing.studentPrice > 0 && (
-                  <div className="bg-white p-4 rounded-lg border-2 border-green-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-sm font-semibold text-gray-600 mb-1">
-                      Student
-                    </div>
-                    <div className="text-2xl font-black text-green-600">
-                      {formatPrice(currentPricing.studentPrice, currentPricing.currency)}
-                    </div>
-                    {currentPricing.participantPrice > 0 && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Save{' '}
-                        {formatPrice(
-                          currentPricing.participantPrice - currentPricing.studentPrice,
-                          currentPricing.currency
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="bg-white p-4 rounded-lg border-2 border-purple-100 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="text-sm font-semibold text-gray-600 mb-1">
-                    Accompanying Person
-                  </div>
-                  <div className="text-2xl font-black text-purple-600">
-                    {currentPricing.accompanyingPersonPrice > 0
-                      ? formatPrice(
-                          currentPricing.accompanyingPersonPrice,
-                          currentPricing.currency
-                        )
-                      : 'Not set'}
-                  </div>
-                </div>
-              </div>
-
-              {currentPricing.tier === 'early_bird' && currentPricing.nextTier && (
-                <div className="mt-4 pt-4 border-t border-blue-200">
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <span className="font-semibold">Early Bird Pricing Active</span>
-                      {currentPricing.deadline && (
-                        <span className="ml-1">
-                          — Prices will increase to{' '}
-                          {pricing?.regular?.amount
-                            ? formatPrice(pricing.regular.amount, currentPricing.currency)
-                            : 'regular rates'}{' '}
-                          after{' '}
-                          {new Date(currentPricing.deadline).toLocaleDateString('en-US', {
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-        <PaymentSection
-          enabled={paymentRequired}
-          onToggle={(enabled) => setValue('paymentRequired', enabled)}
-        />
-
-        <div className="space-y-6">
-          {/* First Name and Last Name in two columns */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
-              <label
-                htmlFor="firstName"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-                First Name *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('firstName')}
-                  type="text"
-                  id="firstName"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.firstName
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                  placeholder="Enter your first name"
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              </div>
-              {errors.firstName && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.firstName.message}
-                </p>
-              )}
-            </div>
-
-            <div className="animate-slide-in" style={{ animationDelay: '0.2s' }}>
-              <label
-                htmlFor="lastName"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-                Last Name *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('lastName')}
-                  type="text"
-                  id="lastName"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.lastName
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                  placeholder="Enter your last name"
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              </div>
-              {errors.lastName && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.lastName.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Email and Phone in two columns */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="animate-slide-in" style={{ animationDelay: '0.3s' }}>
-              <label
-                htmlFor="email"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-                Email *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('email')}
-                  type="email"
-                  id="email"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.email
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                  placeholder="your.email@example.com"
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              {errors.email && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            <div className="animate-slide-in" style={{ animationDelay: '0.4s' }}>
-              <label
-                htmlFor="phone"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                  />
-                </svg>
-                Phone *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('phone')}
-                  type="tel"
-                  id="phone"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.phone
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                  placeholder="+1 (555) 123-4567"
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                  />
-                </svg>
-              </div>
-              {errors.phone && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.phone.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Country and Institution in two columns */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="animate-slide-in" style={{ animationDelay: '0.5s' }}>
-              <label
-                htmlFor="country"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                Country *
-              </label>
-              <div className="relative">
-                <select
-                  {...register('country')}
-                  id="country"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 appearance-none ${
-                    errors.country
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2 bg-white`}
-                >
-                  <option value="">Select your country</option>
-                  <option value="HR">Croatia</option>
-                  <option value="RS">Serbia</option>
-                  <option value="BA">Bosnia and Herzegovina</option>
-                  <option value="SI">Slovenia</option>
-                  <option value="ME">Montenegro</option>
-                  <option value="MK">North Macedonia</option>
-                  <option value="AL">Albania</option>
-                  <option value="US">United States</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="DE">Germany</option>
-                  <option value="FR">France</option>
-                  <option value="IT">Italy</option>
-                  <option value="ES">Spain</option>
-                  <option value="NL">Netherlands</option>
-                  <option value="BE">Belgium</option>
-                  <option value="AT">Austria</option>
-                  <option value="CH">Switzerland</option>
-                  <option value="SE">Sweden</option>
-                  <option value="NO">Norway</option>
-                  <option value="DK">Denmark</option>
-                  <option value="FI">Finland</option>
-                  <option value="PL">Poland</option>
-                  <option value="CZ">Czech Republic</option>
-                  <option value="SK">Slovakia</option>
-                  <option value="HU">Hungary</option>
-                  <option value="RO">Romania</option>
-                  <option value="BG">Bulgaria</option>
-                  <option value="GR">Greece</option>
-                  <option value="PT">Portugal</option>
-                  <option value="IE">Ireland</option>
-                  <option value="CA">Canada</option>
-                  <option value="AU">Australia</option>
-                  <option value="NZ">New Zealand</option>
-                  <option value="JP">Japan</option>
-                  <option value="CN">China</option>
-                  <option value="IN">India</option>
-                  <option value="BR">Brazil</option>
-                  <option value="AR">Argentina</option>
-                  <option value="MX">Mexico</option>
-                  <option value="ZA">South Africa</option>
-                  <option value="EG">Egypt</option>
-                  <option value="TR">Turkey</option>
-                  <option value="RU">Russia</option>
-                  <option value="UA">Ukraine</option>
-                  <option value="OTHER">Other</option>
-                </select>
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <svg
-                  className="absolute right-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </div>
-              {errors.country && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.country.message}
-                </p>
-              )}
-            </div>
-
-            <div className="animate-slide-in" style={{ animationDelay: '0.6s' }}>
-              <label
-                htmlFor="institution"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-                Institution *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('institution')}
-                  type="text"
-                  id="institution"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.institution
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                  placeholder="University, Company, Organization..."
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
-              {errors.institution && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.institution.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="animate-slide-in" style={{ animationDelay: '0.7s' }}>
-              <label
-                htmlFor="arrivalDate"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                Arrival Date *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('arrivalDate')}
-                  type="date"
-                  id="arrivalDate"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.arrivalDate
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              {errors.arrivalDate && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.arrivalDate.message}
-                </p>
-              )}
-            </div>
-
-            <div className="animate-slide-in" style={{ animationDelay: '0.8s' }}>
-              <label
-                htmlFor="departureDate"
-                className="flex items-center text-sm font-semibold text-gray-700 mb-2"
-              >
-                <svg
-                  className="w-4 h-4 mr-1 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                Departure Date *
-              </label>
-              <div className="relative">
-                <input
-                  {...register('departureDate')}
-                  type="date"
-                  id="departureDate"
-                  className={`w-full px-4 py-3 pl-10 border-2 rounded-lg transition-all duration-200 ${
-                    errors.departureDate
-                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
-                  } focus:outline-none focus:ring-2`}
-                />
-                <svg
-                  className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              {errors.departureDate && (
-                <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {errors.departureDate.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="animate-slide-in" style={{ animationDelay: '0.85s' }}>
-            <label
-              className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-            >
-              <svg
-                className="w-4 h-4 mr-1 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              Accompanying Persons *
-            </label>
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
-              <div className="mb-3">
-                {/* Yes/No Selection Buttons */}
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('accompanyingPersons', true, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('accompanyingPersons') === true
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('accompanyingPersons') === true
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('accompanyingPersons') === true && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('accompanyingPersons') === true
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        Yes
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('accompanyingPersons', false, {
-                        shouldValidate: true,
-                      })
-                      setAccompanyingPersonsList([])
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('accompanyingPersons') === false
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('accompanyingPersons') === false
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('accompanyingPersons') === false && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('accompanyingPersons') === false
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        No
-                      </span>
-                    </div>
-                  </button>
-                </div>
-                {/* Hidden input for form submission */}
-                <input
-                  {...register('accompanyingPersons')}
-                  type="checkbox"
-                  className="hidden"
-                />
-              </div>
-
-              {/* Conditional form for accompanying persons details */}
-              {accompanyingPersons === true && (
-                <div className="mt-6 pt-6 border-t-2 border-gray-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      Accompanying Persons Details
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={addAccompanyingPerson}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Person
-                    </button>
-                  </div>
-
-                  {accompanyingPersonsList.length === 0 && (
-                    <p className="text-sm text-gray-500 italic mb-4">
-                      Click "Add Person" to add accompanying person details
-                    </p>
-                  )}
-
-                  <div className="space-y-4">
-                    {accompanyingPersonsList.map((person, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-white rounded-lg border-2 border-gray-200"
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <h5 className="text-sm font-semibold text-gray-700">
-                            Person {index + 1}
-                          </h5>
-                          <button
-                            type="button"
-                            onClick={() => removeAccompanyingPerson(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              First Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={person.firstName}
-                              onChange={(e) =>
-                                updateAccompanyingPerson(
-                                  index,
-                                  'firstName',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              placeholder="First name"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              Last Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={person.lastName}
-                              onChange={(e) =>
-                                updateAccompanyingPerson(
-                                  index,
-                                  'lastName',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              placeholder="Last name"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              Arrival Date *
-                            </label>
-                            <input
-                              type="date"
-                              value={person.arrivalDate}
-                              onChange={(e) =>
-                                updateAccompanyingPerson(
-                                  index,
-                                  'arrivalDate',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              Departure Date *
-                            </label>
-                            <input
-                              type="date"
-                              value={person.departureDate}
-                              onChange={(e) =>
-                                updateAccompanyingPerson(
-                                  index,
-                                  'departureDate',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-gray-600 mt-3">
-                Please select Yes if you plan to bring accompanying persons to
-                the conference
-              </p>
-            </div>
-            {errors.accompanyingPersons && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {errors.accompanyingPersons.message}
-              </p>
-            )}
-          </div>
-
-          {/* Gala Dinner Field */}
-          <div className="animate-slide-in" style={{ animationDelay: '0.87s' }}>
-            <label
-              className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-            >
-              <svg
-                className="w-4 h-4 mr-1 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-              Please select if you will attend Gala Dinner *
-            </label>
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
-              <div className="mb-3">
-                <span className="text-sm font-semibold text-gray-900 block mb-4">
-                  Will you attend Gala Dinner?
-                </span>
-                {/* Yes/No Selection Buttons */}
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('galaDinner', true, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('galaDinner') === true
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('galaDinner') === true
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('galaDinner') === true && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('galaDinner') === true
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        Yes
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('galaDinner', false, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('galaDinner') === false
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('galaDinner') === false
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('galaDinner') === false && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('galaDinner') === false
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        No
-                      </span>
-                    </div>
-                  </button>
-                </div>
-                {/* Hidden input for form submission */}
-                <input
-                  {...register('galaDinner')}
-                  type="checkbox"
-                  className="hidden"
-                />
-              </div>
-              <p className="text-xs text-gray-600 mt-3">
-                Please select Yes if you plan to attend the Gala Dinner
-              </p>
-            </div>
-            {errors.galaDinner && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {errors.galaDinner.message}
-              </p>
-            )}
-          </div>
-
-          {/* Presentation Type Field */}
-          <div className="animate-slide-in" style={{ animationDelay: '0.88s' }}>
-            <label
-              className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-            >
-              <svg
-                className="w-4 h-4 mr-1 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Select if you intend to have poster/spoken presentation *
-            </label>
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
-              <div className="mb-3">
-                <span className="text-sm font-semibold text-gray-900 block mb-4">
-                  Do you intend to have poster/spoken presentation?
-                </span>
-                {/* Yes/No Selection Buttons */}
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('presentationType', true, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('presentationType') === true
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('presentationType') === true
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('presentationType') === true && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('presentationType') === true
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        Yes
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('presentationType', false, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('presentationType') === false
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('presentationType') === false
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('presentationType') === false && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('presentationType') === false
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        No
-                      </span>
-                    </div>
-                  </button>
-                </div>
-                {/* Hidden input for form submission */}
-                <input
-                  {...register('presentationType')}
-                  type="checkbox"
-                  className="hidden"
-                />
-              </div>
-              <p className="text-xs text-gray-600 mt-3">
-                Please select Yes if you intend to have poster/spoken presentation
-              </p>
-            </div>
-            {errors.presentationType && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {errors.presentationType.message}
-              </p>
-            )}
-          </div>
-
-          {/* Abstract Submission Field */}
-          <div className="animate-slide-in" style={{ animationDelay: '0.89s' }}>
-            <label
-              className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-            >
-              <svg
-                className="w-4 h-4 mr-1 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Abstract Submission *
-            </label>
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
-              <div className="mb-3">
-                <span className="text-sm font-semibold text-gray-900 block mb-4">
-                  Will you submit an abstract?
-                </span>
-                {/* Yes/No Selection Buttons */}
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('abstractSubmission', true, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('abstractSubmission') === true
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('abstractSubmission') === true
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('abstractSubmission') === true && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('abstractSubmission') === true
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        Yes
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('abstractSubmission', false, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    className={`flex-1 flex items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      watch('abstractSubmission') === false
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                          watch('abstractSubmission') === false
-                            ? 'border-blue-600'
-                            : 'border-gray-400'
-                        }`}
-                      >
-                        {watch('abstractSubmission') === false && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                      <span
-                        className={`text-base font-semibold ${
-                          watch('abstractSubmission') === false
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        No
-                      </span>
-                    </div>
-                  </button>
-                </div>
-                {/* Hidden input for form submission */}
-                <input
-                  {...register('abstractSubmission')}
-                  type="checkbox"
-                  className="hidden"
-                />
-              </div>
-              <p className="text-xs text-gray-600 mt-3">
-                Please select Yes if you will submit an abstract
-              </p>
-            </div>
-            {errors.abstractSubmission && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {errors.abstractSubmission.message}
-              </p>
-            )}
-          </div>
-
-          <div className="animate-slide-in" style={{ animationDelay: '0.9s' }}>
-            <div className="flex items-start p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-              <input
-                {...register('paymentByCard')}
-                type="checkbox"
-                id="paymentByCard"
-                className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label
-                htmlFor="paymentByCard"
-                className="ml-3 flex-1 cursor-pointer"
-              >
-                <div className="flex items-center">
-                  <svg
-                    className="w-5 h-5 text-blue-600 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                  <span className="text-sm font-semibold text-gray-900">
-                    Payment by Card
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600 mt-1">
-                  {paymentRequired
-                    ? 'Plaćanje će se izvršiti direktno u formi nakon registracije (nećete biti preusmjereni)'
-                    : 'I will pay the registration fee by credit/debit card'}
-                </p>
-              </label>
-            </div>
-            <SupportedCards show={paymentByCard && paymentRequired} />
-            {paymentRequired && !paymentByCard && (
-              <div className="mt-4 p-3 bg-amber-50 rounded-lg border-2 border-amber-200">
-                <div className="flex items-start">
-                  <svg
-                    className="w-5 h-5 text-amber-600 mr-2 mt-0.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-amber-800 mb-1">
-                      Online plaćanje
-                    </p>
-                    <p className="text-xs text-amber-700">
-                      Nakon registracije, bit ćete preusmjereni na Stripe Checkout stranicu za sigurno online plaćanje.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {submitError && (
-          <div className="mt-6 p-5 bg-red-50 border-2 border-red-300 rounded-xl animate-slide-in shadow-md">
+        {/* Registration Information Text */}
+        {registrationInfoText && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-r-lg">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h4 className="text-sm font-bold text-red-900 mb-1">Registration Error</h4>
-                <p className="text-sm text-red-800 mb-2">{submitError}</p>
-                <div className="text-xs text-red-600 bg-red-100 p-2 rounded mt-2">
-                  <p className="font-semibold mb-1">Troubleshooting:</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    <li>Check that all required fields are filled</li>
-                    <li>Verify email address is correct and not already registered</li>
-                    <li>Ensure dates are valid (departure after arrival)</li>
-                    <li>If you selected "Accompanying Persons", make sure you added at least one person</li>
-                  </ul>
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Registration Information</h3>
+                <div className="text-sm text-blue-800 whitespace-pre-line">
+                  {registrationInfoText}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || showPaymentForm}
-          className="mt-6 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <LoadingSpinner size="sm" />
-              <span>Submitting...</span>
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Register Now</span>
-            </>
-          )}
-        </button>
+        {/* Tab Navigation */}
+        <div className="mb-8">
+          <nav className="flex gap-3 bg-gray-100 p-2 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('registration')}
+              className={`flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 ${
+                activeTab === 'registration'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 transform scale-105'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-md'
+              }`}
+            >
+              <UserPlus className={`w-5 h-5 ${activeTab === 'registration' ? 'text-white' : 'text-gray-500'}`} />
+              <span>Registration</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('accommodation')}
+              className={`flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 ${
+                activeTab === 'accommodation'
+                  ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30 transform scale-105'
+                  : 'text-green-700 bg-green-50 hover:bg-green-100 hover:shadow-md border-2 border-green-200'
+              }`}
+            >
+              <Bed className={`w-5 h-5 ${activeTab === 'accommodation' ? 'text-white' : 'text-green-600'}`} />
+              <span>Accommodation</span>
+            </button>
+          </nav>
+        </div>
 
-        {/* Payment Form - Shown after successful registration */}
-        {showPaymentForm && registrationId && (
-          <div className="mt-8 pt-8 border-t-2 border-gray-200 animate-slide-in">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
-              <div className="mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        {/* Registration Tab Content */}
+        {activeTab === 'registration' && (
+          <div className="space-y-6">
+          {/* Multiple Participants Section - ALWAYS shown, participants get ALL custom fields */}
+          <div className="animate-slide-in">
+            <ParticipantManager
+              participants={participants}
+              onChange={setParticipants}
+              maxParticipants={participantSettings?.maxParticipants || 5}
+              participantFields={participantSettings?.participantFields || []}
+              customFields={customFields}
+              participantLabel={participantSettings?.participantLabel || 'Participant'}
+              customFieldsPerParticipant={true}
+            />
+              </div>
+
+          {/* Empty state when no fields */}
+          {customFields.length === 0 && (
+            <div className="text-center py-12">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No registration fields configured yet.</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Please contact the conference administrator.
+              </p>
+            </div>
+          )}
+
+          {/* Registration Fee Selection */}
+          {pricing && customFields.length > 0 && (
+            <div className="mt-8 border-t-2 border-gray-100 pt-8">
+            <div className="bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-2 border-purple-200 p-6 rounded-xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shadow-lg">
+                  <Euro className="w-6 h-6 text-white" />
+              </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Select Registration Fee</h3>
+                  <p className="text-sm text-gray-600">Choose your registration category</p>
+            </div>
+          </div>
+
+              <div className="space-y-3">
+                {/* Early Bird */}
+                {pricing.early_bird?.amount && (
+              <label
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === 'early_bird'
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="early_bird"
+                        checked={selectedFee === 'early_bird'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
+                      <div>
+                        <div className="font-semibold text-gray-900">Early Bird</div>
+                        <div className="text-xs text-gray-500">
+                          {pricing.early_bird.deadline && `Until ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`}
+              </div>
+            </div>
+              </div>
+                    <div className="text-xl font-bold text-blue-600">
+                      {pricing.currency} {pricing.early_bird.amount.toFixed(2)}
+            </div>
+              </label>
+                )}
+
+                {/* Regular */}
+                {pricing.regular?.amount && (
+              <label
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === 'regular'
+                        ? 'border-purple-500 bg-purple-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="regular"
+                        checked={selectedFee === 'regular'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">Regular</div>
+                        <div className="text-xs text-gray-500">Standard registration</div>
+              </div>
+            </div>
+                    <div className="text-xl font-bold text-purple-600">
+                      {pricing.currency} {pricing.regular.amount.toFixed(2)}
+          </div>
+              </label>
+                )}
+
+                {/* Late */}
+                {pricing.late?.amount && (
+              <label
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === 'late'
+                        ? 'border-orange-500 bg-orange-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="late"
+                        checked={selectedFee === 'late'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-orange-600 focus:ring-2 focus:ring-orange-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">Late Registration</div>
+                        <div className="text-xs text-gray-500">After deadline</div>
+              </div>
+            </div>
+                    <div className="text-xl font-bold text-orange-600">
+                      {pricing.currency} {pricing.late.amount.toFixed(2)}
+          </div>
+                  </label>
+                )}
+
+                {/* Student */}
+                {pricing.student_discount && pricing.regular?.amount && (
+            <label
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === 'student'
+                        ? 'border-green-500 bg-green-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="student"
+                        checked={selectedFee === 'student'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                      />
+                          <div>
+                        <div className="font-semibold text-gray-900">Student</div>
+                        <div className="text-xs text-gray-500">Special discount for students</div>
+                          </div>
+                          </div>
+                    <div className="text-xl font-bold text-green-600">
+                      {pricing.currency} {(pricing.regular.amount - pricing.student_discount).toFixed(2)}
+                          </div>
+                            </label>
+                )}
+
+                {/* Accompanying Person */}
+                {pricing.accompanying_person_price && (
+            <label
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === 'accompanying_person'
+                        ? 'border-pink-500 bg-pink-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-pink-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="accompanying_person"
+                        checked={selectedFee === 'accompanying_person'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-pink-600 focus:ring-2 focus:ring-pink-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">Accompanying Person</div>
+                        <div className="text-xs text-gray-500">For guests and companions</div>
+              </div>
+            </div>
+                    <div className="text-xl font-bold text-pink-600">
+                      {pricing.currency} {pricing.accompanying_person_price.toFixed(2)}
+          </div>
+            </label>
+                )}
+
+                {/* Custom Pricing Fields (e.g., Exhibitor, VIP, etc.) */}
+                {pricing.custom_fields && pricing.custom_fields.map((customField) => (
+            <label
+                    key={customField.id}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedFee === `custom_${customField.id}`
+                        ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value={`custom_${customField.id}`}
+                        checked={selectedFee === `custom_${customField.id}`}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">{customField.name}</div>
+                        {customField.description && (
+                          <div className="text-xs text-gray-500">{customField.description}</div>
+            )}
+          </div>
+              </div>
+                    <div className="text-xl font-bold text-indigo-600">
+                      {pricing.currency} {customField.value.toFixed(2)}
+                    </div>
+                    </label>
+                ))}
+                      </div>
+
+              {!selectedFee && (
+                <p className="text-sm text-red-600 mt-4 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Please select a registration fee option to continue
+                </p>
+              )}
+            </div>
+          </div>
+          )}
+
+          {/* Submit Button - only visible in Registration tab */}
+          {customFields.length > 0 && (
+            <div className="mt-8 flex justify-end">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
+                    Submit Registration
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          </div>
+        )}
+
+        {/* Accommodation Tab Content */}
+        {activeTab === 'accommodation' && (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Accommodation</h3>
+              <p className="text-gray-600">Please select your arrival and departure dates</p>
+            </div>
+
+            {/* Date Selection */}
+            <div className="max-w-md mx-auto space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Check-in (Arrival Date)
+                </label>
+                <input
+                  type="date"
+                  value={arrivalDate}
+                  onChange={(e) => {
+                    setArrivalDate(e.target.value)
+                    calculateNights(e.target.value, departureDate)
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Check-out (Departure Date)
+                </label>
+                <input
+                  type="date"
+                  value={departureDate}
+                  onChange={(e) => {
+                    setDepartureDate(e.target.value)
+                    calculateNights(arrivalDate, e.target.value)
+                  }}
+                  min={arrivalDate}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Summary */}
+              {arrivalDate && departureDate && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">Check-in:</span>
+                    <span className="font-semibold text-gray-900">
+                      {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      Registration Successful!
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-0.5">
-                      Please complete your payment to finalize your registration
-                    </p>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-gray-700">Check-out:</span>
+                    <span className="font-semibold text-gray-900">
+                      {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                    </span>
+                  </div>
+                  <div className="border-t border-green-300 mt-3 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Number of nights:</span>
+                      <span className="text-2xl font-bold text-green-600">{numberOfNights}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <PaymentForm
-                registrationId={registrationId}
-                amount={paymentAmount}
-                conferenceName={conferenceName}
-                conferenceDate={conferenceDate}
-                conferenceLocation={conferenceLocation}
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-              />
+              )}
+
+              {!arrivalDate && !departureDate && (
+                <div className="text-center py-8">
+                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-gray-500 text-sm">No dates selected</p>
+                </div>
+              )}
             </div>
+
+            {/* Hotel Selection - Only show when dates are selected */}
+            {arrivalDate && departureDate && numberOfNights > 0 && (
+              <div className="mt-8 border-t border-gray-200 pt-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Select Your Hotel</h3>
+                <p className="text-sm text-gray-600 mb-6">Choose from available accommodation options</p>
+
+                {(() => {
+                  const availableHotels = getAvailableHotels()
+                  
+                  if (availableHotels.length === 0) {
+                    return (
+                      <div className="text-center py-8 bg-amber-50 border border-amber-200 rounded-lg">
+                        <svg className="w-12 h-12 text-amber-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-sm font-medium text-amber-800 mb-1">No hotels available for selected dates</p>
+                        <p className="text-xs text-amber-600">
+                          Please try different dates or contact the conference organizers for accommodation options.
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {availableHotels
+                        .sort((a, b) => a.order - b.order)
+                        .map((hotel) => {
+                      const totalPrice = hotel.pricePerNight * numberOfNights
+                      return (
+                        <label
+                          key={hotel.id}
+                          className={`block p-6 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedHotel === hotel.id
+                              ? 'border-green-500 bg-green-50 shadow-lg'
+                              : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-md'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <input
+                              type="radio"
+                              name="hotel"
+                              value={hotel.id}
+                              checked={selectedHotel === hotel.id}
+                              onChange={(e) => setSelectedHotel(e.target.value)}
+                              className="mt-1 w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                                    🏨 {hotel.name}
+                                  </h4>
+                                  {hotel.description && (
+                                    <p className="text-sm text-gray-600 mb-3">{hotel.description}</p>
+                                  )}
+                                </div>
+                                <div className="text-right ml-4">
+                                  <div className="text-2xl font-bold text-green-600">
+                                    {currency} {totalPrice.toFixed(2)}
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">Total</p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  <span className="font-medium">{hotel.occupancy}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <span>
+                                    {new Date(arrivalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(departureDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                                  </svg>
+                                  <span className="font-medium">{numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </label>
+                      )
+                    })}
+                    </div>
+                  )
+                })()}
+
+                {!selectedHotel && getAvailableHotels().length > 0 && (
+                  <p className="text-sm text-amber-600 mt-4 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Please select a hotel to continue
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
     </form>
   )
 }
-

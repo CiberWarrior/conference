@@ -75,6 +75,8 @@ export default function RegistrationsPage() {
           createdAt: r.created_at,
           checkedIn: r.checked_in || false,
           checkedInAt: r.checked_in_at || null,
+          customFields: r.custom_data || {},
+          participants: r.participants || [], // Add participants field
         }))
       )
     } catch (err) {
@@ -101,7 +103,12 @@ export default function RegistrationsPage() {
 
   // Helper function to prepare data for export
   const prepareExportData = () => {
-    const headers = [
+    // Get custom field definitions from current conference
+    const customFieldDefs = currentConference?.settings?.custom_registration_fields || []
+    const participantSettings = currentConference?.settings?.participant_settings
+    
+    // Standard headers
+    const standardHeaders = [
       'Conference',
       'First Name',
       'Last Name',
@@ -117,22 +124,56 @@ export default function RegistrationsPage() {
       'Checked In',
       'Created At',
     ]
-    const rows = filteredRegistrations.map((r) => [
-      currentConference?.name || 'N/A',
-      r.firstName,
-      r.lastName,
-      r.email,
-      r.phone,
-      r.country || '',
-      r.institution || '',
-      r.arrivalDate || '',
-      r.departureDate || '',
-      r.paymentRequired ? 'Yes' : 'No',
-      r.paymentByCard ? 'Yes' : 'No',
-      r.paymentStatus,
-      r.checkedIn ? 'Yes' : 'No',
-      new Date(r.createdAt).toLocaleString(),
-    ])
+    
+    // Add custom field headers
+    const customHeaders = customFieldDefs.map(field => field.label)
+    
+    // Add participant count header if multiple participants are enabled
+    const participantHeaders = participantSettings?.enabled 
+      ? ['Number of Participants', 'Participant Names', 'Participant Emails'] 
+      : []
+    
+    const headers = [...standardHeaders, ...customHeaders, ...participantHeaders]
+    
+    const rows = filteredRegistrations.map((r) => {
+      const standardData = [
+        currentConference?.name || 'N/A',
+        r.firstName,
+        r.lastName,
+        r.email,
+        r.phone,
+        r.country || '',
+        r.institution || '',
+        r.arrivalDate || '',
+        r.departureDate || '',
+        r.paymentRequired ? 'Yes' : 'No',
+        r.paymentByCard ? 'Yes' : 'No',
+        r.paymentStatus,
+        r.checkedIn ? 'Yes' : 'No',
+        new Date(r.createdAt).toLocaleString(),
+      ]
+      
+      // Add custom field values
+      const customData = customFieldDefs.map(field => {
+        const value = r.customFields?.[field.name]
+        if (value === undefined || value === null) return ''
+        if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+        if (Array.isArray(value)) return value.join(', ')
+        return String(value)
+      })
+      
+      // Add participant data if enabled
+      const participantData = participantSettings?.enabled 
+        ? [
+            (r.participants?.length || 0).toString(),
+            r.participants?.map(p => `${p.firstName} ${p.lastName}`).join('; ') || '',
+            r.participants?.map(p => p.email).join('; ') || '',
+          ]
+        : []
+      
+      return [...standardData, ...customData, ...participantData]
+    })
+    
     return { headers, rows }
   }
 

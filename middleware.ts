@@ -99,9 +99,31 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/auth/admin-login', request.url)
       return NextResponse.redirect(loginUrl)
     }
+
+    // Check if user has admin role
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role, active')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || !profile.active || (profile.role !== 'super_admin' && profile.role !== 'conference_admin')) {
+      log.warn('Non-admin user attempted to access admin area', {
+        path: request.nextUrl.pathname,
+        userId: user.id,
+        role: profile?.role,
+        active: profile?.active,
+      })
+      // Not an admin - redirect to login with error message
+      const loginUrl = new URL('/auth/admin-login', request.url)
+      loginUrl.searchParams.set('error', 'access_denied')
+      return NextResponse.redirect(loginUrl)
+    }
+
     log.debug('Authenticated admin access', {
       path: request.nextUrl.pathname,
       userId: user.id,
+      role: profile.role,
     })
   }
 

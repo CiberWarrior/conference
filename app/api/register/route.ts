@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerClient } from '@/lib/supabase'
-import { createCheckoutSession } from '@/lib/stripe'
-import { sendRegistrationConfirmation } from '@/lib/email'
-import type { PaymentStatus } from '@/types/registration'
 import { log } from '@/lib/logger'
 import {
   registrationRateLimit,
@@ -14,78 +11,25 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const registrationSchema = z
-  .object({
-    firstName: z.string().min(2),
-    lastName: z.string().min(2),
-    email: z.string().email(),
-    phone: z.string().min(5),
-    country: z.string().min(2),
-    institution: z.string().min(2),
-    arrivalDate: z.string().min(1),
-    departureDate: z.string().min(1),
-    paymentRequired: z.boolean(),
-    paymentByCard: z.boolean(),
-    accompanyingPersons: z.boolean({
-      required_error: 'Please indicate if you will bring accompanying persons',
-    }),
-    accompanyingPersonsData: z
-      .array(
-        z.object({
-          firstName: z.string().min(1, 'First name is required'),
-          lastName: z.string().min(1, 'Last name is required'),
-          arrivalDate: z.string().min(1, 'Arrival date is required'),
-          departureDate: z.string().min(1, 'Departure date is required'),
-        })
-      )
-      .optional(),
-    galaDinner: z.boolean({
-      required_error: 'Please indicate if you will attend Gala Dinner',
-    }),
-    presentationType: z.boolean({
-      required_error: 'Please indicate if you intend to have poster/spoken presentation',
-    }),
-    abstractSubmission: z.boolean({
-      required_error: 'Please indicate if you will submit an abstract',
-    }),
-    conferenceId: z.string().uuid().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.arrivalDate && data.departureDate) {
-        return new Date(data.departureDate) >= new Date(data.arrivalDate)
-      }
-      return true
-    },
-    {
-      message: 'Departure date must be after or equal to arrival date',
-      path: ['departureDate'],
-    }
-  )
-  .refine(
-    (data) => {
-      if (data.accompanyingPersons === true) {
-        if (
-          !data.accompanyingPersonsData ||
-          data.accompanyingPersonsData.length === 0
-        ) {
-          return false
-        }
-        // Validate each accompanying person
-        return data.accompanyingPersonsData.every((person) => {
-          if (!person.firstName || !person.lastName) return false
-          if (!person.arrivalDate || !person.departureDate) return false
-          return new Date(person.departureDate) >= new Date(person.arrivalDate)
-        })
-      }
-      return true
-    },
-    {
-      message:
-        'Please add at least one accompanying person with complete details (name, surname, arrival and departure dates)',
-      path: ['accompanyingPersons'],
-    }
-  )
+// Simplified registration schema - all fields are custom and defined by admin
+const registrationSchema = z.object({
+  conference_id: z.string().uuid(),
+  custom_data: z.record(z.any()).optional(), // Custom fields defined by admin
+  registration_fee_type: z.string().optional().nullable(), // Selected registration fee type (early_bird, regular, late, student, accompanying_person, or custom_{id})
+  participants: z
+    .array(
+      z.object({
+        customFields: z.record(z.any()), // All participant data is now in custom fields
+      })
+    )
+    .optional(),
+  accommodation: z.object({
+    arrival_date: z.string(),
+    departure_date: z.string(),
+    number_of_nights: z.number(),
+    hotel_id: z.string().nullable().optional(), // Selected hotel ID
+  }).optional().nullable(), // Accommodation details (arrival, departure, nights, hotel)
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -115,186 +59,200 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = registrationSchema.parse(body)
+    log.info('Registration request received', {
+      conferenceId: body.conference_id,
+      hasCustomData: !!body.custom_data,
+      participantsCount: body.participants?.length || 0,
+      action: 'registration_attempt',
+    })
 
+    const validatedData = registrationSchema.parse(body)
     const supabase = await createServerClient()
 
-    // Check if email already exists
-    const { data: existing } = await supabase
-      .from('registrations')
-      .select('id')
-      .eq('email', validatedData.email)
+    // Verify conference exists and is active
+    const { data: conference, error: confError } = await supabase
+      .from('conferences')
+      .select('id, name, settings')
+      .eq('id', validatedData.conference_id)
+      .eq('published', true)
+      .eq('active', true)
       .single()
 
-    if (existing) {
+    if (confError || !conference) {
+      log.warn('Conference not found for registration', {
+        conferenceId: validatedData.conference_id,
+        action: 'registration_validation',
+      })
       return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 400 }
+        { error: 'Conference not found or not available' },
+        { status: 404 }
       )
     }
 
-    // Determine payment status
-    const paymentStatus: PaymentStatus = validatedData.paymentRequired
-      ? 'pending'
-      : 'not_required'
+    // Check if registration is enabled for this conference
+    const settings = conference.settings || {}
+    if (settings.registration_enabled === false) {
+      log.warn('Registration not enabled for conference', {
+        conferenceId: validatedData.conference_id,
+        conferenceName: conference.name,
+        action: 'registration_validation',
+      })
+      return NextResponse.json(
+        { error: 'Registration is not enabled for this conference' },
+        { status: 403 }
+      )
+    }
 
-    // Verify conference exists if conferenceId is provided
-    if (validatedData.conferenceId) {
-      const { data: conference, error: confError } = await supabase
-        .from('conferences')
-        .select('id, settings')
-        .eq('id', validatedData.conferenceId)
-        .eq('published', true)
-        .eq('active', true)
-        .single()
-
-      if (confError || !conference) {
-        return NextResponse.json(
-          { error: 'Conference not found or not available' },
-          { status: 404 }
-        )
+    // Extract a "primary" email from custom_data or first participant for duplicate check
+    let primaryEmail: string | null = null
+    
+    // Try to get email from custom_data first
+    if (validatedData.custom_data) {
+      for (const [key, value] of Object.entries(validatedData.custom_data)) {
+        if (key.toLowerCase().includes('email') && typeof value === 'string' && value.includes('@')) {
+          primaryEmail = value
+          break
+        }
       }
+    }
+    
+    // If no email in custom_data, try first participant's customFields
+    if (!primaryEmail && validatedData.participants && validatedData.participants.length > 0) {
+      const firstParticipant = validatedData.participants[0]
+      if (firstParticipant.customFields) {
+        // Look for email field in customFields
+        for (const [key, value] of Object.entries(firstParticipant.customFields)) {
+          if (key.toLowerCase().includes('email') && typeof value === 'string' && value.includes('@')) {
+            primaryEmail = value
+            break
+          }
+        }
+      }
+    }
 
-      // Check if registration is enabled for this conference
-      const settings = conference.settings || {}
-      if (settings.registration_enabled === false) {
+    // Check for duplicate registration if we have a primary email
+    if (primaryEmail) {
+      const { data: existing } = await supabase
+        .from('registrations')
+        .select('id')
+        .eq('conference_id', validatedData.conference_id)
+        .or(`custom_data->>email.eq.${primaryEmail},participants @> '[{"email":"${primaryEmail}"}]'`)
+        .maybeSingle()
+
+      if (existing) {
+        log.warn('Duplicate registration attempt', {
+          conferenceId: validatedData.conference_id,
+          email: primaryEmail,
+          action: 'registration_validation',
+        })
         return NextResponse.json(
-          { error: 'Registration is not enabled for this conference' },
-          { status: 403 }
+          { error: 'This email is already registered for this conference' },
+          { status: 400 }
         )
       }
     }
 
-    // Insert registration
+    // Insert registration with simplified data structure
     const { data: registration, error: insertError } = await supabase
       .from('registrations')
       .insert({
-        first_name: validatedData.firstName,
-        last_name: validatedData.lastName,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        country: validatedData.country,
-        institution: validatedData.institution,
-        arrival_date: validatedData.arrivalDate,
-        departure_date: validatedData.departureDate,
-        payment_required: validatedData.paymentRequired,
-        payment_by_card: validatedData.paymentByCard,
-        accompanying_persons: validatedData.accompanyingPersons,
-        accompanying_persons_data: validatedData.accompanyingPersonsData || [],
-        gala_dinner: validatedData.galaDinner,
-        presentation_type: validatedData.presentationType,
-        abstract_submission: validatedData.abstractSubmission,
-        payment_status: paymentStatus,
-        conference_id: validatedData.conferenceId || null,
+        conference_id: validatedData.conference_id,
+        custom_data: validatedData.custom_data || {},
+        participants: validatedData.participants || [],
+        registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
+        accommodation: validatedData.accommodation || null, // Store accommodation details
+        payment_status: 'not_required', // Simplified - no payment handling yet
+        // Legacy fields set to null/false for compatibility
+        first_name: null,
+        last_name: null,
+        email: primaryEmail || null,
+        phone: null,
+        country: null,
+        institution: null,
+        arrival_date: null,
+        departure_date: null,
+        payment_required: false,
+        payment_by_card: false,
+        accompanying_persons: false,
+        accompanying_persons_data: [],
+        gala_dinner: false,
+        presentation_type: false,
+        abstract_submission: false,
       })
       .select()
       .single()
 
     if (insertError) {
       log.error('Registration database error', insertError, {
-        email: validatedData.email,
+        conferenceId: validatedData.conference_id,
         action: 'create_registration',
-        errorDetails: insertError,
+        errorDetails: insertError.message,
       })
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to save registration',
           details: insertError.message || 'Database error occurred',
-          code: insertError.code,
         },
         { status: 500 }
       )
     }
 
-    let paymentUrl: string | undefined
-    let stripeSessionId: string | null = null
-
-    // Create Stripe checkout session if payment is required but NOT by card (fallback for non-card payments)
-    // If paymentByCard is true, we'll use direct payment in the form instead
-    if (validatedData.paymentRequired && !validatedData.paymentByCard) {
-      try {
-        // Default amount - should be configurable
-        const amount = 50 // 50 EUR default
-        const session = await createCheckoutSession({
-          registrationId: registration.id,
-          email: validatedData.email,
-          amount,
-        })
-
-        stripeSessionId = session.id
-        paymentUrl = session.url || undefined
-
-        // Update registration with Stripe session ID
-        await supabase
-          .from('registrations')
-          .update({ stripe_session_id: session.id })
-          .eq('id', registration.id)
-      } catch (stripeError) {
-        log.error('Stripe checkout session creation failed', stripeError, {
-          registrationId: registration.id,
-          email: validatedData.email,
-          action: 'create_checkout_session',
-        })
-        // Continue even if Stripe fails - registration is saved
-      }
-    }
-
-    // Get conference name if conferenceId is provided
-    let conferenceName: string | undefined
-    if (validatedData.conferenceId) {
-      const { data: conference } = await supabase
-        .from('conferences')
-        .select('name, start_date, location')
-        .eq('id', validatedData.conferenceId)
-        .single()
-      conferenceName = conference?.name
-    }
-
-    // Trigger email confirmation (async, don't wait)
-    sendRegistrationConfirmation(
-      registration.id,
-      validatedData.email,
-      validatedData.firstName,
-      validatedData.lastName,
-      paymentUrl
-    ).catch((err) => {
-      log.error('Failed to send registration confirmation email', err, {
-        registrationId: registration.id,
-        email: validatedData.email,
-        action: 'send_confirmation_email',
-      })
+    log.info('Registration created successfully', {
+      registrationId: registration.id,
+      conferenceId: validatedData.conference_id,
+      conferenceName: conference.name,
+      participantsCount: validatedData.participants?.length || 0,
+      action: 'registration_success',
     })
 
-    const headers = rateLimitResult
-      ? createRateLimitHeaders(rateLimitResult)
-      : {}
+    // TODO: Send confirmation email if email service is configured
+    // if (primaryEmail) {
+    //   try {
+    //     await sendRegistrationConfirmation({
+    //       email: primaryEmail,
+    //       conferenceName: conference.name,
+    //       registrationId: registration.id,
+    //     })
+    //   } catch (emailError) {
+    //     log.warn('Failed to send confirmation email', emailError)
+    //   }
+    // }
 
     return NextResponse.json(
       {
         success: true,
-        message: validatedData.paymentRequired
-          ? 'Registration successful! Please proceed to payment.'
-          : 'Registration successful! You will receive a confirmation email shortly.',
-        paymentUrl,
+        message: 'Registration submitted successfully',
         registrationId: registration.id,
       },
-      { headers }
+      { status: 201 }
     )
-  } catch (error) {
-    if (error instanceof z.ZodError) {
+  } catch (error: any) {
+    // Handle Zod validation errors
+    if (error.name === 'ZodError') {
+      log.warn('Registration validation error', {
+        errors: error.errors,
+        action: 'registration_validation',
+      })
       return NextResponse.json(
-        { error: 'Invalid form data', details: error.errors },
+        {
+          error: 'Invalid registration data',
+          details: error.errors,
+        },
         { status: 400 }
       )
     }
 
     log.error('Registration error', error, {
-      action: 'register',
+      action: 'registration_error',
+      errorMessage: error.message,
     })
+
     return NextResponse.json(
-      { error: 'An error occurred during registration' },
+      {
+        error: 'An unexpected error occurred',
+        message: error.message || 'Please try again later',
+      },
       { status: 500 }
     )
   }
 }
-

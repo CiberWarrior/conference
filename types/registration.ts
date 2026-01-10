@@ -1,3 +1,5 @@
+import type { Participant } from './participant'
+
 export type PaymentStatus = 'pending' | 'paid' | 'not_required'
 
 export interface AccompanyingPerson {
@@ -35,6 +37,14 @@ export interface Registration extends RegistrationData {
   invoiceUrl?: string | null
   checkedIn?: boolean
   checkedInAt?: string | null
+  customFields?: Record<string, any>
+  participants?: Participant[] // Multiple participants support
+  registrationFeeType?: string | null // Type of registration fee: early_bird, regular, late, student, accompanying_person
+  accommodation?: {
+    arrival_date: string
+    departure_date: string
+    number_of_nights: number
+  } | null // Accommodation details
 }
 
 export interface RegistrationFormData {
@@ -53,5 +63,6 @@ export interface RegistrationFormData {
   galaDinner: boolean
   presentationType: boolean
   abstractSubmission: boolean
+  customFields?: Record<string, any> // Custom polja koja korisnik definira
 }
 

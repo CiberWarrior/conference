@@ -27,6 +27,9 @@ export default function AdminLoginPage() {
         setSuccess(false)
       }, 5000)
     }
+    if (params.get('error') === 'access_denied') {
+      setError('Access denied. You do not have admin privileges.')
+    }
   }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +57,13 @@ export default function AdminLoginPage() {
 
       if (!response.ok) {
         console.error('❌ Login failed:', data.error)
-        setError(data.error || 'Invalid email or password')
+        
+        // Show specific error message for service unavailable
+        if (response.status === 503) {
+          setError('Authentication service is currently unavailable. Please check if Supabase project is active.')
+        } else {
+          setError(data.error || 'Invalid email or password')
+        }
         setLoading(false)
         return
       }
@@ -75,15 +84,20 @@ export default function AdminLoginPage() {
         
         if (sessionError) {
           console.error('❌ Failed to set client session:', sessionError.message)
+          setError('Failed to set session. Please try again.')
+          setLoading(false)
+          return
         } else {
           console.log('✅ Client-side session set successfully')
         }
       }
       
+      // Wait a bit for session to be fully set
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       console.log('🚀 Redirecting to dashboard...')
-      // Use router.push for smoother navigation with session sync
-      router.push('/admin/dashboard')
-      router.refresh()
+      // Use window.location for full page reload to ensure session is properly loaded
+      window.location.href = '/admin/dashboard'
     } catch (error) {
       console.error('❌ Login error:', error)
       setError('An error occurred. Please try again.')

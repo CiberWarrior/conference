@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Mail, Phone, MapPin, Globe } from 'lucide-react'
+import { Mail, Phone, MapPin, Globe, ExternalLink } from 'lucide-react'
 import type { Conference } from '@/types/conference'
+import { ABSTRACT_APP_URL } from '@/constants/config'
 
 interface ConferenceFooterProps {
   conference: Conference
@@ -81,12 +82,15 @@ export default function ConferenceFooter({
               )}
               {conference.settings?.abstract_submission_enabled !== false && (
                 <li>
-                  <Link
-                    href={`/conferences/${conference.slug}/submit-abstract`}
-                    className="text-blue-100 hover:text-white transition-colors inline-block"
+                  <a
+                    href={`${ABSTRACT_APP_URL}?conference=${conference.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-100 hover:text-white transition-colors inline-flex items-center gap-1"
                   >
                     Submit Abstract
-                  </Link>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </li>
               )}
               <li>

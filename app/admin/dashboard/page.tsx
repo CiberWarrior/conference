@@ -12,21 +12,48 @@ import {
   RevenueByPeriodChart,
 } from '@/components/admin/Charts'
 import Link from 'next/link'
-import { AlertCircle, Plus, Download, Mail, FileText, Users as UsersIcon, CreditCard, Calendar, MapPin, Globe, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { 
+  AlertCircle, 
+  Plus, 
+  Download, 
+  Mail, 
+  FileText, 
+  Users as UsersIcon, 
+  CreditCard, 
+  Calendar, 
+  MapPin, 
+  Globe, 
+  Eye, 
+  CheckCircle, 
+  XCircle,
+  Building2,
+  TrendingUp,
+  DollarSign,
+  ExternalLink,
+  Settings,
+  BarChart3,
+  Activity
+} from 'lucide-react'
 import type { Conference } from '@/types/conference'
+import { ABSTRACT_APP_URL } from '@/constants/config'
 
 export default function DashboardPage() {
   const router = useRouter()
   const { currentConference, conferences, loading: conferenceLoading, setCurrentConference } = useConference()
-  const { isSuperAdmin } = useAuth()
+  const { isSuperAdmin, profile } = useAuth()
   const [stats, setStats] = useState({
     totalRegistrations: 0,
     paidRegistrations: 0,
     pendingPayments: 0,
-    totalAbstracts: 0,
     checkedIn: 0,
     recentRegistrations: [] as any[],
-    recentAbstracts: [] as any[],
+  })
+  const [platformStats, setPlatformStats] = useState({
+    totalConferences: 0,
+    totalUsers: 0,
+    totalRegistrations: 0,
+    totalRevenue: 0,
+    activeConferences: 0,
   })
   const [inquiryStats, setInquiryStats] = useState({
     newInquiries: 0,
@@ -77,17 +104,6 @@ export default function DashboardPage() {
         throw regError
       }
 
-      // Load abstracts for current conference
-      const { data: abstracts, error: absError } = await supabase
-        .from('abstracts')
-        .select('*')
-        .eq('conference_id', currentConference.id)
-        .order('uploaded_at', { ascending: false })
-
-      if (absError) {
-        console.error('Error loading abstracts:', absError)
-      }
-
       if (registrations) {
         const paid = registrations.filter((r) => r.payment_status === 'paid').length
         const pending = registrations.filter((r) => r.payment_status === 'pending').length
@@ -109,7 +125,6 @@ export default function DashboardPage() {
         const registrationsByDay = Array.from(registrationsByDayMap.entries())
           .map(([date, count]) => ({ date, count }))
           .sort((a, b) => {
-            // Simple sort by date string (for better results, parse dates)
             return a.date.localeCompare(b.date)
           })
 
@@ -151,10 +166,8 @@ export default function DashboardPage() {
           totalRegistrations: registrations.length,
           paidRegistrations: paid,
           pendingPayments: pending,
-          totalAbstracts: abstracts?.length || 0,
           checkedIn: checkedIn,
           recentRegistrations: registrations.slice(0, 5),
-          recentAbstracts: abstracts?.slice(0, 5) || [],
         })
 
         setChartData({
@@ -172,15 +185,62 @@ export default function DashboardPage() {
     }
   }
 
+  const loadPlatformStats = async () => {
+    if (!isSuperAdmin) return
+
+    try {
+      // Load all conferences
+      const { data: allConferences, error: confError } = await supabase
+        .from('conferences')
+        .select('id, name, published, active')
+
+      if (confError) throw confError
+
+      // Load all users
+      const { data: allUsers, error: usersError } = await supabase
+        .from('user_profiles')
+        .select('id, active')
+
+      if (usersError) throw usersError
+
+      // Load all registrations
+      const { data: allRegistrations, error: regError } = await supabase
+        .from('registrations')
+        .select('id, payment_status, amount_paid')
+
+      if (regError) throw regError
+
+      const activeConferences = allConferences?.filter(c => c.active && c.published).length || 0
+      const totalRevenue = allRegistrations?.reduce((sum, r) => {
+        return sum + (r.amount_paid || 0)
+      }, 0) || 0
+
+      setPlatformStats({
+        totalConferences: allConferences?.length || 0,
+        totalUsers: allUsers?.length || 0,
+        totalRegistrations: allRegistrations?.length || 0,
+        totalRevenue,
+        activeConferences,
+      })
+    } catch (error) {
+      console.error('Error loading platform stats:', error)
+    }
+  }
+
   useEffect(() => {
     if (currentConference) {
       loadStats()
     }
+    if (isSuperAdmin) {
+      loadPlatformStats()
+    }
     loadInquiryStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConference])
+  }, [currentConference, isSuperAdmin])
 
   const loadInquiryStats = async () => {
+    if (!isSuperAdmin) return
+
     try {
       const { data, error: statsError } = await supabase
         .from('contact_inquiry_stats')
@@ -188,7 +248,6 @@ export default function DashboardPage() {
         .single()
 
       if (statsError) {
-        // Silently fail if view doesn't exist yet
         console.log('ℹ️ Inquiry stats view not available (this is OK)')
         return
       }
@@ -202,7 +261,6 @@ export default function DashboardPage() {
         })
       }
     } catch (error) {
-      // Silently catch errors - inquiry stats are optional
       console.log('ℹ️ Could not load inquiry stats (this is OK)')
     }
   }
@@ -216,7 +274,7 @@ export default function DashboardPage() {
   }
 
   // No conference selected - show simple message
-  if (!currentConference && !conferenceLoading) {
+  if (!currentConference && !conferenceLoading && !isSuperAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
@@ -225,30 +283,8 @@ export default function DashboardPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
           <p className="text-gray-600 mb-6">
-            {conferences.length > 0
-              ? 'Please select a conference from the dropdown menu in the header to view its dashboard and statistics.'
-              : isSuperAdmin
-                ? 'Get started by creating your first conference event.'
-                : 'You don\'t have any conferences assigned yet. Please contact your administrator.'}
+            Please select a conference from the dropdown menu in the header to view its dashboard and statistics.
           </p>
-          {conferences.length === 0 && isSuperAdmin && (
-            <Link
-              href="/admin/conferences/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-              Create Your First Conference
-            </Link>
-          )}
-          {conferences.length > 0 && isSuperAdmin && (
-            <Link
-              href="/admin/conferences"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
-            >
-              <Calendar className="w-5 h-5" />
-              View All Conferences
-            </Link>
-          )}
         </div>
       </div>
     )
@@ -278,11 +314,217 @@ export default function DashboardPage() {
     )
   }
 
+  // Super Admin Dashboard - Platform Overview
+  if (isSuperAdmin && !currentConference) {
+    return (
+      <div>
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Platform Overview</h2>
+          <p className="mt-2 text-gray-600">Welcome back, {profile?.full_name || 'Super Admin'}</p>
+        </div>
+
+        {/* Platform Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <StatsCard
+            title="Total Conferences"
+            value={platformStats.totalConferences}
+            color="blue"
+            icon={<Building2 className="w-6 h-6" />}
+          />
+          <StatsCard
+            title="Active Conferences"
+            value={platformStats.activeConferences}
+            color="green"
+            icon={<Activity className="w-6 h-6" />}
+          />
+          <StatsCard
+            title="Total Users"
+            value={platformStats.totalUsers}
+            color="purple"
+            icon={<UsersIcon className="w-6 h-6" />}
+          />
+          <StatsCard
+            title="Total Registrations"
+            value={platformStats.totalRegistrations}
+            color="blue"
+            icon={<UsersIcon className="w-6 h-6" />}
+          />
+          <StatsCard
+            title="Total Revenue"
+            value={`€${platformStats.totalRevenue.toLocaleString()}`}
+            color="green"
+            icon={<DollarSign className="w-6 h-6" />}
+          />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link
+              href="/admin/conferences/new"
+              className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+            >
+              <Plus className="w-5 h-5 text-blue-600" />
+              <span className="font-medium text-gray-900">Create Conference</span>
+            </Link>
+            <Link
+              href="/admin/users"
+              className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
+            >
+              <UsersIcon className="w-5 h-5 text-purple-600" />
+              <span className="font-medium text-gray-900">Manage Users</span>
+            </Link>
+            <Link
+              href="/admin/inquiries"
+              className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
+            >
+              <Mail className="w-5 h-5 text-green-600" />
+              <span className="font-medium text-gray-900">View Inquiries</span>
+            </Link>
+            <Link
+              href="/admin/conferences"
+              className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+            >
+              <BarChart3 className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900">All Conferences</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Sales & Leads Section */}
+        {inquiryStats.totalInquiries > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Sales & Leads</h3>
+              <Link
+                href="/admin/inquiries"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              >
+                View all inquiries →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-blue-100 text-sm font-medium">New Inquiries</span>
+                  <Mail className="w-8 h-8 text-blue-200" />
+                </div>
+                <p className="text-4xl font-bold mb-1">{inquiryStats.newInquiries}</p>
+                <p className="text-blue-100 text-sm">Awaiting response</p>
+              </div>
+
+              <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600 text-sm font-medium">Total Inquiries</span>
+                  <FileText className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-4xl font-bold text-gray-900 mb-1">{inquiryStats.totalInquiries}</p>
+                <p className="text-gray-600 text-sm">All time</p>
+              </div>
+
+              <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600 text-sm font-medium">Conversion Rate</span>
+                  <TrendingUp className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-4xl font-bold text-green-600 mb-1">{inquiryStats.conversionRate.toFixed(1)}%</p>
+                <p className="text-gray-600 text-sm">Lead to customer</p>
+              </div>
+
+              <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600 text-sm font-medium">Last 7 Days</span>
+                  <Calendar className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-4xl font-bold text-purple-600 mb-1">{inquiryStats.inquiriesLast7Days}</p>
+                <p className="text-gray-600 text-sm">Recent leads</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* All Conferences List */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">All Conferences</h3>
+            <Link
+              href="/admin/conferences"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="p-6">
+            {conferences.length === 0 ? (
+              <div className="text-center py-12">
+                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">No conferences yet</p>
+                <Link
+                  href="/admin/conferences/new"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create Your First Conference
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {conferences.slice(0, 5).map((conf) => (
+                  <Link
+                    key={conf.id}
+                    href={`/admin/conferences/${conf.id}/settings`}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{conf.name}</h4>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {conf.location || 'No location set'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {conf.published ? (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          Published
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Draft
+                        </span>
+                      )}
+                      <Eye className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Conference Admin Dashboard - Conference Specific
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Dashboard Overview</h2>
-        <p className="mt-2 text-gray-600">Welcome to your conference management dashboard</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">
+              {currentConference ? `${currentConference.name} Dashboard` : 'Dashboard Overview'}
+            </h2>
+            <p className="mt-2 text-gray-600">Welcome to your conference management dashboard</p>
+          </div>
+          {currentConference && (
+            <Link
+              href={`/admin/conferences/${currentConference.id}/settings`}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Quick Actions */}
@@ -297,13 +539,16 @@ export default function DashboardPage() {
               <UsersIcon className="w-5 h-5 text-blue-600" />
               <span className="font-medium text-gray-900">View Registrations</span>
             </Link>
-            <Link
-              href={`/admin/abstracts?conference=${currentConference.id}`}
+            <a
+              href={`${ABSTRACT_APP_URL}?conference=${currentConference.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
             >
               <FileText className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">View Abstracts</span>
-            </Link>
+              <span className="font-medium text-gray-900">Manage Abstracts</span>
+              <ExternalLink className="w-4 h-4 text-purple-600" />
+            </a>
             <Link
               href={`/admin/payments?conference=${currentConference.id}`}
               className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
@@ -315,78 +560,15 @@ export default function DashboardPage() {
               href={`/admin/conferences/${currentConference.id}/settings`}
               className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+              <Settings className="w-5 h-5 text-gray-600" />
               <span className="font-medium text-gray-900">Settings</span>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Inquiry Stats Section - Only show if there are inquiries */}
-      {inquiryStats.totalInquiries > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900">Sales & Leads</h3>
-            <Link
-              href="/admin/inquiries"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-            >
-              View all inquiries →
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-blue-100 text-sm font-medium">New Inquiries</span>
-                <svg className="w-8 h-8 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <p className="text-4xl font-bold mb-1">{inquiryStats.newInquiries}</p>
-              <p className="text-blue-100 text-sm">Awaiting response</p>
-            </div>
-
-            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm font-medium">Total Inquiries</span>
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-4xl font-bold text-gray-900 mb-1">{inquiryStats.totalInquiries}</p>
-              <p className="text-gray-600 text-sm">All time</p>
-            </div>
-
-            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm font-medium">Conversion Rate</span>
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <p className="text-4xl font-bold text-green-600 mb-1">{inquiryStats.conversionRate.toFixed(1)}%</p>
-              <p className="text-gray-600 text-sm">Lead to customer</p>
-            </div>
-
-            <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm font-medium">Last 7 Days</span>
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <p className="text-4xl font-bold text-purple-600 mb-1">{inquiryStats.inquiriesLast7Days}</p>
-              <p className="text-gray-600 text-sm">Recent leads</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Conference Stats Heading */}
-      {inquiryStats.totalInquiries > 0 && (
+      {inquiryStats.totalInquiries > 0 && isSuperAdmin && (
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-900">
             {currentConference ? `${currentConference.name} Statistics` : 'Conference Statistics'}
@@ -395,7 +577,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
           title="Total Registrations"
           value={stats.totalRegistrations}
@@ -423,16 +605,6 @@ export default function DashboardPage() {
           icon={
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title="Total Abstracts"
-          value={stats.totalAbstracts}
-          color="purple"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
           }
         />
@@ -517,50 +689,35 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Abstracts */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Abstracts</h3>
-            <Link
-              href="/admin/abstracts"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              View all →
-            </Link>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {stats.recentAbstracts.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">
-                No abstracts submitted yet
-              </div>
-            ) : (
-              stats.recentAbstracts.map((abstract) => (
-                <div key={abstract.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {abstract.file_name}
-                      </p>
-                      {abstract.email && (
-                        <p className="text-sm text-gray-500 mt-1">{abstract.email}</p>
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <span className="text-xs text-gray-500">
-                        {(abstract.file_size / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {new Date(abstract.uploaded_at).toLocaleString()}
-                  </p>
+        {/* Abstract Management Link */}
+        {currentConference && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Abstract Management</h3>
+            </div>
+            <div className="p-6">
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-purple-600" />
                 </div>
-              ))
-            )}
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Manage Abstracts</h4>
+                <p className="text-sm text-gray-600 mb-6">
+                  Abstract submission and management is handled by a separate application.
+                </p>
+                <a
+                  href={`${ABSTRACT_APP_URL}?conference=${currentConference.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg"
+                >
+                  <span>Open Abstract App</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
 }
-

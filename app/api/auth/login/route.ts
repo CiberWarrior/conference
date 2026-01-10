@@ -108,6 +108,15 @@ export async function POST(request: NextRequest) {
         error: authError.message,
         email 
       })
+      
+      // Check if error is due to Supabase being unavailable/paused
+      if (authError.message.includes('fetch') || authError.message.includes('network') || authError.message.includes('timeout')) {
+        return NextResponse.json(
+          { error: 'Unable to connect to authentication service. Please check if Supabase project is active.' },
+          { status: 503 }
+        )
+      }
+      
       return NextResponse.json(
         { error: authError.message || 'Invalid email or password' },
         { status: 401 }

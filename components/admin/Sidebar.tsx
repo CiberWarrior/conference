@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useConference } from '@/contexts/ConferenceContext'
 
 interface NavItem {
   name: string
   href: string
   icon: React.ReactNode
   superAdminOnly?: boolean
+  requiresPermission?: string
 }
 
 interface NavSection {
@@ -101,15 +103,6 @@ const navigationSections: NavSection[] = [
         ),
       },
       {
-        name: 'Abstracts',
-        href: '/admin/abstracts',
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-        ),
-      },
-      {
         name: 'Payments',
         href: '/admin/payments',
         icon: (
@@ -148,11 +141,21 @@ const navigationSections: NavSection[] = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
-  const { isSuperAdmin, role, loading: authLoading } = useAuth()
+  const { isSuperAdmin, role, loading: authLoading, profile } = useAuth()
+  const { currentConference } = useConference()
+  const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // Fetch user permissions if Conference Admin
+    if (profile && profile.role === 'conference_admin') {
+      // In simplified approach, Conference Admin has most permissions by default
+      setUserPermissions({
+        can_manage_registration_form: true,
+        can_view_analytics: true,
+      })
+    }
+  }, [profile])
 
   // Different sidebar colors based on role
   const sidebarBgColor = isSuperAdmin 
@@ -187,6 +190,13 @@ export default function Sidebar() {
         items: section.items.filter(item => {
           // If item is superAdminOnly, only show to super admins
           if (item.superAdminOnly && !isSuperAdmin) return false
+          // Check permission requirement
+          if (item.requiresPermission) {
+            // Super admin has all permissions
+            if (isSuperAdmin) return true
+            // Check if user has the specific permission
+            return userPermissions[item.requiresPermission] === true
+          }
           return true
         })
       }))
@@ -226,9 +236,12 @@ export default function Sidebar() {
                   <div className="space-y-1">
                     {section.items.map((item) => {
                       // For Conference Admin, "My Conferences" should link to Dashboard
-                      const href = !isSuperAdmin && item.name === 'My Conferences' 
-                        ? '/admin/dashboard' 
-                        : item.href
+                      let href = item.href
+                      
+                      if (!isSuperAdmin && item.name === 'My Conferences') {
+                        href = '/admin/dashboard'
+                      }
+                      
                       const isActive = getIsActive(href, item.name)
                       const activeBgColor = isSuperAdmin
                         ? 'bg-gradient-to-r from-yellow-600 to-yellow-500'

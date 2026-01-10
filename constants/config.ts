@@ -26,3 +26,6 @@ export const STORAGE_CONFIG = {
   localStoragePrefix: 'meetflow_',
 } as const
 
+// External Abstract Management Application URL
+// Set this to your abstract management application URL
+export const ABSTRACT_APP_URL = process.env.NEXT_PUBLIC_ABSTRACT_APP_URL || 'https://abstracts.meetflow.com'

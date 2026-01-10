@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import RegistrationForm from '@/components/RegistrationForm'
-import AbstractUploadForm from '@/components/AbstractUploadForm'
 import {
   Calendar,
   MapPin,
@@ -285,8 +284,14 @@ export default function ConferencePage() {
                     <div className="border-t-2 border-gray-100 pt-8">
                       <RegistrationForm
                         conferenceId={conference.id}
+                        customFields={conference.settings?.custom_registration_fields || []}
+                        participantSettings={conference.settings?.participant_settings}
+                        registrationInfoText={conference.settings?.registration_info_text}
                         pricing={conference.pricing}
+                        hotelOptions={conference.settings?.hotel_options || []}
+                        currency={conference.pricing?.currency || 'EUR'}
                         conferenceStartDate={conference.start_date}
+                        conferenceEndDate={conference.end_date}
                       />
                     </div>
                   </div>
@@ -340,7 +345,8 @@ export default function ConferencePage() {
 
                     {/* Abstract Upload Form */}
                     <div className="border-t-2 border-gray-100 pt-8">
-                      <AbstractUploadForm conferenceId={conference.id} />
+                      {/* AbstractUploadForm component - coming soon */}
+                      <p className="text-gray-500 text-center py-8">Abstract submission form will be available soon.</p>
                     </div>
                   </div>
                 </div>
@@ -453,112 +459,6 @@ export default function ConferencePage() {
                                   <div className="text-xs text-gray-500 mt-1">
                                     Mark your calendar
                                   </div>
-                                </div>
-                              </div>
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Registration Fee Card - Enhanced */}
-                  {pricing && (
-                    <div className="group relative bg-white rounded-3xl p-8 md:p-10 border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-                      {/* Subtle gradient overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 via-violet-50/0 to-fuchsia-50/0 group-hover:from-purple-50/50 group-hover:via-violet-50/30 group-hover:to-fuchsia-50/50 transition-all duration-500"></div>
-                      
-                      <div className="relative z-10">
-                        {/* Header with icon */}
-                        <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
-                          <div className="relative">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-violet-600 to-fuchsia-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                              <Globe className="w-7 h-7 text-white" />
-                            </div>
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full border-2 border-white animate-pulse"></div>
-                          </div>
-                          <div>
-                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                              Registration Fee
-                            </h3>
-                            <p className="text-sm text-gray-500 mt-0.5">Pricing tiers available</p>
-                          </div>
-                        </div>
-
-                        {/* Pricing list with enhanced styling */}
-                        <ul className="space-y-5">
-                          {pricing.early_bird?.amount && (
-                            <li className="group/item relative">
-                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100 hover:border-blue-200 hover:shadow-md transition-all duration-200">
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                  <div className="relative flex-shrink-0">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
-                                      <CheckCircle className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full border-2 border-white"></div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-bold text-gray-900">Early Bird</span>
-                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">Best Value</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500">Register early and save</div>
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0 ml-4">
-                                  <div className="text-2xl font-black text-blue-600">
-                                    {pricing.currency} {pricing.early_bird.amount.toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-                            </li>
-                          )}
-                          {pricing.regular?.amount && (
-                            <li className="group/item relative">
-                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-100 hover:border-purple-200 hover:shadow-md transition-all duration-200">
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                  <div className="relative flex-shrink-0">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
-                                      <CheckCircle className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full border-2 border-white"></div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold text-gray-900 mb-1">Regular</div>
-                                    <div className="text-xs text-gray-500">Standard pricing</div>
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0 ml-4">
-                                  <div className="text-2xl font-black text-purple-600">
-                                    {pricing.currency} {pricing.regular.amount.toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-                            </li>
-                          )}
-                          {pricing.student_discount && (
-                            <li className="group/item relative">
-                              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-100 hover:border-violet-200 hover:shadow-md transition-all duration-200">
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                  <div className="relative flex-shrink-0">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-md group-hover/item:scale-110 group-hover/item:rotate-6 transition-all duration-300">
-                                      <Users className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-400 rounded-full border-2 border-white"></div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-bold text-gray-900">Student Discount</span>
-                                      <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">Special Offer</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500">Valid student ID required</div>
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0 ml-4 text-right">
-                                  <div className="text-xl font-black text-violet-600">
-                                    {pricing.currency} {pricing.student_discount.toFixed(2)}
-                                  </div>
-                                  <div className="text-xs text-gray-500 font-medium">off</div>
                                 </div>
                               </div>
                             </li>

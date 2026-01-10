@@ -31,7 +31,7 @@ export const isAuthenticated = async (): Promise<boolean> => {
 }
 
 /**
- * Get current authenticated user
+ * Get current authenticated user with role
  */
 export const getCurrentUser = async () => {
   try {
@@ -42,7 +42,18 @@ export const getCurrentUser = async () => {
       return null
     }
 
-    return user
+    // Fetch role from user_profiles table
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    // Return user with role property
+    return {
+      ...user,
+      role: userProfile?.role || null
+    }
   } catch (error) {
     log.error('Get user error', error, {
       function: 'getCurrentUser',

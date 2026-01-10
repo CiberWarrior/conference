@@ -12,6 +12,9 @@ export const PERMISSION_TYPES = {
   GENERATE_CERTIFICATES: 'can_generate_certificates',
   EDIT_CONFERENCE: 'can_edit_conference',
   DELETE_DATA: 'can_delete_data',
+  MANAGE_REGISTRATION_FORM: 'can_manage_registration_form',
+  VIEW_ALL_REGISTRATIONS: 'can_view_all_registrations',
+  VIEW_ANALYTICS: 'can_view_analytics',
 } as const
 
 export type PermissionType =
@@ -26,5 +29,8 @@ export const PERMISSION_LABELS: Record<PermissionType, string> = {
   [PERMISSION_TYPES.GENERATE_CERTIFICATES]: 'Generate Certificates',
   [PERMISSION_TYPES.EDIT_CONFERENCE]: 'Edit Conference Settings',
   [PERMISSION_TYPES.DELETE_DATA]: 'Delete Data',
+  [PERMISSION_TYPES.MANAGE_REGISTRATION_FORM]: 'Manage Registration Form',
+  [PERMISSION_TYPES.VIEW_ALL_REGISTRATIONS]: 'View All Registrations',
+  [PERMISSION_TYPES.VIEW_ANALYTICS]: 'View Analytics',
 }
 
