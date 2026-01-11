@@ -56,10 +56,10 @@ export default function RegistrationsPage() {
       setRegistrations(
         data.map((r) => ({
           id: r.id,
-          firstName: r.first_name,
-          lastName: r.last_name,
-          email: r.email,
-          phone: r.phone,
+          firstName: r.first_name || '',
+          lastName: r.last_name || '',
+          email: r.email || '',
+          phone: r.phone || '',
           country: r.country || '',
           institution: r.institution || '',
           arrivalDate: r.arrival_date || '',
@@ -88,12 +88,13 @@ export default function RegistrationsPage() {
 
   // Filter registrations based on search and status
   const filteredRegistrations = registrations.filter((reg) => {
+    const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
-      reg.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (reg.country && reg.country.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (reg.institution && reg.institution.toLowerCase().includes(searchTerm.toLowerCase()))
+      (reg.firstName || '').toLowerCase().includes(searchLower) ||
+      (reg.lastName || '').toLowerCase().includes(searchLower) ||
+      (reg.email || '').toLowerCase().includes(searchLower) ||
+      (reg.country && reg.country.toLowerCase().includes(searchLower)) ||
+      (reg.institution && reg.institution.toLowerCase().includes(searchLower))
 
     const matchesFilter =
       filterStatus === 'all' || reg.paymentStatus === filterStatus
@@ -723,14 +724,14 @@ export default function RegistrationsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {reg.firstName} {reg.lastName}
+                        {reg.firstName || ''} {reg.lastName || ''}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{reg.email}</div>
+                      <div className="text-sm text-gray-500">{reg.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{reg.phone}</div>
+                      <div className="text-sm text-gray-500">{reg.phone || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">{reg.country || '-'}</div>
