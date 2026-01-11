@@ -322,6 +322,7 @@ export async function checkPermission(
     | 'can_delete_data'
     | 'can_manage_registration_form'
     | 'can_view_all_registrations'
+    | 'can_view_analytics'
   >
 ): Promise<boolean> {
   try {
