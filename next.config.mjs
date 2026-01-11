@@ -3,8 +3,6 @@ const nextConfig = {
   reactStrictMode: true,
   // Optimizacije za production
   swcMinify: true,
-  // Kompajliranje za Vercel
-  output: 'standalone',
   // Environment varijable koje trebaju biti dostupne u build procesu
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
