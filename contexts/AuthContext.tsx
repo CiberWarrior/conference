@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (impersonated) {
                 setImpersonatedProfile(impersonated)
                 log.info('Impersonation state restored', {
-                  impersonatedUserId,
+                  impersonatedUserId: impersonated.id,
                   impersonatedEmail: impersonated.email,
                 })
               } else {
