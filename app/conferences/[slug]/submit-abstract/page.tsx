@@ -23,6 +23,7 @@ export default function SubmitAbstractPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [submittedEmail, setSubmittedEmail] = useState<string>('')
 
   // Form state
   const [file, setFile] = useState<File | null>(null)
@@ -181,6 +182,7 @@ export default function SubmitAbstractPage() {
       }
 
       setSubmitSuccess(true)
+      setSubmittedEmail(email)
       showSuccess('Abstract submitted successfully!')
 
       // Reset form
@@ -354,8 +356,10 @@ export default function SubmitAbstractPage() {
                   </h3>
                   <p className="text-green-700">
                     Thank you for submitting your abstract. We have received your
-                    submission and will review it shortly. You will receive a
-                    confirmation email at {email}.
+                    submission and will review it shortly.
+                    {submittedEmail && (
+                      <> You will receive a confirmation email at {submittedEmail}.</>
+                    )}
                   </p>
                 </div>
                 <button
