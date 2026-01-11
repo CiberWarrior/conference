@@ -195,9 +195,9 @@ export async function PATCH(
         
         log.debug('Merged settings', {
           conferenceId: params.id,
-          hasCustomAbstractFields: 'custom_abstract_fields' in body.settings,
-          customAbstractFieldsCount: body.settings.custom_abstract_fields?.length || 0,
-          customAbstractFields: body.settings.custom_abstract_fields ? JSON.stringify(body.settings.custom_abstract_fields, null, 2) : 'none',
+          hasCustomAbstractFields: 'custom_abstract_fields' in mergedSettings,
+          customAbstractFieldsCount: mergedSettings.custom_abstract_fields?.length || 0,
+          customAbstractFields: mergedSettings.custom_abstract_fields ? JSON.stringify(mergedSettings.custom_abstract_fields, null, 2) : 'none',
         })
       }
     }
