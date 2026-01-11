@@ -6,6 +6,7 @@ import {
   setCachedConference,
   getOrSetCache,
 } from '@/lib/cache'
+import type { Conference } from '@/types/conference'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -26,7 +27,7 @@ export async function GET(
       log.debug('Conference cache hit', { slug: params.slug })
       
       // Ensure JSONB fields are properly parsed from cache
-      const conference = { ...cached }
+      const conference = { ...cached } as Partial<Conference> & { settings?: any; pricing?: any; email_settings?: any }
       if (conference.settings && typeof conference.settings === 'string') {
         try {
           conference.settings = JSON.parse(conference.settings)
