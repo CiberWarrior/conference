@@ -128,8 +128,11 @@ export interface CreateConferenceInput {
   location?: string
   venue?: string
   website_url?: string
+  logo_url?: string
+  primary_color?: string
   pricing?: Partial<ConferencePricing>
   settings?: Partial<ConferenceSettings>
+  email_settings?: Partial<EmailSettings>
 }
 
 export interface UpdateConferenceInput extends Partial<CreateConferenceInput> {

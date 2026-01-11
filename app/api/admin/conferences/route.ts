@@ -185,9 +185,12 @@ export async function POST(request: NextRequest) {
           location: body.location,
           venue: body.venue,
           website_url: body.website_url,
+          logo_url: body.logo_url || undefined,
+          primary_color: body.primary_color || undefined,
           pricing: body.pricing || undefined,
           settings: body.settings || undefined,
-          owner_id: 'admin', // For now, all conferences owned by single admin
+          email_settings: body.email_settings || undefined,
+          owner_id: profile.id,
         })
         .select()
         .single()
@@ -216,8 +219,11 @@ export async function POST(request: NextRequest) {
         location: body.location,
         venue: body.venue,
         website_url: body.website_url,
+        logo_url: (body as any).logo_url || undefined,
+        primary_color: (body as any).primary_color || undefined,
         pricing: body.pricing || undefined,
         settings: body.settings || undefined,
+        email_settings: (body as any).email_settings || undefined,
         owner_id: profile.id, // Set super admin as owner
       })
       .select()
