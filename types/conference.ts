@@ -107,6 +107,7 @@ export interface ConferenceSettings {
   max_registrations?: number
   timezone: string
   registration_info_text?: string // Informativni tekst koji se prikazuje na vrhu registration forme
+  abstract_info_text?: string // Informativni tekst koji se prikazuje na vrhu abstract submission forme
   custom_registration_fields?: CustomRegistrationField[] // Custom polja za registracijski obrazac
   custom_abstract_fields?: CustomRegistrationField[] // Custom polja za abstract submission obrazac
   participant_settings?: ParticipantSettings // Settings for multiple participants

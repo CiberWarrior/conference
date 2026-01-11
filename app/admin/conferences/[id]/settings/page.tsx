@@ -28,6 +28,7 @@ export default function ConferenceSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [participantSettings, setParticipantSettings] = useState<ParticipantSettings>(DEFAULT_PARTICIPANT_SETTINGS)
   const [registrationInfoText, setRegistrationInfoText] = useState<string>('')
+  const [abstractInfoText, setAbstractInfoText] = useState<string>('')
   const [showParticipantSettings, setShowParticipantSettings] = useState(false)
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null)
@@ -127,6 +128,23 @@ export default function ConferenceSettingsPage() {
         // Load participant settings and registration info text
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
+        setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
+
+The abstract should be written in English
+The abstract should not exceed 2000 characters
+Indicate the topic and type of your presentation
+The abstract should include the title, names of all contributors (without titles), department, institution, city, and country.
+Names of author and co-authors have to be submitted in the following way: First and Last name (example:  John Smith)
+Contact author (presenter) should submit his/her phone number and Email address
+The submitted abstract should cover the following: the goal, material and methods, results, and conclusion
+Abstract should be submitted as one paragraph
+Do NOT include references in the abstract text. Tables and graphics are not allowed.
+Corrections - Withdrawal and Editing an abstract already submitted
+
+Changes, withdrawals, and editing can be made until March 22, 2026, 24.00 hrs CET, by sending the new summary by mail.
+The Abstract has to be related to one of the conference topics.
+
+Important: Authors who submit abstracts for presentation are not automatically registered for the meeting.`)
         setShowParticipantSettings(conf.settings?.participant_settings?.enabled || false)
         setHotelOptions(conf.settings?.hotel_options || [])
       }
@@ -310,7 +328,7 @@ export default function ConferenceSettingsPage() {
   const addCustomAbstractSeparator = () => {
     const newField: CustomRegistrationField = {
       id: `abstract_separator_${Date.now()}`,
-      name: `separator_${Date.now()}`,
+      name: '', // Separators don't need a name field
       type: 'separator',
       label: 'New Section',
       placeholder: '',
@@ -484,6 +502,7 @@ export default function ConferenceSettingsPage() {
             custom_abstract_fields: formData.custom_abstract_fields,
             participant_settings: participantSettings,
             registration_info_text: registrationInfoText || undefined,
+            abstract_info_text: abstractInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
           },
           email_settings: {
@@ -1651,6 +1670,32 @@ export default function ConferenceSettingsPage() {
               })}
             </div>
           )}
+        </div>
+
+        {/* Abstract Information Text */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Abstract Information</h2>
+            <p className="text-sm text-gray-600">
+              Add introductory text or instructions that will appear at the top of the abstract submission form.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Information Text
+            </label>
+            <textarea
+              value={abstractInfoText}
+              onChange={(e) => setAbstractInfoText(e.target.value)}
+              rows={12}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              placeholder="Enter information text that will be displayed to users when they submit abstracts. For example: guidelines, requirements, deadlines, etc."
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              This text will be displayed at the beginning of the abstract submission form
+            </p>
+          </div>
         </div>
 
         {/* Custom Abstract Submission Fields */}

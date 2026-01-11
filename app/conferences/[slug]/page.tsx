@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import RegistrationForm from '@/components/RegistrationForm'
 import {
   Calendar,
   MapPin,
   Users,
   Upload,
   ArrowRight,
-  Globe,
   Clock,
   CheckCircle,
   Building2,
@@ -19,7 +17,6 @@ import type { Conference } from '@/types/conference'
 
 export default function ConferencePage() {
   const params = useParams()
-  const router = useRouter()
   const slug = params?.slug as string
   const [conference, setConference] = useState<Conference | null>(null)
   const [loading, setLoading] = useState(true)
@@ -214,22 +211,29 @@ export default function ConferencePage() {
             {/* Section Header */}
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4">
-                Registration
+                Get Started
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
                 Join us at the conference. Register now or submit your research abstract.
               </p>
             </div>
 
-            <div className="flex flex-col gap-8 max-w-4xl mx-auto">
-              {/* Registration Form Card */}
+            {/* Action Cards Grid */}
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+              {/* Registration Card */}
               {registrationEnabled && (
-                <div className="relative bg-white rounded-3xl p-8 border-2 border-gray-100 shadow-xl overflow-hidden">
+                <Link
+                  href={`/conferences/${slug}/register`}
+                  className="group relative bg-white rounded-3xl p-8 md:p-10 border-2 border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                >
+                  {/* Hover gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-blue-50/0 to-transparent group-hover:from-blue-50/50 group-hover:via-blue-50/30 transition-all duration-500"></div>
+                  
                   <div className="relative z-10">
                     {/* Icon */}
                     <div className="mb-6">
                       <div 
-                        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl"
+                        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
                         style={
                           conference.primary_color
                             ? {
@@ -243,36 +247,30 @@ export default function ConferencePage() {
                         <Users className="w-10 h-10 text-white" />
                       </div>
                       <h3 className="text-3xl font-black text-gray-900 mb-3">
-                        Register
+                        Registration Form
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                        Secure your spot at the conference. Complete the registration form below and pay your attendance fee online.
+                        Secure your spot at the conference. Complete the registration form and pay your attendance fee online.
                       </p>
                     </div>
 
-                    {/* Benefits with icons */}
-                    <div className="space-y-4 mb-8">
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50 border border-green-100">
-                        <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
+                    {/* Benefits */}
+                    <div className="space-y-3 mb-8">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
                           Secure online payment
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
                           Instant confirmation email
                         </span>
                       </div>
                       {pricing.early_bird && (
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50 border border-purple-100">
-                          <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
-                            <CheckCircle className="w-5 h-5 text-white" />
-                          </div>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-gray-800">
                             Early bird discounts available
                           </span>
@@ -280,31 +278,39 @@ export default function ConferencePage() {
                       )}
                     </div>
 
-                    {/* Registration Form */}
-                    <div className="border-t-2 border-gray-100 pt-8">
-                      <RegistrationForm
-                        conferenceId={conference.id}
-                        customFields={conference.settings?.custom_registration_fields || []}
-                        participantSettings={conference.settings?.participant_settings}
-                        registrationInfoText={conference.settings?.registration_info_text}
-                        pricing={conference.pricing}
-                        hotelOptions={conference.settings?.hotel_options || []}
-                        currency={conference.pricing?.currency || 'EUR'}
-                        conferenceStartDate={conference.start_date}
-                        conferenceEndDate={conference.end_date}
-                      />
+                    {/* CTA Button */}
+                    <div className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700 font-semibold">
+                      <span>Start Registration</span>
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
-                </div>
+                </Link>
               )}
 
-              {/* Abstract Upload Form Card */}
+              {/* Abstract Submission Card */}
               {abstractSubmissionEnabled && (
-                <div className="relative bg-white rounded-3xl p-8 border-2 border-gray-100 shadow-xl overflow-hidden">
+                <Link
+                  href={`/conferences/${slug}/submit-abstract`}
+                  className="group relative bg-white rounded-3xl p-8 md:p-10 border-2 border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                >
+                  {/* Hover gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 via-purple-50/0 to-transparent group-hover:from-purple-50/50 group-hover:via-purple-50/30 transition-all duration-500"></div>
+                  
                   <div className="relative z-10">
                     {/* Icon */}
                     <div className="mb-6">
-                      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center mb-6 shadow-xl">
+                      <div 
+                        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
+                        style={
+                          conference.primary_color
+                            ? {
+                                background: `linear-gradient(135deg, ${conference.primary_color} 0%, ${conference.primary_color}DD 100%)`,
+                              }
+                            : {
+                                background: 'linear-gradient(135deg, #9333EA 0%, #7C3AED 100%)',
+                              }
+                        }
+                      >
                         <Upload className="w-10 h-10 text-white" />
                       </div>
                       <h3 className="text-3xl font-black text-gray-900 mb-3">
@@ -315,75 +321,57 @@ export default function ConferencePage() {
                       </p>
                     </div>
 
-                    {/* Benefits with icons */}
-                    <div className="space-y-4 mb-8">
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50 border border-purple-100">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
+                    {/* Benefits */}
+                    <div className="space-y-3 mb-8">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Word format (.doc, .docx)
+                          Word format (.doc, .docx, .pdf)
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
                           Quick upload process
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
-                        <div className="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-violet-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
                           Instant submission confirmation
                         </span>
                       </div>
                     </div>
 
-                    {/* Abstract Upload Form */}
-                    <div className="border-t-2 border-gray-100 pt-8">
-                      <Link
-                        href={`/conferences/${slug}/submit-abstract`}
-                        className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all flex items-center justify-center gap-2 text-center"
-                        style={
-                          conference.primary_color
-                            ? {
-                                background: `linear-gradient(135deg, ${conference.primary_color} 0%, ${conference.primary_color}DD 100%)`,
-                              }
-                            : undefined
-                        }
-                      >
-                        <Upload className="w-5 h-5" />
-                        <span>Abstract Submission</span>
-                        <ArrowRight className="w-5 h-5" />
-                      </Link>
+                    {/* CTA Button */}
+                    <div className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700 font-semibold">
+                      <span>Submit Abstract</span>
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
-                </div>
+                </Link>
               )}
+            </div>
 
-              {/* Divider with elegant styling */}
-              {(abstractSubmissionEnabled && (conference.start_date || pricing.early_bird?.deadline || pricing.regular)) && (
-                <div className="my-16">
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="bg-gradient-to-br from-gray-50 to-white px-6 py-2 text-gray-500 text-sm font-semibold tracking-wide uppercase">
-                        Additional Information
-                      </span>
-                    </div>
+            {/* Divider with elegant styling */}
+            {((registrationEnabled || abstractSubmissionEnabled) && (conference.start_date || pricing.early_bird?.deadline || pricing.regular)) && (
+              <div className="my-16">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-gradient-to-br from-gray-50 to-white px-6 py-2 text-gray-500 text-sm font-semibold tracking-wide uppercase">
+                      Additional Information
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Important Dates and Registration Fee Section - Premium Design */}
-              {(conference.start_date || pricing.early_bird?.deadline || pricing.regular) && (
-                <div className="grid md:grid-cols-2 gap-8">
+            {/* Important Dates and Registration Fee Section - Premium Design */}
+            {(conference.start_date || pricing.early_bird?.deadline || pricing.regular) && (
+              <div className="grid md:grid-cols-2 gap-8">
                   {/* Important Dates Card - Enhanced */}
                   {(conference.start_date || pricing.early_bird?.deadline) && (
                     <div className="group relative bg-white rounded-3xl p-8 md:p-10 border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
@@ -480,9 +468,41 @@ export default function ConferencePage() {
                       </div>
                     </div>
                   )}
+
+                {/* Additional Information Card - Placeholder for future content */}
+                <div className="group relative bg-white rounded-3xl p-8 md:p-10 border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                  {/* Subtle gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-50/0 via-orange-50/0 to-amber-50/0 group-hover:from-orange-50/50 group-hover:via-orange-50/30 group-hover:to-amber-50/50 transition-all duration-500"></div>
+                  
+                  <div className="relative z-10">
+                    {/* Header with icon */}
+                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                          <Building2 className="w-7 h-7 text-white" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-400 rounded-full border-2 border-white animate-pulse"></div>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                          Additional Information
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-0.5">More details coming soon</p>
+                      </div>
+                    </div>
+
+                    {/* Placeholder content */}
+                    <div className="space-y-4">
+                      <div className="p-6 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100">
+                        <p className="text-sm text-gray-600 text-center italic">
+                          Content will be added here
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </section>
       )}

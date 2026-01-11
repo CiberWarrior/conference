@@ -34,7 +34,16 @@ export default function SubmitAbstractPage() {
     const loadConference = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/conferences/${slug}`)
+        // Add cache busting with timestamp to ensure fresh data
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/api/conferences/${slug}?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        })
         const data = await response.json()
 
         if (!response.ok) {
@@ -58,7 +67,6 @@ export default function SubmitAbstractPage() {
         if (conf.settings && !Array.isArray(conf.settings.custom_abstract_fields)) {
           conf.settings.custom_abstract_fields = []
         }
-        
         
         setConference(conf)
 
@@ -363,15 +371,31 @@ export default function SubmitAbstractPage() {
           {/* Abstract Upload Form */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Abstract Information Text */}
+              {conference.settings?.abstract_info_text && conference.settings.abstract_info_text.trim() !== '' && (
+                <div className="bg-purple-50 border-l-4 border-purple-500 p-6 mb-6 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-purple-900 mb-2">Abstract Information</h3>
+                      <div className="text-sm text-purple-800 whitespace-pre-line">
+                        {conference.settings.abstract_info_text}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Custom Fields */}
               {conference.settings?.custom_abstract_fields &&
                 Array.isArray(conference.settings.custom_abstract_fields) &&
                 conference.settings.custom_abstract_fields.length > 0 && (
                   <div className="space-y-6">
                     {conference.settings.custom_abstract_fields
-                      .filter((field) => field && field.name && field.type) // Filter out invalid fields
+                      .filter((field) => field && field.type) // Filter out invalid fields (separators don't need name)
                       .map((field, idx) => {
-                      const fieldValue = customFields[field.name] || ''
+                      // Skip separators from field value lookup
+                      const fieldValue = field.type !== 'separator' ? (customFields[field.name] || '') : ''
                       
 
                       // Render separator
