@@ -168,6 +168,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ✅ SECURITY: Validate that user has admin role (super_admin or conference_admin)
+    if (profile.role !== 'super_admin' && profile.role !== 'conference_admin') {
+      log.warn('Login failed - user does not have admin role', {
+        userId: authData.user.id,
+        email: authData.user.email,
+        role: profile.role,
+      })
+      await supabase.auth.signOut()
+      return NextResponse.json(
+        { error: 'Access denied. You do not have admin privileges.' },
+        { status: 403 }
+      )
+    }
+
     log.debug('User profile found', {
       userId: authData.user.id,
       role: profile.role,

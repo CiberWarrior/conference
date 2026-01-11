@@ -186,6 +186,7 @@ export default function ConferenceRegisterPage() {
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
             <RegistrationForm 
               conferenceId={conference.id}
+              conferenceSlug={conference.slug}
               customFields={conference.settings?.custom_registration_fields || []}
               participantSettings={conference.settings?.participant_settings}
               registrationInfoText={conference.settings?.registration_info_text}
@@ -194,6 +195,7 @@ export default function ConferenceRegisterPage() {
               currency={conference.pricing?.currency || 'EUR'}
               conferenceStartDate={conference.start_date}
               conferenceEndDate={conference.end_date}
+              abstractSubmissionEnabled={conference.settings?.abstract_submission_enabled}
             />
           </div>
         </div>

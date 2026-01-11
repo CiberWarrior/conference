@@ -6,10 +6,12 @@ import { showSuccess, showError } from '@/utils/toast'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
-import { AlertCircle, Euro, UserPlus, Bed } from 'lucide-react'
+import { AlertCircle, Euro, UserPlus, Bed, Upload } from 'lucide-react'
+import Link from 'next/link'
 
 interface RegistrationFormProps {
   conferenceId?: string
+  conferenceSlug?: string // Conference slug for navigation
   customFields?: CustomRegistrationField[] // Custom registration fields from conference settings
   participantSettings?: ParticipantSettings // Settings for multiple participants
   registrationInfoText?: string // Informational text to display at the top of the form
@@ -18,10 +20,12 @@ interface RegistrationFormProps {
   currency?: string // Currency symbol (EUR, USD, etc.)
   conferenceStartDate?: string // Conference start date (ISO string)
   conferenceEndDate?: string // Conference end date (ISO string)
+  abstractSubmissionEnabled?: boolean // Whether abstract submission is enabled
 }
 
 export default function RegistrationForm({
   conferenceId,
+  conferenceSlug,
   customFields = [],
   participantSettings,
   registrationInfoText,
@@ -30,6 +34,7 @@ export default function RegistrationForm({
   currency = 'EUR',
   conferenceStartDate,
   conferenceEndDate,
+  abstractSubmissionEnabled = false,
 }: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
@@ -125,7 +130,7 @@ export default function RegistrationForm({
             console.log(`❌ Validation failed: Participant ${i + 1}, field "${field.label}" is empty`)
             showError(`Participant ${i + 1}: ${field.label} is required`)
             return false
-          }
+        }
         }
       }
     }
@@ -227,11 +232,11 @@ export default function RegistrationForm({
                 <h3 className="text-sm font-semibold text-blue-900 mb-2">Registration Information</h3>
                 <div className="text-sm text-blue-800 whitespace-pre-line">
                   {registrationInfoText}
-                </div>
+                  </div>
               </div>
-            </div>
-          </div>
-        )}
+                    </div>
+                  </div>
+                )}
 
         {/* Tab Navigation */}
         <div className="mb-8">
@@ -260,8 +265,18 @@ export default function RegistrationForm({
               <Bed className={`w-5 h-5 ${activeTab === 'accommodation' ? 'text-white' : 'text-green-600'}`} />
               <span>Accommodation</span>
             </button>
+            
+            {abstractSubmissionEnabled && conferenceSlug && (
+              <Link
+                href={`/conferences/${conferenceSlug}/submit-abstract`}
+                className="flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:shadow-md border-2 border-purple-200"
+              >
+                <Upload className="w-5 h-5 text-purple-600" />
+                <span>Abstract Submission</span>
+              </Link>
+            )}
           </nav>
-        </div>
+                    </div>
 
         {/* Registration Tab Content */}
         {activeTab === 'registration' && (
@@ -277,7 +292,7 @@ export default function RegistrationForm({
               participantLabel={participantSettings?.participantLabel || 'Participant'}
               customFieldsPerParticipant={true}
             />
-              </div>
+                    </div>
 
           {/* Empty state when no fields */}
           {customFields.length === 0 && (
@@ -287,8 +302,8 @@ export default function RegistrationForm({
               <p className="text-sm text-gray-500 mt-2">
                 Please contact the conference administrator.
               </p>
-            </div>
-          )}
+                      </div>
+                    )}
 
           {/* Registration Fee Selection */}
           {pricing && customFields.length > 0 && (
@@ -297,12 +312,12 @@ export default function RegistrationForm({
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shadow-lg">
                   <Euro className="w-6 h-6 text-white" />
-              </div>
+                  </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Select Registration Fee</h3>
                   <p className="text-sm text-gray-600">Choose your registration category</p>
-            </div>
-          </div>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {/* Early Bird */}
@@ -323,13 +338,13 @@ export default function RegistrationForm({
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
-                      <div>
+                    <div>
                         <div className="font-semibold text-gray-900">Early Bird</div>
                         <div className="text-xs text-gray-500">
                           {pricing.early_bird.deadline && `Until ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`}
-              </div>
-            </div>
-              </div>
+                    </div>
+                  </div>
+                </div>
                     <div className="text-xl font-bold text-blue-600">
                       {pricing.currency} {pricing.early_bird.amount.toFixed(2)}
             </div>
@@ -353,7 +368,7 @@ export default function RegistrationForm({
                         checked={selectedFee === 'regular'}
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500"
-                      />
+                />
                       <div>
                         <div className="font-semibold text-gray-900">Regular</div>
                         <div className="text-xs text-gray-500">Standard registration</div>
@@ -382,7 +397,7 @@ export default function RegistrationForm({
                         checked={selectedFee === 'late'}
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-orange-600 focus:ring-2 focus:ring-orange-500"
-                      />
+                />
                       <div>
                         <div className="font-semibold text-gray-900">Late Registration</div>
                         <div className="text-xs text-gray-500">After deadline</div>
@@ -391,12 +406,12 @@ export default function RegistrationForm({
                     <div className="text-xl font-bold text-orange-600">
                       {pricing.currency} {pricing.late.amount.toFixed(2)}
           </div>
-                  </label>
+              </label>
                 )}
 
                 {/* Student */}
                 {pricing.student_discount && pricing.regular?.amount && (
-            <label
+              <label
                     className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedFee === 'student'
                         ? 'border-green-500 bg-green-50 shadow-md'
@@ -411,21 +426,21 @@ export default function RegistrationForm({
                         checked={selectedFee === 'student'}
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
-                      />
+                />
                           <div>
                         <div className="font-semibold text-gray-900">Student</div>
                         <div className="text-xs text-gray-500">Special discount for students</div>
-                          </div>
-                          </div>
+              </div>
+            </div>
                     <div className="text-xl font-bold text-green-600">
                       {pricing.currency} {(pricing.regular.amount - pricing.student_discount).toFixed(2)}
-                          </div>
-                            </label>
+          </div>
+              </label>
                 )}
 
                 {/* Accompanying Person */}
                 {pricing.accompanying_person_price && (
-            <label
+              <label
                     className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedFee === 'accompanying_person'
                         ? 'border-pink-500 bg-pink-50 shadow-md'
@@ -440,7 +455,7 @@ export default function RegistrationForm({
                         checked={selectedFee === 'accompanying_person'}
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-pink-600 focus:ring-2 focus:ring-pink-500"
-                      />
+                />
                       <div>
                         <div className="font-semibold text-gray-900">Accompanying Person</div>
                         <div className="text-xs text-gray-500">For guests and companions</div>
@@ -449,12 +464,12 @@ export default function RegistrationForm({
                     <div className="text-xl font-bold text-pink-600">
                       {pricing.currency} {pricing.accompanying_person_price.toFixed(2)}
           </div>
-            </label>
+              </label>
                 )}
 
                 {/* Custom Pricing Fields (e.g., Exhibitor, VIP, etc.) */}
                 {pricing.custom_fields && pricing.custom_fields.map((customField) => (
-            <label
+              <label
                     key={customField.id}
                     className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedFee === `custom_${customField.id}`
@@ -470,18 +485,18 @@ export default function RegistrationForm({
                         checked={selectedFee === `custom_${customField.id}`}
                         onChange={(e) => setSelectedFee(e.target.value)}
                         className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
-                      />
+                />
                       <div>
                         <div className="font-semibold text-gray-900">{customField.name}</div>
                         {customField.description && (
                           <div className="text-xs text-gray-500">{customField.description}</div>
-            )}
+              )}
+            </div>
           </div>
-              </div>
                     <div className="text-xl font-bold text-indigo-600">
                       {pricing.currency} {customField.value.toFixed(2)}
                     </div>
-                    </label>
+            </label>
                 ))}
                       </div>
 
@@ -490,19 +505,19 @@ export default function RegistrationForm({
                   <AlertCircle className="w-4 h-4" />
                   Please select a registration fee option to continue
                 </p>
-              )}
-            </div>
-          </div>
+                        )}
+                      </div>
+                    </div>
           )}
 
           {/* Submit Button - only visible in Registration tab */}
           {customFields.length > 0 && (
             <div className="mt-8 flex justify-end">
-              <button
+                    <button
                 type="submit"
                 disabled={isSubmitting}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
-              >
+                    >
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
@@ -516,8 +531,8 @@ export default function RegistrationForm({
                     Submit Registration
                   </>
                 )}
-              </button>
-            </div>
+                    </button>
+                  </div>
           )}
           </div>
         )}
@@ -528,31 +543,31 @@ export default function RegistrationForm({
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Accommodation</h3>
               <p className="text-gray-600">Please select your arrival and departure dates</p>
-            </div>
+                        </div>
 
             {/* Date Selection */}
             <div className="max-w-md mx-auto space-y-4">
-              <div>
+                          <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Check-in (Arrival Date)
-                </label>
-                <input
-                  type="date"
+                            </label>
+                            <input
+                              type="date"
                   value={arrivalDate}
                   onChange={(e) => {
                     setArrivalDate(e.target.value)
                     calculateNights(e.target.value, departureDate)
                   }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+                            />
+                          </div>
 
-              <div>
+                          <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Check-out (Departure Date)
-                </label>
-                <input
-                  type="date"
+                            </label>
+                            <input
+                              type="date"
                   value={departureDate}
                   onChange={(e) => {
                     setDepartureDate(e.target.value)
@@ -560,8 +575,8 @@ export default function RegistrationForm({
                   }}
                   min={arrivalDate}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+                            />
+                          </div>
 
               {/* Summary */}
               {arrivalDate && departureDate && (
@@ -570,20 +585,20 @@ export default function RegistrationForm({
                     <span className="text-gray-700">Check-in:</span>
                     <span className="font-semibold text-gray-900">
                       {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
-                    </span>
-                  </div>
+                </span>
+                      </div>
                   <div className="flex items-center justify-between text-sm mt-2">
                     <span className="text-gray-700">Check-out:</span>
                     <span className="font-semibold text-gray-900">
                       {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
-                    </span>
-                  </div>
+                      </span>
+                    </div>
                   <div className="border-t border-green-300 mt-3 pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">Number of nights:</span>
                       <span className="text-2xl font-bold text-green-600">{numberOfNights}</span>
+                      </div>
                     </div>
-                  </div>
                 </div>
               )}
 
@@ -591,11 +606,11 @@ export default function RegistrationForm({
                 <div className="text-center py-8">
                   <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+              </svg>
                   <p className="text-gray-500 text-sm">No dates selected</p>
-                </div>
-              )}
-            </div>
+                      </div>
+                        )}
+                      </div>
 
             {/* Hotel Selection - Only show when dates are selected */}
             {arrivalDate && departureDate && numberOfNights > 0 && (
@@ -611,12 +626,12 @@ export default function RegistrationForm({
                       <div className="text-center py-8 bg-amber-50 border border-amber-200 rounded-lg">
                         <svg className="w-12 h-12 text-amber-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                </svg>
                         <p className="text-sm font-medium text-amber-800 mb-1">No hotels available for selected dates</p>
                         <p className="text-xs text-amber-600">
                           Please try different dates or contact the conference organizers for accommodation options.
-                        </p>
-                      </div>
+              </p>
+          </div>
                     )
                   }
 
@@ -627,16 +642,16 @@ export default function RegistrationForm({
                         .map((hotel) => {
                       const totalPrice = hotel.pricePerNight * numberOfNights
                       return (
-                        <label
+            <label
                           key={hotel.id}
                           className={`block p-6 rounded-xl border-2 cursor-pointer transition-all ${
                             selectedHotel === hotel.id
                               ? 'border-green-500 bg-green-50 shadow-lg'
                               : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-md'
-                          }`}
-                        >
+                        }`}
+                      >
                           <div className="flex items-start gap-4">
-                            <input
+                <input
                               type="radio"
                               name="hotel"
                               value={hotel.id}
@@ -653,49 +668,49 @@ export default function RegistrationForm({
                                   {hotel.description && (
                                     <p className="text-sm text-gray-600 mb-3">{hotel.description}</p>
                                   )}
-                                </div>
+              </div>
                                 <div className="text-right ml-4">
                                   <div className="text-2xl font-bold text-green-600">
                                     {currency} {totalPrice.toFixed(2)}
-                                  </div>
+            </div>
                                   <p className="text-xs text-gray-500 mt-1">Total</p>
-                                </div>
-                              </div>
+          </div>
+              </div>
 
                               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-200">
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                  </svg>
+                        </svg>
                                   <span className="font-medium">{hotel.occupancy}</span>
-                                </div>
+                  </div>
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
+                  </svg>
                                   <span>
                                     {new Date(arrivalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(departureDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </span>
-                                </div>
+                  </span>
+                </div>
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                                  </svg>
+                  </svg>
                                   <span className="font-medium">{numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}</span>
-                                </div>
+                  </div>
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
+                </svg>
                                   <span>{currency} {hotel.pricePerNight.toFixed(2)}/night</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+              </div>
+                </div>
+              </div>
+            </div>
                         </label>
                       )
                     })}
-                    </div>
+          </div>
                   )
                 })()}
 
@@ -705,7 +720,7 @@ export default function RegistrationForm({
                     Please select a hotel to continue
                   </p>
                 )}
-              </div>
+                  </div>
             )}
           </div>
         )}

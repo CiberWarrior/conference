@@ -24,12 +24,53 @@ export async function GET(
     const cached = await getCachedConference(params.slug)
     if (cached) {
       log.debug('Conference cache hit', { slug: params.slug })
+      
+      // Ensure JSONB fields are properly parsed from cache
+      const conference = { ...cached }
+      if (conference.settings && typeof conference.settings === 'string') {
+        try {
+          conference.settings = JSON.parse(conference.settings)
+        } catch (err) {
+          log.warn('Failed to parse cached settings JSON', { slug: params.slug, error: err })
+        }
+      }
+      if (conference.pricing && typeof conference.pricing === 'string') {
+        try {
+          conference.pricing = JSON.parse(conference.pricing)
+        } catch (err) {
+          log.warn('Failed to parse cached pricing JSON', { slug: params.slug, error: err })
+        }
+      }
+      if (conference.email_settings && typeof conference.email_settings === 'string') {
+        try {
+          conference.email_settings = JSON.parse(conference.email_settings)
+        } catch (err) {
+          log.warn('Failed to parse cached email_settings JSON', { slug: params.slug, error: err })
+        }
+      }
+      
+      // Debug: Log custom_abstract_fields from cache
+      if (conference.settings?.custom_abstract_fields) {
+        log.debug('Custom abstract fields in CACHE', {
+          slug: params.slug,
+          fields: conference.settings.custom_abstract_fields.map((f: any) => ({
+            name: f.name,
+            label: f.label,
+            type: f.type,
+            hasOptions: !!f.options,
+            optionsLength: f.options?.length,
+          })),
+        })
+      }
+
       return NextResponse.json(
-        { conference: cached },
+        { conference },
         {
           headers: {
             'X-Cache': 'HIT',
-            'Cache-Control': 'public, max-age=3600', // 1 hour
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // Disable cache temporarily
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         }
       )
@@ -54,6 +95,30 @@ export async function GET(
       )
     }
 
+    // Ensure JSONB fields are properly parsed (Supabase should do this automatically,
+    // but sometimes they might come as strings, especially from cache)
+    if (conference.settings && typeof conference.settings === 'string') {
+      try {
+        conference.settings = JSON.parse(conference.settings)
+      } catch (err) {
+        log.warn('Failed to parse settings JSON', { slug: params.slug, error: err })
+      }
+    }
+    if (conference.pricing && typeof conference.pricing === 'string') {
+      try {
+        conference.pricing = JSON.parse(conference.pricing)
+      } catch (err) {
+        log.warn('Failed to parse pricing JSON', { slug: params.slug, error: err })
+      }
+    }
+    if (conference.email_settings && typeof conference.email_settings === 'string') {
+      try {
+        conference.email_settings = JSON.parse(conference.email_settings)
+      } catch (err) {
+        log.warn('Failed to parse email_settings JSON', { slug: params.slug, error: err })
+      }
+    }
+
     // Cache the conference data (async, don't wait)
     setCachedConference(params.slug, conference).catch((err) => {
       log.error('Failed to cache conference', err, {
@@ -62,12 +127,28 @@ export async function GET(
       })
     })
 
+    // Debug: Log custom_abstract_fields to verify data
+    if (conference.settings?.custom_abstract_fields) {
+      log.debug('Custom abstract fields in API response', {
+        slug: params.slug,
+        fields: conference.settings.custom_abstract_fields.map((f: any) => ({
+          name: f.name,
+          label: f.label,
+          type: f.type,
+          hasOptions: !!f.options,
+          optionsLength: f.options?.length,
+        })),
+      })
+    }
+
     return NextResponse.json(
       { conference },
       {
         headers: {
           'X-Cache': 'MISS',
-          'Cache-Control': 'public, max-age=3600', // 1 hour
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // Disable cache temporarily
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     )

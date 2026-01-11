@@ -32,7 +32,9 @@ import {
   ExternalLink,
   Settings,
   BarChart3,
-  Activity
+  Activity,
+  UserCog,
+  LogIn
 } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { ABSTRACT_APP_URL } from '@/constants/config'
@@ -40,7 +42,7 @@ import { ABSTRACT_APP_URL } from '@/constants/config'
 export default function DashboardPage() {
   const router = useRouter()
   const { currentConference, conferences, loading: conferenceLoading, setCurrentConference } = useConference()
-  const { isSuperAdmin, profile } = useAuth()
+  const { isSuperAdmin, profile, isImpersonating, originalProfile, startImpersonation } = useAuth()
   const [stats, setStats] = useState({
     totalRegistrations: 0,
     paidRegistrations: 0,
@@ -69,6 +71,9 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [conferenceAdmins, setConferenceAdmins] = useState<any[]>([])
+  const [loadingAdmins, setLoadingAdmins] = useState(false)
+  const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null)
 
   // Auto-select if only one conference
   useEffect(() => {
@@ -76,6 +81,52 @@ export default function DashboardPage() {
       setCurrentConference(conferences[0])
     }
   }, [conferences, currentConference, conferenceLoading, setCurrentConference])
+
+  // Load conference admins for super admin
+  useEffect(() => {
+    if (isSuperAdmin && !isImpersonating) {
+      loadConferenceAdmins()
+    }
+  }, [isSuperAdmin, isImpersonating])
+
+  const loadConferenceAdmins = async () => {
+    try {
+      setLoadingAdmins(true)
+      console.log('🔄 Loading conference admins...')
+      const response = await fetch('/api/admin/users')
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log('✅ Users loaded:', data.users?.length || 0)
+        // Filter only conference_admin users
+        const admins = (data.users || []).filter(
+          (user: any) => user.role === 'conference_admin' && user.active
+        )
+        console.log('📋 Conference admins found:', admins.length)
+        setConferenceAdmins(admins)
+      } else {
+        console.error('❌ Failed to load users:', data.error)
+      }
+    } catch (error) {
+      console.error('❌ Error loading conference admins:', error)
+    } finally {
+      setLoadingAdmins(false)
+    }
+  }
+
+  const handleImpersonate = async (userId: string) => {
+    try {
+      setImpersonatingUserId(userId)
+      console.log('🔄 Starting impersonation for user:', userId)
+      await startImpersonation(userId)
+      console.log('✅ Impersonation started successfully')
+      // Page will reload automatically after impersonation starts
+    } catch (error: any) {
+      console.error('❌ Error starting impersonation:', error)
+      setImpersonatingUserId(null)
+      alert(error.message || 'Failed to start impersonation. Please try again.')
+    }
+  }
 
   const loadStats = async () => {
     if (!currentConference) {
@@ -282,18 +333,32 @@ export default function DashboardPage() {
     )
   }
 
-  // No conference selected - show simple message
+  // No conference selected - show message for conference_admin
   if (!currentConference && !conferenceLoading && !isSuperAdmin) {
+    // Check if user has any conferences assigned
+    const hasConferences = conferences.length > 0
+    
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
-          <p className="text-gray-600 mb-6">
-            Please select a conference from the dropdown menu in the header to view its dashboard and statistics.
-          </p>
+          {hasConferences ? (
+            <>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+              <p className="text-gray-600 mb-6">
+                Please select a conference from the dropdown menu in the header to view its dashboard and statistics.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conferences Assigned</h2>
+              <p className="text-gray-600 mb-6">
+                You don't have any conferences assigned yet. Please contact your administrator to get access to a conference.
+              </p>
+            </>
+          )}
         </div>
       </div>
     )
@@ -324,7 +389,8 @@ export default function DashboardPage() {
   }
 
   // Super Admin Dashboard - Platform Overview
-  if (isSuperAdmin && !currentConference) {
+  // Only show platform overview if super admin AND not impersonating AND no conference selected
+  if (isSuperAdmin && !isImpersonating && !currentConference) {
     return (
       <div>
         <div className="mb-8">
@@ -453,6 +519,109 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Conference Admins Section - Only show when super admin and not impersonating */}
+        {isSuperAdmin && !isImpersonating && (
+          <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <UserCog className="w-5 h-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Conference Admins</h3>
+                <span className="text-sm text-gray-500">
+                  ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
+                </span>
+              </div>
+              <Link
+                href="/admin/users"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Manage all →
+              </Link>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                View dashboard as a conference admin to see what they see
+              </p>
+              {loadingAdmins ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Loading conference admins...</p>
+                </div>
+              ) : conferenceAdmins.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserCog className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-600 mb-2">No conference admin users found</p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Create conference admin users to use impersonation feature
+                  </p>
+                  <Link
+                    href="/admin/users/new"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Conference Admin
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {conferenceAdmins.slice(0, 6).map((admin) => (
+                      <div
+                        key={admin.id}
+                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">
+                              {admin.full_name || 'No name'}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">{admin.email}</p>
+                            {admin.organization && (
+                              <p className="text-xs text-gray-500 mt-1">{admin.organization}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                          <span className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            {admin.assigned_conferences_count || 0} conference(s)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleImpersonate(admin.id)}
+                          disabled={impersonatingUserId === admin.id}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {impersonatingUserId === admin.id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              <span>Switching...</span>
+                            </>
+                          ) : (
+                            <>
+                              <LogIn className="w-4 h-4" />
+                              View as this Admin
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {conferenceAdmins.length > 6 && (
+                    <div className="mt-4 text-center">
+                      <Link
+                        href="/admin/users"
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        View all {conferenceAdmins.length} conference admins →
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* All Conferences List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -572,6 +741,118 @@ export default function DashboardPage() {
               <Settings className="w-5 h-5 text-gray-600" />
               <span className="font-medium text-gray-900">Settings</span>
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Conference Admins Section - Show for super admin even when conference is selected */}
+      {(() => {
+        console.log('🔍 Conference Admins Section Check:', {
+          isSuperAdmin,
+          isImpersonating,
+          conferenceAdminsLength: conferenceAdmins.length,
+          loadingAdmins,
+        })
+        return null
+      })()}
+      {isSuperAdmin && !isImpersonating && (
+        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <UserCog className="w-5 h-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Conference Admins</h3>
+              <span className="text-sm text-gray-500">
+                ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
+              </span>
+            </div>
+            <Link
+              href="/admin/users"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Manage all →
+            </Link>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-gray-600 mb-4">
+              View dashboard as a conference admin to see what they see
+            </p>
+            {loadingAdmins ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-gray-500">Loading conference admins...</p>
+              </div>
+            ) : conferenceAdmins.length === 0 ? (
+              <div className="text-center py-8">
+                <UserCog className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 mb-2">No conference admin users found</p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Create conference admin users to use impersonation feature
+                </p>
+                <Link
+                  href="/admin/users/new"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Conference Admin
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {conferenceAdmins.slice(0, 6).map((admin) => (
+                    <div
+                      key={admin.id}
+                      className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">
+                            {admin.full_name || 'No name'}
+                          </h4>
+                          <p className="text-sm text-gray-600 mt-1">{admin.email}</p>
+                          {admin.organization && (
+                            <p className="text-xs text-gray-500 mt-1">{admin.organization}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                        <span className="flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          {admin.assigned_conferences_count || 0} conference(s)
+                        </span>
+                      </div>
+                        <button
+                          onClick={() => handleImpersonate(admin.id)}
+                          disabled={impersonatingUserId === admin.id}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {impersonatingUserId === admin.id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              <span>Switching...</span>
+                            </>
+                          ) : (
+                            <>
+                              <LogIn className="w-4 h-4" />
+                              View as this Admin
+                            </>
+                          )}
+                        </button>
+                    </div>
+                  ))}
+                </div>
+                {conferenceAdmins.length > 6 && (
+                  <div className="mt-4 text-center">
+                    <Link
+                      href="/admin/users"
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      View all {conferenceAdmins.length} conference admins →
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -702,26 +983,52 @@ export default function DashboardPage() {
         {currentConference && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Abstract Management</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Abstract Submission</h3>
             </div>
             <div className="p-6">
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="w-8 h-8 text-purple-600" />
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <FileText className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="text-base font-semibold text-gray-900 mb-1">
+                      Submit Abstract Page
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      View the public abstract submission page for this conference.
+                    </p>
+                    <Link
+                      href={`/conferences/${currentConference.slug}/submit-abstract`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg text-sm font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-md"
+                    >
+                      <span>View Submission Page</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Manage Abstracts</h4>
-                <p className="text-sm text-gray-600 mb-6">
-                  Abstract submission and management is handled by a separate application.
-                </p>
-                <a
-                  href={`${ABSTRACT_APP_URL}?conference=${currentConference.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg"
-                >
-                  <span>Open Abstract App</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+                {ABSTRACT_APP_URL && (
+                  <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <FileText className="w-6 h-6 text-gray-600 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="text-base font-semibold text-gray-900 mb-1">
+                        External Abstract App
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Access the external abstract management application.
+                      </p>
+                      <a
+                        href={`${ABSTRACT_APP_URL}?conference=${currentConference.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 transition-all shadow-md"
+                      >
+                        <span>Open Abstract App</span>
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

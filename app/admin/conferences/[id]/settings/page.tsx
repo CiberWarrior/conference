@@ -31,6 +31,8 @@ export default function ConferenceSettingsPage() {
   const [showParticipantSettings, setShowParticipantSettings] = useState(false)
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null)
+  const [expandedAbstractFieldId, setExpandedAbstractFieldId] = useState<string | null>(null)
+  const [draggedAbstractFieldIndex, setDraggedAbstractFieldIndex] = useState<number | null>(null)
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([])
   const [draggedHotelIndex, setDraggedHotelIndex] = useState<number | null>(null)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export default function ConferenceSettingsPage() {
     max_registrations: '',
     timezone: 'Europe/Zagreb',
     custom_registration_fields: [] as CustomRegistrationField[],
+    custom_abstract_fields: [] as CustomRegistrationField[],
     // Email
     from_email: '',
     from_name: '',
@@ -111,6 +114,7 @@ export default function ConferenceSettingsPage() {
           max_registrations: conf.settings?.max_registrations?.toString() || '',
           timezone: conf.settings?.timezone || 'Europe/Zagreb',
           custom_registration_fields: conf.settings?.custom_registration_fields || [],
+          custom_abstract_fields: conf.settings?.custom_abstract_fields || [],
           // Email
           from_email: conf.email_settings?.from_email || '',
           from_name: conf.email_settings?.from_name || '',
@@ -284,6 +288,87 @@ export default function ConferenceSettingsPage() {
     setDraggedFieldIndex(null)
   }
 
+  // Custom Abstract Fields Management
+  const addCustomAbstractField = () => {
+    const newField: CustomRegistrationField = {
+      id: `abstract_field_${Date.now()}`,
+      name: '',
+      type: 'text',
+      label: '',
+      placeholder: '',
+      description: '',
+      required: false,
+      options: undefined,
+    }
+    setFormData((prev) => ({
+      ...prev,
+      custom_abstract_fields: [...prev.custom_abstract_fields, newField],
+    }))
+    setExpandedAbstractFieldId(newField.id)
+  }
+
+  const addCustomAbstractSeparator = () => {
+    const newField: CustomRegistrationField = {
+      id: `abstract_separator_${Date.now()}`,
+      name: `separator_${Date.now()}`,
+      type: 'separator',
+      label: 'New Section',
+      placeholder: '',
+      description: '',
+      required: false,
+      options: undefined,
+    }
+    setFormData((prev) => ({
+      ...prev,
+      custom_abstract_fields: [...prev.custom_abstract_fields, newField],
+    }))
+    setExpandedAbstractFieldId(newField.id)
+  }
+
+  const removeCustomAbstractField = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      custom_abstract_fields: prev.custom_abstract_fields.filter((field) => field.id !== id),
+    }))
+  }
+
+  const updateCustomAbstractField = (id: string, field: Partial<CustomRegistrationField>) => {
+    setFormData((prev) => ({
+      ...prev,
+      custom_abstract_fields: prev.custom_abstract_fields.map((f) =>
+        f.id === id ? { ...f, ...field } : f
+      ),
+    }))
+  }
+
+  // Drag and Drop handlers for abstract fields
+  const handleAbstractDragStart = (index: number) => {
+    setDraggedAbstractFieldIndex(index)
+  }
+
+  const handleAbstractDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    
+    if (draggedAbstractFieldIndex === null || draggedAbstractFieldIndex === index) return
+
+    const fields = [...formData.custom_abstract_fields]
+    const draggedField = fields[draggedAbstractFieldIndex]
+    
+    fields.splice(draggedAbstractFieldIndex, 1)
+    fields.splice(index, 0, draggedField)
+    
+    setFormData((prev) => ({
+      ...prev,
+      custom_abstract_fields: fields,
+    }))
+    
+    setDraggedAbstractFieldIndex(index)
+  }
+
+  const handleAbstractDragEnd = () => {
+    setDraggedAbstractFieldIndex(null)
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -394,7 +479,9 @@ export default function ConferenceSettingsPage() {
             payment_required: formData.payment_required,
             max_registrations: formData.max_registrations ? parseInt(formData.max_registrations) : null,
             timezone: formData.timezone,
-            custom_registration_fields: formData.custom_registration_fields.length > 0 ? formData.custom_registration_fields : undefined,
+            // Always send arrays, even if empty - this ensures they're properly saved
+            custom_registration_fields: formData.custom_registration_fields,
+            custom_abstract_fields: formData.custom_abstract_fields,
             participant_settings: participantSettings,
             registration_info_text: registrationInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
@@ -413,8 +500,11 @@ export default function ConferenceSettingsPage() {
 
       if (response.ok) {
         await refreshConferences()
+        // Reload conference data to ensure we have the latest from database
+        await loadConference()
         showSuccess('Conference settings saved successfully!')
       } else {
+        console.error('API Error:', data)
         showError(`Failed to save: ${data.error}`)
       }
     } catch (error) {
@@ -731,13 +821,297 @@ export default function ConferenceSettingsPage() {
           </div>
         </div>
 
-        {/* Pricing */}
+        {/* Registration Information Text */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Pricing</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Registration Information</h2>
             <p className="text-sm text-gray-600">
-              Set registration fees for different pricing tiers. The system automatically applies the correct price based on the current date and early bird deadline.
+              Add introductory text or instructions that will appear at the top of the registration form.
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Information Text
+            </label>
+            <textarea
+              value={registrationInfoText}
+              onChange={(e) => setRegistrationInfoText(e.target.value)}
+              rows={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Enter information text that will be displayed to users when they register. For example: registration details, requirements, deadlines, etc."
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              This text will be displayed at the beginning of the registration form
+            </p>
+          </div>
+        </div>
+
+        {/* Conference Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Conference Settings</h2>
+
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="registration_enabled"
+                checked={formData.registration_enabled}
+                onChange={handleChange}
+                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <div>
+                <p className="font-semibold text-gray-900">Enable Registration</p>
+                <p className="text-sm text-gray-600">Allow participants to register for the conference</p>
+              </div>
+            </label>
+
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="mt-1">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900 mb-1">Abstract Submission</p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Abstract submission is handled by a separate application. When enabled, a link to the abstract submission platform will be displayed on the conference page.
+                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="abstract_submission_enabled"
+                      checked={formData.abstract_submission_enabled}
+                      onChange={handleChange}
+                      className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Show abstract submission link on conference page</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="payment_required"
+                checked={formData.payment_required}
+                onChange={handleChange}
+                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <div>
+                <p className="font-semibold text-gray-900">Require Payment</p>
+                <p className="text-sm text-gray-600">Participants must pay registration fee</p>
+              </div>
+            </label>
+
+            <div>
+              <label htmlFor="max_registrations" className="block text-sm font-semibold text-gray-700 mb-2">
+                Maximum Registrations (optional)
+              </label>
+              <input
+                type="number"
+                id="max_registrations"
+                name="max_registrations"
+                value={formData.max_registrations}
+                onChange={handleChange}
+                min="0"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Leave empty for unlimited"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Multiple Participants Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Multiple Participants</h2>
+              <p className="text-sm text-gray-600">
+                Enable this feature to allow registrations with multiple participants (e.g., group registrations, conference delegations).
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setParticipantSettings({
+                  ...participantSettings,
+                  enabled: !participantSettings.enabled,
+                })
+                setShowParticipantSettings(!showParticipantSettings)
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                participantSettings.enabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  participantSettings.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {showParticipantSettings && (
+            <div className="space-y-4 mt-4 pt-4 border-t border-gray-200">
+              {/* Participant Label */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Participant Label
+                </label>
+                <input
+                  type="text"
+                  value={participantSettings.participantLabel || 'Participant'}
+                  onChange={(e) => {
+                    setParticipantSettings({
+                      ...participantSettings,
+                      participantLabel: e.target.value,
+                    })
+                  }}
+                  placeholder="e.g., Participant, Attendee, Delegate"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This label will be used in the form (e.g., "Add Participant")
+                </p>
+              </div>
+
+              {/* Min/Max Participants */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Minimum Participants
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={participantSettings.maxParticipants}
+                    value={participantSettings.minParticipants}
+                    onChange={(e) => {
+                      setParticipantSettings({
+                        ...participantSettings,
+                        minParticipants: parseInt(e.target.value) || 1,
+                      })
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Maximum Participants
+                  </label>
+                  <input
+                    type="number"
+                    min={participantSettings.minParticipants}
+                    value={participantSettings.maxParticipants}
+                    onChange={(e) => {
+                      setParticipantSettings({
+                        ...participantSettings,
+                        maxParticipants: parseInt(e.target.value) || 5,
+                      })
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Set the maximum number of participants allowed per registration</p>
+                </div>
+              </div>
+
+              {/* Require Unique Emails */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="requireUniqueEmails"
+                  checked={participantSettings.requireUniqueEmails}
+                  onChange={(e) => {
+                    setParticipantSettings({
+                      ...participantSettings,
+                      requireUniqueEmails: e.target.checked,
+                    })
+                  }}
+                  className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="requireUniqueEmails" className="text-sm text-gray-700">
+                  <span className="font-semibold">Require unique email addresses</span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Each participant must have a unique email address
+                  </p>
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Registration Fields */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Custom Registration Fields</h2>
+            <p className="text-sm text-gray-600">
+              Add custom fields to the registration form. Participants will see and fill these fields when registering.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-gray-600">
+              {formData.custom_registration_fields.length} field(s) configured
+            </div>
+            <button
+              type="button"
+              onClick={addCustomRegistrationField}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Field
+            </button>
+          </div>
+
+          {formData.custom_registration_fields.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500 text-sm">No custom registration fields yet</p>
+              <p className="text-gray-400 text-xs mt-1">Click "Add Field" to create your first custom field</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {formData.custom_registration_fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`transition-all duration-200 ${
+                    draggedFieldIndex === index ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+                  }`}
+                >
+                  <CollapsibleFieldEditor
+                    field={field}
+                    index={index}
+                    onUpdate={updateCustomRegistrationField}
+                    onRemove={removeCustomRegistrationField}
+                    isExpanded={expandedFieldId === field.id}
+                    onToggleExpand={() => setExpandedFieldId(expandedFieldId === field.id ? null : field.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Registration Fee */}
+        <div className="bg-white rounded-lg shadow-sm border-2 border-blue-100 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Registration Fee</h2>
+              <p className="text-sm text-gray-600">
+                Set registration fees for different pricing tiers. The system automatically applies the correct price based on the current date and early bird deadline.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -752,10 +1126,38 @@ export default function ConferenceSettingsPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="EUR">EUR (€)</option>
-                <option value="USD">USD ($)</option>
-                <option value="GBP">GBP (£)</option>
-                <option value="HRK">HRK (kn)</option>
+                <option value="EUR">EUR (€) - Euro</option>
+                <option value="USD">USD ($) - US Dollar</option>
+                <option value="GBP">GBP (£) - British Pound</option>
+                <option value="CHF">CHF (Fr) - Swiss Franc</option>
+                <option value="JPY">JPY (¥) - Japanese Yen</option>
+                <option value="CAD">CAD ($) - Canadian Dollar</option>
+                <option value="AUD">AUD ($) - Australian Dollar</option>
+                <option value="NZD">NZD ($) - New Zealand Dollar</option>
+                <option value="SEK">SEK (kr) - Swedish Krona</option>
+                <option value="NOK">NOK (kr) - Norwegian Krone</option>
+                <option value="DKK">DKK (kr) - Danish Krone</option>
+                <option value="PLN">PLN (zł) - Polish Zloty</option>
+                <option value="CZK">CZK (Kč) - Czech Koruna</option>
+                <option value="HUF">HUF (Ft) - Hungarian Forint</option>
+                <option value="RON">RON (lei) - Romanian Leu</option>
+                <option value="BGN">BGN (лв) - Bulgarian Lev</option>
+                <option value="RSD">RSD (дин) - Serbian Dinar</option>
+                <option value="BAM">BAM (КМ) - Bosnia and Herzegovina Convertible Mark</option>
+                <option value="MKD">MKD (ден) - Macedonian Denar</option>
+                <option value="CNY">CNY (¥) - Chinese Yuan</option>
+                <option value="INR">INR (₹) - Indian Rupee</option>
+                <option value="BRL">BRL (R$) - Brazilian Real</option>
+                <option value="MXN">MXN ($) - Mexican Peso</option>
+                <option value="ZAR">ZAR (R) - South African Rand</option>
+                <option value="KRW">KRW (₩) - South Korean Won</option>
+                <option value="SGD">SGD ($) - Singapore Dollar</option>
+                <option value="HKD">HKD ($) - Hong Kong Dollar</option>
+                <option value="AED">AED (د.إ) - UAE Dirham</option>
+                <option value="SAR">SAR (﷼) - Saudi Riyal</option>
+                <option value="ILS">ILS (₪) - Israeli Shekel</option>
+                <option value="TRY">TRY (₺) - Turkish Lira</option>
+                <option value="RUB">RUB (₽) - Russian Ruble</option>
               </select>
             </div>
 
@@ -873,7 +1275,7 @@ export default function ConferenceSettingsPage() {
               <button
                 type="button"
                 onClick={addCustomPricingField}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-md hover:shadow-lg"
               >
                 <Plus className="w-4 h-4" />
                 Add Field
@@ -881,16 +1283,21 @@ export default function ConferenceSettingsPage() {
             </div>
 
             {formData.custom_pricing_fields.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <p className="text-gray-500 text-sm">No custom pricing fields yet</p>
-                <p className="text-gray-400 text-xs mt-1">Click "Add Field" to create your first custom pricing field</p>
+              <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-white rounded-xl border-2 border-dashed border-blue-200">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-gray-700 font-semibold text-sm mb-1">No custom pricing fields yet</p>
+                <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom pricing field</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {formData.custom_pricing_fields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="bg-gray-50 rounded-lg border border-gray-200 p-4"
+                    className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-md transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <h4 className="text-sm font-semibold text-gray-700">
@@ -977,544 +1384,354 @@ export default function ConferenceSettingsPage() {
               </div>
             )}
           </div>
-
-          {/* Hotel Options for Accommodation */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Hotel Options</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Add available hotels and room types for accommodation booking
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={addHotelOption}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Add Hotel
-              </button>
-            </div>
-
-            {hotelOptions.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <p className="text-gray-500 text-sm">No hotel options yet</p>
-                <p className="text-gray-400 text-xs mt-1">Click "Add Hotel" to create your first hotel option</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {hotelOptions.map((hotel, index) => {
-                  const isExpanded = expandedHotelId === hotel.id
-                  return (
-                    <div
-                      key={hotel.id}
-                      draggable
-                      onDragStart={() => handleHotelDragStart(index)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => handleHotelDrop(index)}
-                      className={`bg-white rounded-lg border-2 transition-all ${
-                        draggedHotelIndex === index 
-                          ? 'opacity-50 border-green-300' 
-                          : isExpanded
-                            ? 'border-green-500 shadow-lg'
-                            : 'border-gray-200 hover:border-green-300 hover:shadow-md'
-                      }`}
-                    >
-                      {/* Header - Always Visible */}
-                      <div
-                        onClick={() => setExpandedHotelId(isExpanded ? null : hotel.id)}
-                        className="p-4 cursor-pointer flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className="text-gray-400 text-lg cursor-move" title="Drag to reorder">
-                            ⋮⋮
-                          </span>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-gray-900">
-                              {hotel.name || `Hotel #${index + 1}`}
-                            </h4>
-                            {hotel.name && (
-                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                <span>{hotel.occupancy}</span>
-                                <span>•</span>
-                                <span>{formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeHotelOption(hotel.id)
-                            }}
-                            className="text-red-600 hover:text-red-700 transition-colors p-1"
-                            title="Remove hotel"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                          >
-                            {isExpanded ? (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            ) : (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Expanded Content */}
-                      {isExpanded && (
-                        <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Hotel Name & Room Type *
-                            </label>
-                            <input
-                              type="text"
-                              value={hotel.name}
-                              onChange={(e) =>
-                                updateHotelOption(hotel.id, { name: e.target.value })
-                              }
-                              placeholder="Hotel Name"
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                              required
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Occupancy *
-                              </label>
-                              <select
-                                value={hotel.occupancy}
-                                onChange={(e) =>
-                                  updateHotelOption(hotel.id, { occupancy: e.target.value })
-                                }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                required
-                              >
-                                <option value="1 person">1 person</option>
-                                <option value="2 people">2 people</option>
-                                <option value="3 people">3 people</option>
-                                <option value="4 people">4 people</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Price Per Night ({formData.currency}) *
-                              </label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-500 font-medium">
-                                  {formData.currency}
-                                </span>
-                                <input
-                                  type="number"
-                                  value={hotel.pricePerNight || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value
-                                    // Remove leading zeros and parse
-                                    const numValue = value === '' ? 0 : parseFloat(value.replace(/^0+/, '')) || 0
-                                    updateHotelOption(hotel.id, {
-                                      pricePerNight: numValue,
-                                    })
-                                  }}
-                                  onFocus={(e) => e.target.select()}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                  required
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Description (Optional)
-                            </label>
-                            <textarea
-                              value={hotel.description || ''}
-                              onChange={(e) =>
-                                updateHotelOption(hotel.id, { description: e.target.value })
-                              }
-                              placeholder="Additional information"
-                              rows={2}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-
-                          {/* Availability Dates */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Available From (Optional)
-                              </label>
-                              <input
-                                type="date"
-                                value={hotel.available_from || ''}
-                                onChange={(e) =>
-                                  updateHotelOption(hotel.id, { available_from: e.target.value || undefined })
-                                }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="Start date"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Leave empty to make available from conference start date
-                              </p>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Available Until (Optional)
-                              </label>
-                              <input
-                                type="date"
-                                value={hotel.available_until || ''}
-                                onChange={(e) =>
-                                  updateHotelOption(hotel.id, { available_until: e.target.value || undefined })
-                                }
-                                min={hotel.available_from || undefined}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="End date"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Leave empty to make available until conference end date
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Max Rooms (Optional) */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Maximum Rooms Available (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={hotel.max_rooms || ''}
-                              onChange={(e) =>
-                                updateHotelOption(hotel.id, {
-                                  max_rooms: e.target.value ? parseInt(e.target.value) : undefined,
-                                })
-                              }
-                              min="1"
-                              placeholder="Leave empty for unlimited"
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Set maximum number of rooms available for booking (optional)
-                            </p>
-                          </div>
-
-                          {/* Preview */}
-                          {hotel.name && hotel.pricePerNight > 0 && (
-                            <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-                              <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                              <p className="text-sm font-semibold text-gray-900">🏨 {hotel.name}</p>
-                              <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                                <span>👤 {hotel.occupancy}</span>
-                                <span>💶 {formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
-                              </div>
-                              {hotel.description && (
-                                <p className="text-xs text-gray-600 mt-1">{hotel.description}</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Conference Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Conference Settings</h2>
-
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="registration_enabled"
-                checked={formData.registration_enabled}
-                onChange={handleChange}
-                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">Enable Registration</p>
-                <p className="text-sm text-gray-600">Allow participants to register for the conference</p>
-              </div>
-            </label>
-
-            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 mb-1">Abstract Submission</p>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Abstract submission is handled by a separate application. When enabled, a link to the abstract submission platform will be displayed on the conference page.
-                  </p>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="abstract_submission_enabled"
-                      checked={formData.abstract_submission_enabled}
-                      onChange={handleChange}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Show abstract submission link on conference page</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="payment_required"
-                checked={formData.payment_required}
-                onChange={handleChange}
-                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">Require Payment</p>
-                <p className="text-sm text-gray-600">Participants must pay registration fee</p>
-              </div>
-            </label>
-
-            <div>
-              <label htmlFor="max_registrations" className="block text-sm font-semibold text-gray-700 mb-2">
-                Maximum Registrations (optional)
-              </label>
-              <input
-                type="number"
-                id="max_registrations"
-                name="max_registrations"
-                value={formData.max_registrations}
-                onChange={handleChange}
-                min="0"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Leave empty for unlimited"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Custom Registration Fields */}
+        {/* Hotel Options for Accommodation */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Custom Registration Fields</h2>
-            <p className="text-sm text-gray-600">
-              Add custom fields to the registration form. Participants will see and fill these fields when registering.
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Hotel Options</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Add available hotels and room types for accommodation booking
             </p>
           </div>
 
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-gray-600">
-              {formData.custom_registration_fields.length} field(s) configured
+              {hotelOptions.length} hotel option(s) configured
             </div>
             <button
               type="button"
-              onClick={addCustomRegistrationField}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              onClick={addHotelOption}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Field
+              Add Hotel
             </button>
           </div>
 
-          {formData.custom_registration_fields.length === 0 ? (
+          {hotelOptions.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500 text-sm">No custom registration fields yet</p>
-              <p className="text-gray-400 text-xs mt-1">Click "Add Field" to create your first custom field</p>
+              <p className="text-gray-500 text-sm">No hotel options yet</p>
+              <p className="text-gray-400 text-xs mt-1">Click "Add Hotel" to create your first hotel option</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {hotelOptions.map((hotel, index) => {
+                const isExpanded = expandedHotelId === hotel.id
+                return (
+                  <div
+                    key={hotel.id}
+                    draggable
+                    onDragStart={() => handleHotelDragStart(index)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleHotelDrop(index)}
+                    className={`bg-white rounded-lg border-2 transition-all ${
+                      draggedHotelIndex === index 
+                        ? 'opacity-50 border-green-300' 
+                        : isExpanded
+                          ? 'border-green-500 shadow-lg'
+                          : 'border-gray-200 hover:border-green-300 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Header - Always Visible */}
+                    <div
+                      onClick={() => setExpandedHotelId(isExpanded ? null : hotel.id)}
+                      className="p-4 cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-gray-400 text-lg cursor-move" title="Drag to reorder">
+                          ⋮⋮
+                        </span>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {hotel.name || `Hotel #${index + 1}`}
+                          </h4>
+                          {hotel.name && (
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                              <span>{hotel.occupancy}</span>
+                              <span>•</span>
+                              <span>{formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeHotelOption(hotel.id)
+                          }}
+                          className="text-red-600 hover:text-red-700 transition-colors p-1"
+                          title="Remove hotel"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                        >
+                          {isExpanded ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Hotel Name & Room Type *
+                          </label>
+                          <input
+                            type="text"
+                            value={hotel.name}
+                            onChange={(e) =>
+                              updateHotelOption(hotel.id, { name: e.target.value })
+                            }
+                            placeholder="Hotel Name"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Occupancy *
+                            </label>
+                            <select
+                              value={hotel.occupancy}
+                              onChange={(e) =>
+                                updateHotelOption(hotel.id, { occupancy: e.target.value })
+                              }
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                              required
+                            >
+                              <option value="1 person">1 person</option>
+                              <option value="2 people">2 people</option>
+                              <option value="3 people">3 people</option>
+                              <option value="4 people">4 people</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Price Per Night ({formData.currency}) *
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2.5 text-gray-500 font-medium">
+                                {formData.currency}
+                              </span>
+                              <input
+                                type="number"
+                                value={hotel.pricePerNight || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  // Remove leading zeros and parse
+                                  const numValue = value === '' ? 0 : parseFloat(value.replace(/^0+/, '')) || 0
+                                  updateHotelOption(hotel.id, {
+                                    pricePerNight: numValue,
+                                  })
+                                }}
+                                onFocus={(e) => e.target.select()}
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Description (Optional)
+                          </label>
+                          <textarea
+                            value={hotel.description || ''}
+                            onChange={(e) =>
+                              updateHotelOption(hotel.id, { description: e.target.value })
+                            }
+                            placeholder="Additional information"
+                            rows={2}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+
+                        {/* Availability Dates */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Available From (Optional)
+                            </label>
+                            <input
+                              type="date"
+                              value={hotel.available_from || ''}
+                              onChange={(e) =>
+                                updateHotelOption(hotel.id, { available_from: e.target.value || undefined })
+                              }
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                              placeholder="Start date"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Leave empty to make available from conference start date
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Available Until (Optional)
+                            </label>
+                            <input
+                              type="date"
+                              value={hotel.available_until || ''}
+                              onChange={(e) =>
+                                updateHotelOption(hotel.id, { available_until: e.target.value || undefined })
+                              }
+                              min={hotel.available_from || undefined}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                              placeholder="End date"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Leave empty to make available until conference end date
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Max Rooms (Optional) */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Maximum Rooms Available (Optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={hotel.max_rooms || ''}
+                            onChange={(e) =>
+                              updateHotelOption(hotel.id, {
+                                max_rooms: e.target.value ? parseInt(e.target.value) : undefined,
+                              })
+                            }
+                            min="1"
+                            placeholder="Leave empty for unlimited"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Set maximum number of rooms available for booking (optional)
+                          </p>
+                        </div>
+
+                        {/* Preview */}
+                        {hotel.name && hotel.pricePerNight > 0 && (
+                          <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
+                            <p className="text-xs text-gray-500 mb-1">Preview:</p>
+                            <p className="text-sm font-semibold text-gray-900">🏨 {hotel.name}</p>
+                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                              <span>👤 {hotel.occupancy}</span>
+                              <span>💶 {formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                            </div>
+                            {hotel.description && (
+                              <p className="text-xs text-gray-600 mt-1">{hotel.description}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Custom Abstract Submission Fields */}
+        <div className="bg-white rounded-lg shadow-sm border-2 border-purple-100 p-6">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                <Upload className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Custom Abstract Submission Fields</h2>
+            </div>
+            <p className="text-sm text-gray-600 ml-13">
+              Add custom fields to the abstract submission form. Users will see and fill these fields when submitting abstracts.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-purple-900">
+                {formData.custom_abstract_fields.length} field(s) configured
+              </span>
+              {formData.custom_abstract_fields.length > 0 && (
+                <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                  Active
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={addCustomAbstractSeparator}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-md hover:shadow-lg"
+                title="Add section separator for multiple authors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+                Add Separator
+              </button>
+              <button
+                type="button"
+                onClick={addCustomAbstractField}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-md hover:shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Add Field
+              </button>
+            </div>
+          </div>
+
+          {formData.custom_abstract_fields.length === 0 ? (
+            <div className="text-center py-12 bg-gradient-to-br from-purple-50 to-white rounded-xl border-2 border-dashed border-purple-200">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-purple-600" />
+              </div>
+              <p className="text-gray-700 font-semibold text-sm mb-1">No custom abstract fields yet</p>
+              <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom abstract field</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {formData.custom_registration_fields.map((field, index) => (
+              {formData.custom_abstract_fields.map((field, index) => (
                 <div
                   key={field.id}
                   draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
+                  onDragStart={() => handleAbstractDragStart(index)}
+                  onDragOver={(e) => handleAbstractDragOver(e, index)}
+                  onDragEnd={handleAbstractDragEnd}
                   className={`transition-all duration-200 ${
-                    draggedFieldIndex === index ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+                    draggedAbstractFieldIndex === index ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
                   }`}
                 >
                   <CollapsibleFieldEditor
                     field={field}
                     index={index}
-                    onUpdate={updateCustomRegistrationField}
-                    onRemove={removeCustomRegistrationField}
-                    isExpanded={expandedFieldId === field.id}
-                    onToggleExpand={() => setExpandedFieldId(expandedFieldId === field.id ? null : field.id)}
+                    onUpdate={updateCustomAbstractField}
+                    onRemove={removeCustomAbstractField}
+                    isExpanded={expandedAbstractFieldId === field.id}
+                    onToggleExpand={() => setExpandedAbstractFieldId(expandedAbstractFieldId === field.id ? null : field.id)}
                   />
                 </div>
               ))}
-            </div>
-          )}
-                  </div>
-
-        {/* Registration Information Text */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Registration Information</h2>
-            <p className="text-sm text-gray-600">
-              Add introductory text or instructions that will appear at the top of the registration form.
-            </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Information Text
-                      </label>
-            <textarea
-              value={registrationInfoText}
-              onChange={(e) => setRegistrationInfoText(e.target.value)}
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Enter information text that will be displayed to users when they register. For example: registration details, requirements, deadlines, etc."
-                      />
-            <p className="text-xs text-gray-500 mt-2">
-              This text will be displayed at the beginning of the registration form
-            </p>
-                    </div>
-                  </div>
-
-        {/* Multiple Participants Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-                    <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Multiple Participants</h2>
-              <p className="text-sm text-gray-600">
-                Enable this feature to allow registrations with multiple participants (e.g., group registrations, conference delegations).
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setParticipantSettings({
-                  ...participantSettings,
-                  enabled: !participantSettings.enabled,
-                })
-                setShowParticipantSettings(!showParticipantSettings)
-              }}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                participantSettings.enabled ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  participantSettings.enabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-                  </div>
-
-          {showParticipantSettings && (
-            <div className="space-y-4 mt-4 pt-4 border-t border-gray-200">
-              {/* Participant Label */}
-              <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Participant Label
-                      </label>
-                <input
-                  type="text"
-                  value={participantSettings.participantLabel || 'Participant'}
-                  onChange={(e) => {
-                    setParticipantSettings({
-                      ...participantSettings,
-                      participantLabel: e.target.value,
-                          })
-                  }}
-                  placeholder="e.g., Participant, Attendee, Delegate"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                <p className="text-xs text-gray-500 mt-1">
-                  This label will be used in the form (e.g., "Add Participant")
-                </p>
-                    </div>
-
-              {/* Min/Max Participants */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Minimum Participants
-                    </label>
-                    <input
-                    type="number"
-                    min="1"
-                    max={participantSettings.maxParticipants}
-                    value={participantSettings.minParticipants}
-                    onChange={(e) => {
-                      setParticipantSettings({
-                        ...participantSettings,
-                        minParticipants: parseInt(e.target.value) || 1,
-                      })
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Maximum Participants
-                    </label>
-                  <input
-                    type="number"
-                    min={participantSettings.minParticipants}
-                    value={participantSettings.maxParticipants}
-                    onChange={(e) => {
-                      setParticipantSettings({
-                        ...participantSettings,
-                        maxParticipants: parseInt(e.target.value) || 5,
-                      })
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Set the maximum number of participants allowed per registration</p>
-                </div>
-                  </div>
-
-              {/* Require Unique Emails */}
-              <div className="flex items-start gap-3">
-                        <input
-                  type="checkbox"
-                  id="requireUniqueEmails"
-                  checked={participantSettings.requireUniqueEmails}
-                  onChange={(e) => {
-                    setParticipantSettings({
-                      ...participantSettings,
-                      requireUniqueEmails: e.target.checked,
-                    })
-                  }}
-                  className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                <label htmlFor="requireUniqueEmails" className="text-sm text-gray-700">
-                  <span className="font-semibold">Require unique email addresses</span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Each participant must have a unique email address
-                  </p>
-                        </label>
-                      </div>
             </div>
           )}
         </div>

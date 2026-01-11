@@ -45,7 +45,13 @@ export function ConferenceProvider({ children }: { children: React.ReactNode }) 
   const loadConferences = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/conferences')
+      // Check if impersonating from localStorage
+      const impersonateUserId = localStorage.getItem('impersonate_user_id')
+      const url = impersonateUserId 
+        ? `/api/admin/conferences?impersonate_user_id=${impersonateUserId}`
+        : '/api/admin/conferences'
+      
+      const response = await fetch(url)
       const data = await response.json()
 
       if (response.ok) {

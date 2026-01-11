@@ -308,7 +308,7 @@ export default function ConferencePage() {
                         <Upload className="w-10 h-10 text-white" />
                       </div>
                       <h3 className="text-3xl font-black text-gray-900 mb-3">
-                        Submit Your Abstract
+                        Abstract Submission
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-6 text-base">
                         Share your research with the scientific community. Upload your abstract or paper to be considered for presentation.
@@ -345,8 +345,21 @@ export default function ConferencePage() {
 
                     {/* Abstract Upload Form */}
                     <div className="border-t-2 border-gray-100 pt-8">
-                      {/* AbstractUploadForm component - coming soon */}
-                      <p className="text-gray-500 text-center py-8">Abstract submission form will be available soon.</p>
+                      <Link
+                        href={`/conferences/${slug}/submit-abstract`}
+                        className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all flex items-center justify-center gap-2 text-center"
+                        style={
+                          conference.primary_color
+                            ? {
+                                background: `linear-gradient(135deg, ${conference.primary_color} 0%, ${conference.primary_color}DD 100%)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        <Upload className="w-5 h-5" />
+                        <span>Abstract Submission</span>
+                        <ArrowRight className="w-5 h-5" />
+                      </Link>
                     </div>
                   </div>
                 </div>

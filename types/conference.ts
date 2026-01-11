@@ -75,11 +75,11 @@ export interface ConferencePricing {
 export interface CustomRegistrationField {
   id: string
   name: string // Naziv polja (npr. "Dietary Requirements", "Special Needs")
-  type: 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' // Tip polja
-  label: string // Label koji se prikazuje u formi
+  type: 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' | 'separator' // Tip polja
+  label: string // Label koji se prikazuje u formi (za separator, ovo je naslov sekcije)
   placeholder?: string // Placeholder tekst
   description?: string // Opis polja (help text)
-  required: boolean // Je li polje obavezno
+  required: boolean // Je li polje obavezno (separator nikad nije required)
   options?: string[] // Opcije za select tip (razdvojene zarezom ili array)
   validation?: {
     min?: number // Minimalna vrijednost za number
@@ -108,6 +108,7 @@ export interface ConferenceSettings {
   timezone: string
   registration_info_text?: string // Informativni tekst koji se prikazuje na vrhu registration forme
   custom_registration_fields?: CustomRegistrationField[] // Custom polja za registracijski obrazac
+  custom_abstract_fields?: CustomRegistrationField[] // Custom polja za abstract submission obrazac
   participant_settings?: ParticipantSettings // Settings for multiple participants
   hotel_options?: HotelOption[] // Dostupni hoteli za accommodation
 }

@@ -94,8 +94,9 @@ export default function CollapsibleFieldEditor({
             {field.type === 'select' && 'Dropdown'}
             {field.type === 'radio' && 'Radio'}
             {field.type === 'checkbox' && 'Checkbox'}
+            {field.type === 'separator' && 'Separator'}
           </span>
-          {field.required && (
+          {field.required && field.type !== 'separator' && (
             <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">Required</span>
           )}
         </div>
@@ -127,79 +128,146 @@ export default function CollapsibleFieldEditor({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="border-t border-gray-200 p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Field Name (Internal) *
-              </label>
-              <input
-                type="text"
-                value={field.name}
-                onChange={(e) => onUpdate(field.id, { name: e.target.value })}
-                placeholder="Enter field name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">Used internally (lowercase, underscores)</p>
-            </div>
+          {field.type === 'separator' ? (
+            // Separator-specific fields (simplified)
+            <>
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                  <span className="text-sm font-semibold text-purple-900">Section Separator</span>
+                </div>
+                <p className="text-xs text-purple-700">
+                  This field creates a visual separator in the form. Use it to group fields for different authors or sections.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Field Name (Internal) *
+                  </label>
+                  <input
+                    type="text"
+                    value={field.name}
+                    onChange={(e) => onUpdate(field.id, { name: e.target.value })}
+                    placeholder="e.g., author_2_separator"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Used internally (lowercase, underscores)</p>
+                </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Field Label (Display) *
-              </label>
-              <input
-                type="text"
-                value={field.label}
-                onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-                placeholder="Field name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">Shown to users in the form</p>
-            </div>
-          </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Section Title (Display) *
+                  </label>
+                  <input
+                    type="text"
+                    value={field.label}
+                    onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+                    placeholder="e.g., Author 2, Additional Authors"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Title shown as section header in the form</p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Field Type *
-              </label>
-              <select
-                value={field.type}
-                onChange={(e) =>
-                  onUpdate(field.id, {
-                    type: e.target.value as CustomRegistrationField['type'],
-                    options: (e.target.value === 'select' || e.target.value === 'radio') ? [] : undefined,
-                  })
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="text">Text (Short Answer)</option>
-                <option value="textarea">Textarea (Long Answer)</option>
-                <option value="number">Number</option>
-                <option value="email">Email</option>
-                <option value="tel">Phone Number</option>
-                <option value="date">Date</option>
-                <option value="select">Dropdown (Select)</option>
-                <option value="radio">Radio Buttons</option>
-                <option value="checkbox">Checkbox</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer pt-8">
-                <input
-                  type="checkbox"
-                  checked={field.required}
-                  onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description / Help Text (Optional)
+                </label>
+                <textarea
+                  value={field.description || ''}
+                  onChange={(e) => onUpdate(field.id, { description: e.target.value || undefined })}
+                  placeholder="Optional description shown below the section title"
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="text-sm font-semibold text-gray-700">Required Field</span>
-              </label>
-            </div>
-          </div>
+              </div>
+            </>
+          ) : (
+            // Regular field configuration
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Field Name (Internal) *
+                  </label>
+                  <input
+                    type="text"
+                    value={field.name}
+                    onChange={(e) => onUpdate(field.id, { name: e.target.value })}
+                    placeholder="Enter field name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Used internally (lowercase, underscores)</p>
+                </div>
 
-          {(field.type === 'select' || field.type === 'radio') && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Field Label (Display) *
+                  </label>
+                  <input
+                    type="text"
+                    value={field.label}
+                    onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+                    placeholder="Field name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Shown to users in the form</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Field Type *
+                  </label>
+                  <select
+                    value={field.type}
+                    onChange={(e) =>
+                      onUpdate(field.id, {
+                        type: e.target.value as CustomRegistrationField['type'],
+                        options: (e.target.value === 'select' || e.target.value === 'radio') ? [] : undefined,
+                        required: e.target.value === 'separator' ? false : field.required,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="text">Text (Short Answer)</option>
+                    <option value="textarea">Textarea (Long Answer)</option>
+                    <option value="number">Number</option>
+                    <option value="email">Email</option>
+                    <option value="tel">Phone Number</option>
+                    <option value="date">Date</option>
+                    <option value="select">Dropdown (Select)</option>
+                    <option value="radio">Radio Buttons</option>
+                    <option value="checkbox">Checkbox</option>
+                    <option value="separator">Separator (Section Break)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer pt-8">
+                    <input
+                      type="checkbox"
+                      checked={field.required}
+                      onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
+                      disabled={field.type === 'separator'}
+                      className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Required Field</span>
+                  </label>
+                  {field.type === 'separator' && (
+                    <p className="text-xs text-gray-500 mt-1">Separators are never required</p>
+                  )}
+                </div>
+              </div>
+
+              {(field.type === 'select' || field.type === 'radio') && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-gray-700">
@@ -233,45 +301,47 @@ export default function CollapsibleFieldEditor({
                 {field.type === 'select' && <span className="font-semibold"> • Or click "Load All Countries" for country dropdown</span>}
               </p>
             </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {field.type === 'checkbox' ? 'Checkbox Text' : 'Placeholder Text'}
+                </label>
+                <input
+                  type="text"
+                  value={field.placeholder || ''}
+                  onChange={(e) => onUpdate(field.id, { placeholder: e.target.value || undefined })}
+                  placeholder={
+                    field.type === 'checkbox'
+                      ? "I accept [Terms of Service](https://example.com/terms)"
+                      : "Enter placeholder text"
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {field.type === 'checkbox' && (
+                  <p className="mt-2 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <span className="font-semibold text-blue-900">💡 Tip:</span> Add clickable links using markdown syntax:<br />
+                    <code className="text-blue-800 bg-white px-2 py-1 rounded mt-1 inline-block text-xs">
+                      I accept [Terms](https://example.com/terms) and [Privacy Policy](https://example.com/privacy)
+                    </code>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description / Help Text
+                </label>
+                <textarea
+                  value={field.description || ''}
+                  onChange={(e) => onUpdate(field.id, { description: e.target.value || undefined })}
+                  placeholder="Help text shown below the field (optional)"
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </>
           )}
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {field.type === 'checkbox' ? 'Checkbox Text' : 'Placeholder Text'}
-            </label>
-            <input
-              type="text"
-              value={field.placeholder || ''}
-              onChange={(e) => onUpdate(field.id, { placeholder: e.target.value || undefined })}
-              placeholder={
-                field.type === 'checkbox'
-                  ? "I accept [Terms of Service](https://example.com/terms)"
-                  : "Enter placeholder text"
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {field.type === 'checkbox' && (
-              <p className="mt-2 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <span className="font-semibold text-blue-900">💡 Tip:</span> Add clickable links using markdown syntax:<br />
-                <code className="text-blue-800 bg-white px-2 py-1 rounded mt-1 inline-block text-xs">
-                  I accept [Terms](https://example.com/terms) and [Privacy Policy](https://example.com/privacy)
-                </code>
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description / Help Text
-            </label>
-            <textarea
-              value={field.description || ''}
-              onChange={(e) => onUpdate(field.id, { description: e.target.value || undefined })}
-              placeholder="Help text shown below the field (optional)"
-              rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
         </div>
       )}
     </div>

@@ -17,12 +17,12 @@ const registrationSchema = z.object({
   custom_data: z.record(z.any()).optional(), // Custom fields defined by admin
   registration_fee_type: z.string().optional().nullable(), // Selected registration fee type (early_bird, regular, late, student, accompanying_person, or custom_{id})
   participants: z
-    .array(
-      z.object({
+      .array(
+        z.object({
         customFields: z.record(z.any()), // All participant data is now in custom fields
-      })
-    )
-    .optional(),
+        })
+      )
+      .optional(),
   accommodation: z.object({
     arrival_date: z.string(),
     departure_date: z.string(),
@@ -70,38 +70,38 @@ export async function POST(request: NextRequest) {
     const supabase = await createServerClient()
 
     // Verify conference exists and is active
-    const { data: conference, error: confError } = await supabase
-      .from('conferences')
+      const { data: conference, error: confError } = await supabase
+        .from('conferences')
       .select('id, name, settings')
       .eq('id', validatedData.conference_id)
-      .eq('published', true)
-      .eq('active', true)
-      .single()
+        .eq('published', true)
+        .eq('active', true)
+        .single()
 
-    if (confError || !conference) {
+      if (confError || !conference) {
       log.warn('Conference not found for registration', {
         conferenceId: validatedData.conference_id,
         action: 'registration_validation',
       })
-      return NextResponse.json(
-        { error: 'Conference not found or not available' },
-        { status: 404 }
-      )
-    }
+        return NextResponse.json(
+          { error: 'Conference not found or not available' },
+          { status: 404 }
+        )
+      }
 
-    // Check if registration is enabled for this conference
-    const settings = conference.settings || {}
-    if (settings.registration_enabled === false) {
+      // Check if registration is enabled for this conference
+      const settings = conference.settings || {}
+      if (settings.registration_enabled === false) {
       log.warn('Registration not enabled for conference', {
         conferenceId: validatedData.conference_id,
         conferenceName: conference.name,
         action: 'registration_validation',
       })
-      return NextResponse.json(
-        { error: 'Registration is not enabled for this conference' },
-        { status: 403 }
-      )
-    }
+        return NextResponse.json(
+          { error: 'Registration is not enabled for this conference' },
+          { status: 403 }
+        )
+      }
 
     // Extract a "primary" email from custom_data or first participant for duplicate check
     let primaryEmail: string | null = null
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // If no email in custom_data, try first participant's customFields
     if (!primaryEmail && validatedData.participants && validatedData.participants.length > 0) {
       const firstParticipant = validatedData.participants[0]
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         errorDetails: insertError.message,
       })
       return NextResponse.json(
-        {
+        { 
           error: 'Failed to save registration',
           details: insertError.message || 'Database error occurred',
         },
@@ -198,12 +198,12 @@ export async function POST(request: NextRequest) {
     }
 
     log.info('Registration created successfully', {
-      registrationId: registration.id,
+          registrationId: registration.id,
       conferenceId: validatedData.conference_id,
       conferenceName: conference.name,
       participantsCount: validatedData.participants?.length || 0,
       action: 'registration_success',
-    })
+        })
 
     // TODO: Send confirmation email if email service is configured
     // if (primaryEmail) {

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
  * Get all conferences for the current admin
  * RLS policies automatically filter based on user role and permissions
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
     
@@ -24,17 +24,73 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get user profile to check role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 403 })
+    }
+
     log.debug('Fetching conferences for user', {
       userId: user.id,
       action: 'get_conferences',
     })
 
+    // Check if impersonating (from query param)
+    const requestUrl = new URL(request.url)
+    const impersonateUserId = requestUrl.searchParams.get('impersonate_user_id')
+    
+    let targetUserId = user.id
+    let isImpersonating = false
+
+    if (impersonateUserId && profile.role === 'super_admin') {
+      // Verify the user to impersonate exists and is conference_admin
+      const { data: targetUser } = await supabase
+        .from('user_profiles')
+        .select('role, active')
+        .eq('id', impersonateUserId)
+        .single()
+
+      if (targetUser && targetUser.role === 'conference_admin' && targetUser.active) {
+        targetUserId = impersonateUserId
+        isImpersonating = true
+        log.info('Impersonation active for conferences', {
+          superAdminId: user.id,
+          impersonatedUserId: targetUserId,
+        })
+      }
+    }
+
     // RLS policies will automatically filter conferences based on:
     // - Super admins see all conferences
     // - Conference admins see only their assigned conferences
-    const { data: conferences, error } = await supabase
+    // When impersonating, we need to manually filter for the impersonated user
+    let conferencesQuery = supabase
       .from('conferences')
       .select('*')
+
+    if (isImpersonating) {
+      // When impersonating, only show conferences assigned to the impersonated user
+      const { data: permissions } = await supabase
+        .from('conference_permissions')
+        .select('conference_id')
+        .eq('user_id', targetUserId)
+
+      const conferenceIds = permissions?.map(p => p.conference_id) || []
+      
+      if (conferenceIds.length > 0) {
+        conferencesQuery = conferencesQuery.in('id', conferenceIds)
+      } else {
+        // No conferences assigned, return empty array
+        return NextResponse.json({ conferences: [] })
+      }
+    }
+
+    const { data: conferences, error } = await conferencesQuery
       .order('created_at', { ascending: false })
 
     if (error) {

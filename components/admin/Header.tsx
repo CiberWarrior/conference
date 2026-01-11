@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users } from 'lucide-react'
+import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users, X } from 'lucide-react'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -13,7 +13,7 @@ export default function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { currentConference, conferences, setCurrentConference } = useConference()
-  const { isSuperAdmin, role } = useAuth()
+  const { isSuperAdmin, role, isImpersonating, impersonatedProfile, originalProfile, stopImpersonation } = useAuth()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -54,8 +54,31 @@ export default function Header() {
     : 'from-slate-700 to-slate-600'
 
   return (
-    <header className={`bg-white shadow-sm border-b-2 ${headerBorderColor}`}>
-      <div className="flex items-center justify-between px-6 py-4">
+    <>
+      {/* Impersonation Banner */}
+      {isImpersonating && impersonatedProfile && originalProfile && (
+        <div className="bg-yellow-500 text-white px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5" />
+            <span className="font-semibold">
+              Viewing as: <span className="font-bold">{impersonatedProfile.full_name || impersonatedProfile.email}</span>
+              {' '}({impersonatedProfile.email})
+            </span>
+            <span className="text-yellow-100 text-sm">
+              • Original: {originalProfile.full_name || originalProfile.email}
+            </span>
+          </div>
+          <button
+            onClick={stopImpersonation}
+            className="flex items-center gap-2 px-4 py-1.5 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors font-medium text-sm"
+          >
+            <X className="w-4 h-4" />
+            Exit Impersonation
+          </button>
+        </div>
+      )}
+      <header className={`bg-white shadow-sm border-b-2 ${headerBorderColor}`}>
+        <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
           {role && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400">
@@ -162,6 +185,7 @@ export default function Header() {
         </div>
       </div>
     </header>
+    </>
   )
 }
 

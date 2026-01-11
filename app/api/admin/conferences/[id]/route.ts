@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
 import type { UpdateConferenceInput } from '@/types/conference'
 import { log } from '@/lib/logger'
+import { invalidateConferenceCache } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -137,6 +138,78 @@ export async function PATCH(
     })
     log.debug('Update data', { data: body })
 
+    // Debug: Log custom_abstract_fields before update
+    log.debug('Received settings in request', {
+      conferenceId: params.id,
+      hasSettings: !!body.settings,
+      hasCustomAbstractFields: !!body.settings?.custom_abstract_fields,
+      customAbstractFieldsType: Array.isArray(body.settings?.custom_abstract_fields) ? 'array' : typeof body.settings?.custom_abstract_fields,
+      customAbstractFieldsLength: Array.isArray(body.settings?.custom_abstract_fields) ? body.settings.custom_abstract_fields.length : 'N/A',
+      customAbstractFields: body.settings?.custom_abstract_fields ? JSON.stringify(body.settings.custom_abstract_fields, null, 2) : 'none',
+    })
+    
+    if (body.settings?.custom_abstract_fields && Array.isArray(body.settings.custom_abstract_fields)) {
+      log.debug('Updating custom_abstract_fields', {
+        conferenceId: params.id,
+        fields: body.settings.custom_abstract_fields.map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          label: f.label,
+          type: f.type,
+          hasOptions: !!f.options,
+          optionsLength: f.options?.length,
+          options: f.options,
+        })),
+      })
+    }
+
+    // If settings are being updated, we need to merge with existing settings
+    // to avoid overwriting other settings fields
+    if (body.settings) {
+      // Fetch current settings first
+      const { data: currentConference } = await supabase
+        .from('conferences')
+        .select('settings')
+        .eq('id', params.id)
+        .single()
+
+      if (currentConference?.settings) {
+        // Deep merge settings to preserve nested objects
+        // Important: If custom_abstract_fields or custom_registration_fields are explicitly provided,
+        // they should replace the existing ones (not merge)
+        const mergedSettings = {
+          ...currentConference.settings,
+          ...body.settings,
+        }
+        
+        // Explicitly handle custom fields - if they're provided (even as empty array), use them
+        // If they're undefined, keep the existing ones
+        if ('custom_abstract_fields' in body.settings) {
+          mergedSettings.custom_abstract_fields = body.settings.custom_abstract_fields
+        }
+        if ('custom_registration_fields' in body.settings) {
+          mergedSettings.custom_registration_fields = body.settings.custom_registration_fields
+        }
+        
+        body.settings = mergedSettings
+        
+        log.debug('Merged settings', {
+          conferenceId: params.id,
+          hasCustomAbstractFields: 'custom_abstract_fields' in body.settings,
+          customAbstractFieldsCount: body.settings.custom_abstract_fields?.length || 0,
+          customAbstractFields: body.settings.custom_abstract_fields ? JSON.stringify(body.settings.custom_abstract_fields, null, 2) : 'none',
+        })
+      }
+    }
+
+    // Debug: Log what we're about to save
+    log.debug('About to save to database', {
+      conferenceId: params.id,
+      settingsKeys: Object.keys(body.settings || {}),
+      customAbstractFieldsCount: body.settings?.custom_abstract_fields?.length || 0,
+      customAbstractFields: body.settings?.custom_abstract_fields ? JSON.stringify(body.settings.custom_abstract_fields, null, 2) : 'none',
+    })
+
     // Update conference
     const { data: conference, error } = await supabase
       .from('conferences')
@@ -150,6 +223,9 @@ export async function PATCH(
         conferenceId: params.id,
         userId: user.id,
         action: 'update',
+        errorDetails: error.message,
+        errorCode: error.code,
+        errorHint: error.hint,
       })
       return NextResponse.json({ 
         error: 'Failed to update conference',
@@ -157,10 +233,41 @@ export async function PATCH(
       }, { status: 500 })
     }
 
+    // Debug: Verify what was actually saved
+    log.debug('Successfully saved to database', {
+      conferenceId: params.id,
+      slug: conference.slug,
+      savedCustomAbstractFieldsCount: conference.settings?.custom_abstract_fields?.length || 0,
+      savedCustomAbstractFields: conference.settings?.custom_abstract_fields ? JSON.stringify(conference.settings.custom_abstract_fields, null, 2) : 'none',
+    })
+
+    // Debug: Log custom_abstract_fields after update
+    if (conference.settings?.custom_abstract_fields) {
+      log.debug('Custom_abstract_fields after update', {
+        conferenceId: params.id,
+        slug: conference.slug,
+        fields: conference.settings.custom_abstract_fields.map((f: any) => ({
+          name: f.name,
+          label: f.label,
+          type: f.type,
+          hasOptions: !!f.options,
+          optionsLength: f.options?.length,
+        })),
+      })
+    }
+
     log.info('Conference updated successfully', {
       conferenceId: params.id,
       userId: user.id,
     })
+
+    // Invalidate cache for this conference
+    if (conference.slug) {
+      await invalidateConferenceCache(conference.slug).catch((err) => {
+        log.warn('Failed to invalidate conference cache', { slug: conference.slug, error: err })
+      })
+      log.debug('Cache invalidated for conference', { slug: conference.slug })
+    }
 
     // Return with no-cache headers to prevent caching issues
     return NextResponse.json(
