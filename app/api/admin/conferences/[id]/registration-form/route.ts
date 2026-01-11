@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { isAuthenticated, getCurrentUser } from '@/lib/auth'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
 import { z } from 'zod'
 
@@ -57,8 +56,10 @@ export async function GET(
     })
 
     // Authentication check
-    const authCheck = await isAuthenticated(request)
-    if (!authCheck) {
+    const supabase = await createServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
       log.warn('Unauthorized access attempt', {
         conferenceId,
         action: 'get_registration_form',
@@ -69,22 +70,26 @@ export async function GET(
       )
     }
 
-    const user = await getCurrentUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    // Get user role
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const userWithRole = {
+      ...user,
+      role: userProfile?.role || null
     }
 
-    const supabase = createAdminClient()
+    const adminSupabase = createAdminClient()
 
     // Check if user has permission to view this conference
-    const isSuperAdmin = user.role === 'super_admin'
+    const isSuperAdmin = userWithRole.role === 'super_admin'
     
     if (!isSuperAdmin) {
       // Check if user has permission for this conference
-      const { data: permission } = await supabase
+      const { data: permission } = await adminSupabase
         .from('conference_permissions')
         .select('can_view_registrations, can_manage_registration_form')
         .eq('user_id', user.id)
@@ -105,7 +110,7 @@ export async function GET(
     }
 
     // Fetch conference settings
-    const { data: conference, error } = await supabase
+    const { data: conference, error } = await adminSupabase
       .from('conferences')
       .select('id, name, settings')
       .eq('id', conferenceId)
@@ -168,8 +173,10 @@ export async function PUT(
     })
 
     // Authentication check
-    const authCheck = await isAuthenticated(request)
-    if (!authCheck) {
+    const supabase = await createServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
       log.warn('Unauthorized access attempt', {
         conferenceId,
         action: 'update_registration_form',
@@ -180,31 +187,35 @@ export async function PUT(
       )
     }
 
-    const user = await getCurrentUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    // Get user role
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const userWithRole = {
+      ...user,
+      role: userProfile?.role || null
     }
 
-    const supabase = createAdminClient()
+    const adminSupabase = createAdminClient()
 
     // Check if user has permission to edit registration form
-    const isSuperAdmin = user.role === 'super_admin'
+    const isSuperAdmin = userWithRole.role === 'super_admin'
     
     // DEBUG: Log user info
     log.info('User attempting to update registration form', {
       userId: user.id,
       userEmail: user.email,
-      userRole: user.role,
+      userRole: userWithRole.role,
       isSuperAdmin,
       conferenceId,
     })
     
     if (!isSuperAdmin) {
       // Check if user has permission for this conference
-      const { data: permission } = await supabase
+      const { data: permission } = await adminSupabase
         .from('conference_permissions')
         .select('can_manage_registration_form, can_edit_conference')
         .eq('user_id', user.id)
@@ -220,7 +231,7 @@ export async function PUT(
       if (!permission || (!permission.can_manage_registration_form && !permission.can_edit_conference)) {
         log.warn('Insufficient permissions', {
           userId: user.id,
-          userRole: user.role,
+          userRole: userWithRole.role,
           conferenceId,
           permission,
           action: 'update_registration_form',
@@ -229,7 +240,7 @@ export async function PUT(
           { 
             error: 'Insufficient permissions to edit registration form',
             debug: {
-              userRole: user.role,
+              userRole: userWithRole.role,
               isSuperAdmin,
               hasPermission: !!permission,
               canManageForm: permission?.can_manage_registration_form,
@@ -276,7 +287,7 @@ export async function PUT(
     }
 
     // Fetch current conference settings
-    const { data: conference, error: fetchError } = await supabase
+    const { data: conference, error: fetchError } = await adminSupabase
       .from('conferences')
       .select('settings')
       .eq('id', conferenceId)
@@ -302,7 +313,7 @@ export async function PUT(
     }
 
     // Update conference
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from('conferences')
       .update({ 
         settings: updatedSettings,
