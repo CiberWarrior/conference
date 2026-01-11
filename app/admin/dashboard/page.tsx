@@ -228,15 +228,24 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    if (conferenceLoading) return // Wait for conferences to load
+
     if (currentConference) {
       loadStats()
+    } else {
+      // No conference selected
+      if (isSuperAdmin) {
+        // Super admin can see platform overview without conference
+        loadPlatformStats()
+        loadInquiryStats()
+        setLoading(false)
+      } else {
+        // Regular admin without conference - stop loading and show message
+        setLoading(false)
+      }
     }
-    if (isSuperAdmin) {
-      loadPlatformStats()
-    }
-    loadInquiryStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConference, isSuperAdmin])
+  }, [currentConference, isSuperAdmin, conferenceLoading])
 
   const loadInquiryStats = async () => {
     if (!isSuperAdmin) return
