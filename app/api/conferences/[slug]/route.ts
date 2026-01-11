@@ -98,30 +98,31 @@ export async function GET(
 
     // Ensure JSONB fields are properly parsed (Supabase should do this automatically,
     // but sometimes they might come as strings, especially from cache)
-    if (conference.settings && typeof conference.settings === 'string') {
+    const parsedConference = conference as any
+    if (parsedConference.settings && typeof parsedConference.settings === 'string') {
       try {
-        conference.settings = JSON.parse(conference.settings)
+        parsedConference.settings = JSON.parse(parsedConference.settings)
       } catch (err) {
         log.warn('Failed to parse settings JSON', { slug: params.slug, error: err })
       }
     }
-    if (conference.pricing && typeof conference.pricing === 'string') {
+    if (parsedConference.pricing && typeof parsedConference.pricing === 'string') {
       try {
-        conference.pricing = JSON.parse(conference.pricing)
+        parsedConference.pricing = JSON.parse(parsedConference.pricing)
       } catch (err) {
         log.warn('Failed to parse pricing JSON', { slug: params.slug, error: err })
       }
     }
-    if (conference.email_settings && typeof conference.email_settings === 'string') {
+    if (parsedConference.email_settings && typeof parsedConference.email_settings === 'string') {
       try {
-        conference.email_settings = JSON.parse(conference.email_settings)
+        parsedConference.email_settings = JSON.parse(parsedConference.email_settings)
       } catch (err) {
         log.warn('Failed to parse email_settings JSON', { slug: params.slug, error: err })
       }
     }
 
     // Cache the conference data (async, don't wait)
-    setCachedConference(params.slug, conference).catch((err) => {
+    setCachedConference(params.slug, parsedConference).catch((err) => {
       log.error('Failed to cache conference', err, {
         slug: params.slug,
         action: 'cache_conference',
@@ -129,10 +130,10 @@ export async function GET(
     })
 
     // Debug: Log custom_abstract_fields to verify data
-    if (conference.settings?.custom_abstract_fields) {
+    if (parsedConference.settings?.custom_abstract_fields) {
       log.debug('Custom abstract fields in API response', {
         slug: params.slug,
-        fields: conference.settings.custom_abstract_fields.map((f: any) => ({
+        fields: parsedConference.settings.custom_abstract_fields.map((f: any) => ({
           name: f.name,
           label: f.label,
           type: f.type,
@@ -143,7 +144,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { conference },
+      { conference: parsedConference },
       {
         headers: {
           'X-Cache': 'MISS',
