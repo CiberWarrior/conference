@@ -94,9 +94,9 @@ export default function CollapsibleFieldEditor({
             {field.type === 'select' && 'Dropdown'}
             {field.type === 'radio' && 'Radio'}
             {field.type === 'checkbox' && 'Checkbox'}
-            {field.type === 'separator' && 'Separator'}
+            {(field.type as string) === 'separator' && 'Separator'}
           </span>
-          {field.required && field.type !== 'separator' && (
+          {field.required && (field.type as string) !== 'separator' && (
             <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">Required</span>
           )}
         </div>
@@ -128,7 +128,7 @@ export default function CollapsibleFieldEditor({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="border-t border-gray-200 p-5 space-y-4">
-          {field.type === 'separator' ? (
+          {(field.type as string) === 'separator' ? (
             // Separator-specific fields (simplified)
             <>
               <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mb-4">
@@ -256,12 +256,12 @@ export default function CollapsibleFieldEditor({
                       type="checkbox"
                       checked={field.required}
                       onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
-                      disabled={field.type === 'separator'}
+                      disabled={(field.type as string) === 'separator'}
                       className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <span className="text-sm font-semibold text-gray-700">Required Field</span>
                   </label>
-                  {field.type === 'separator' && (
+                  {(field.type as string) === 'separator' && (
                     <p className="text-xs text-gray-500 mt-1">Separators are never required</p>
                   )}
                 </div>
