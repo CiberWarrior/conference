@@ -166,8 +166,12 @@ export default function RegistrationsPage() {
       const participantData = participantSettings?.enabled 
         ? [
             (r.participants?.length || 0).toString(),
-            r.participants?.map(p => `${p.firstName} ${p.lastName}`).join('; ') || '',
-            r.participants?.map(p => p.email).join('; ') || '',
+            r.participants?.map(p => {
+              const firstName = p.customFields?.['firstName'] || p.customFields?.['First Name'] || ''
+              const lastName = p.customFields?.['lastName'] || p.customFields?.['Last Name'] || ''
+              return `${firstName} ${lastName}`.trim()
+            }).join('; ') || '',
+            r.participants?.map(p => p.customFields?.['email'] || p.customFields?.['Email'] || '').join('; ') || '',
           ]
         : []
       
