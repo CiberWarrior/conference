@@ -9,6 +9,9 @@ import * as XLSX from 'xlsx'
 import { QRCodeSVG } from 'qrcode.react'
 import { showSuccess, showError, showInfo } from '@/utils/toast'
 
+// Force dynamic rendering for this page (uses searchParams)
+export const dynamic = 'force-dynamic'
+
 export default function RegistrationsPage() {
   const searchParams = useSearchParams()
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
