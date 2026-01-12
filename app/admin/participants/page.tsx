@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -21,13 +21,7 @@ export default function AdminParticipantsPage() {
     loyaltyTier: 'all',
   })
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchParticipants()
-    }
-  }, [authLoading, user, pagination.page, filters])
-
-  const fetchParticipants = async () => {
+  const fetchParticipants = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
@@ -51,7 +45,13 @@ export default function AdminParticipantsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pagination.page, pagination.limit, filters.search, filters.hasAccount, filters.loyaltyTier])
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchParticipants()
+    }
+  }, [authLoading, user, fetchParticipants])
 
   const getLoyaltyColor = (tier: string) => {
     switch (tier) {

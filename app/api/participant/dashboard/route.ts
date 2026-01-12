@@ -5,6 +5,7 @@ import {
   getNextTier,
   getEventsUntilNextTier,
   LOYALTY_TIERS,
+  type LoyaltyTier,
 } from '@/types/participant-account'
 
 export const dynamic = 'force-dynamic'
@@ -108,20 +109,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate loyalty info
-    const nextTier = getNextTier(profile.loyalty_tier)
+    // Ensure loyalty_tier is a valid LoyaltyTier type
+    const loyaltyTier = (profile.loyalty_tier || 'bronze') as LoyaltyTier
+    const nextTier = getNextTier(loyaltyTier)
     const eventsUntilNextTier = getEventsUntilNextTier(
       profile.total_events_attended,
-      profile.loyalty_tier
+      loyaltyTier
     )
 
     const loyaltyInfo = {
-      tier: profile.loyalty_tier,
+      tier: loyaltyTier,
       points: profile.loyalty_points,
       events_attended: profile.total_events_attended,
       next_tier: nextTier,
       events_until_next_tier: eventsUntilNextTier,
-      current_tier_benefits: LOYALTY_TIERS[profile.loyalty_tier].benefits,
-      discount_percentage: LOYALTY_TIERS[profile.loyalty_tier].discount_percentage,
+      current_tier_benefits: LOYALTY_TIERS[loyaltyTier].benefits,
+      discount_percentage: LOYALTY_TIERS[loyaltyTier].discount_percentage,
     }
 
     // Get stats
