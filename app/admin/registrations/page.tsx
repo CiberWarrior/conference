@@ -196,6 +196,62 @@ export default function RegistrationsPage() {
     return { headers, rows }
   }
 
+  // Quick export - only basic contact info (First Name, Last Name, Email, Phone)
+  const exportBasicContactsCSV = () => {
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone']
+    const rows = filteredRegistrations.map((r) => [
+      r.firstName,
+      r.lastName,
+      r.email,
+      r.phone || '',
+    ])
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `contacts-${currentConference?.name || 'export'}-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExportMenuOpen(false)
+    showSuccess(`Exported ${filteredRegistrations.length} contacts`)
+  }
+
+  const exportBasicContactsExcel = () => {
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone']
+    const rows = filteredRegistrations.map((r) => [
+      r.firstName,
+      r.lastName,
+      r.email,
+      r.phone || '',
+    ])
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 20 }, // First Name
+      { wch: 20 }, // Last Name
+      { wch: 30 }, // Email
+      { wch: 20 }, // Phone
+    ]
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts')
+
+    // Generate Excel file
+    const fileName = `contacts-${currentConference?.name || 'export'}-${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    setExportMenuOpen(false)
+    showSuccess(`Exported ${filteredRegistrations.length} contacts`)
+  }
+
   const exportToCSV = () => {
     const { headers, rows } = prepareExportData()
     const csvContent = [headers, ...rows]
@@ -459,8 +515,44 @@ export default function RegistrationsPage() {
                   className="fixed inset-0 z-10"
                   onClick={() => setExportMenuOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
                   <div className="py-1">
+                    {/* Quick Export Section - Basic Contacts Only */}
+                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+                      Quick Export (Basic Info)
+                    </div>
+                    <button
+                      onClick={exportBasicContactsCSV}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3"
+                    >
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium text-gray-900">Contacts CSV</div>
+                        <div className="text-xs text-gray-500">Name, Email, Phone</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={exportBasicContactsExcel}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 flex items-center gap-3"
+                    >
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium text-gray-900">Contacts Excel</div>
+                        <div className="text-xs text-gray-500">Name, Email, Phone</div>
+                      </div>
+                    </button>
+
+                    {/* Divider */}
+                    <div className="my-1 border-t border-gray-200"></div>
+
+                    {/* Full Export Section - All Data */}
+                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+                      Full Export (All Data)
+                    </div>
                     <button
                       onClick={exportToCSV}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"

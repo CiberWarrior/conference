@@ -205,6 +205,146 @@ export async function POST(request: NextRequest) {
       action: 'registration_success',
         })
 
+    // ============================================
+    // PARTICIPANT PROFILE SYSTEM INTEGRATION
+    // ============================================
+    // Create or link participant profile for the registrant
+    if (primaryEmail) {
+      try {
+        // Extract participant info from custom_data or first participant
+        let participantInfo = {
+          email: primaryEmail,
+          first_name: '',
+          last_name: '',
+          phone: null as string | null,
+          country: null as string | null,
+          institution: null as string | null,
+        }
+
+        // Try to extract from custom_data
+        if (validatedData.custom_data) {
+          for (const [key, value] of Object.entries(validatedData.custom_data)) {
+            const lowerKey = key.toLowerCase()
+            if (lowerKey.includes('first') && lowerKey.includes('name')) {
+              participantInfo.first_name = String(value || '')
+            } else if (lowerKey.includes('last') && lowerKey.includes('name')) {
+              participantInfo.last_name = String(value || '')
+            } else if (lowerKey.includes('phone')) {
+              participantInfo.phone = String(value || '')
+            } else if (lowerKey.includes('country')) {
+              participantInfo.country = String(value || '')
+            } else if (lowerKey.includes('institution') || lowerKey.includes('organization')) {
+              participantInfo.institution = String(value || '')
+            }
+          }
+        }
+
+        // If still no name, try first participant
+        if ((!participantInfo.first_name || !participantInfo.last_name) && validatedData.participants && validatedData.participants.length > 0) {
+          const firstParticipant = validatedData.participants[0].customFields
+          for (const [key, value] of Object.entries(firstParticipant)) {
+            const lowerKey = key.toLowerCase()
+            if (!participantInfo.first_name && lowerKey.includes('first') && lowerKey.includes('name')) {
+              participantInfo.first_name = String(value || '')
+            } else if (!participantInfo.last_name && lowerKey.includes('last') && lowerKey.includes('name')) {
+              participantInfo.last_name = String(value || '')
+            } else if (!participantInfo.phone && lowerKey.includes('phone')) {
+              participantInfo.phone = String(value || '')
+            } else if (!participantInfo.country && lowerKey.includes('country')) {
+              participantInfo.country = String(value || '')
+            } else if (!participantInfo.institution && (lowerKey.includes('institution') || lowerKey.includes('organization'))) {
+              participantInfo.institution = String(value || '')
+            }
+          }
+        }
+
+        // Check if participant profile already exists
+        const { data: existingProfile } = await supabase
+          .from('participant_profiles')
+          .select('id')
+          .eq('email', primaryEmail)
+          .single()
+
+        let participantProfileId: string
+
+        if (existingProfile) {
+          // Use existing profile
+          participantProfileId = existingProfile.id
+          log.info('Using existing participant profile', {
+            participantProfileId,
+            email: primaryEmail,
+          })
+        } else {
+          // Create new participant profile
+          const { data: newProfile, error: profileError } = await supabase
+            .from('participant_profiles')
+            .insert({
+              email: participantInfo.email,
+              first_name: participantInfo.first_name || 'Guest',
+              last_name: participantInfo.last_name || 'Participant',
+              phone: participantInfo.phone,
+              country: participantInfo.country,
+              institution: participantInfo.institution,
+              has_account: false, // Guest participant (no login yet)
+              email_notifications: true,
+              marketing_consent: false,
+            })
+            .select('id')
+            .single()
+
+          if (profileError) {
+            log.error('Failed to create participant profile', profileError, {
+              email: primaryEmail,
+            })
+            // Don't fail the registration, just log the error
+          } else {
+            participantProfileId = newProfile.id
+            log.info('Created new participant profile', {
+              participantProfileId,
+              email: primaryEmail,
+            })
+
+            // Update registration with participant_profile_id
+            await supabase
+              .from('registrations')
+              .update({ participant_profile_id: participantProfileId })
+              .eq('id', registration.id)
+
+            // Create participant_registration linking record
+            const { error: linkError } = await supabase
+              .from('participant_registrations')
+              .insert({
+                participant_id: participantProfileId,
+                conference_id: validatedData.conference_id,
+                registration_id: registration.id,
+                status: 'confirmed',
+                custom_data: validatedData.custom_data || {},
+                registration_fee_type: validatedData.registration_fee_type,
+                payment_status: 'not_required',
+                accommodation_data: validatedData.accommodation,
+              })
+
+            if (linkError) {
+              log.error('Failed to create participant registration link', linkError)
+              // Don't fail the registration
+            } else {
+              log.info('Participant registration link created', {
+                participantProfileId,
+                conferenceId: validatedData.conference_id,
+                registrationId: registration.id,
+              })
+            }
+          }
+        }
+      } catch (profileError) {
+        log.error('Error in participant profile integration', profileError as Error)
+        // Don't fail the registration, continue
+      }
+    }
+    // ============================================
+    // END PARTICIPANT PROFILE INTEGRATION
+    // ============================================
+
     // TODO: Send confirmation email if email service is configured
     // if (primaryEmail) {
     //   try {
