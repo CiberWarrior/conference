@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
-import { checkPermission } from '@/lib/auth-utils'
+import { isSuperAdmin } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check permissions - only Super Admin can view all participants
-    const hasPermission = await checkPermission(user.id, null, 'super_admin')
+    const hasPermission = await isSuperAdmin()
 
     if (!hasPermission) {
       return NextResponse.json(
