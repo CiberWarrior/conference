@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
-import { checkPermissions } from '@/lib/auth-utils'
+import { checkPermission } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +26,7 @@ export async function GET(
     }
 
     // Check permissions
-    const hasPermission = await checkPermissions(user.id, null, 'super_admin')
+    const hasPermission = await checkPermission(user.id, null, 'super_admin')
 
     if (!hasPermission) {
       return NextResponse.json(
