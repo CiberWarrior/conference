@@ -26,6 +26,7 @@ export default function SubmitAbstractPage() {
   const [submittedEmail, setSubmittedEmail] = useState<string>('')
 
   // Form state
+  const [file, setFile] = useState<File | null>(null)
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
 
   useEffect(() => {
