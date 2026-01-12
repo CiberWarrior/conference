@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup:upstash": "bash scripts/setup-upstash.sh",
-    "test:rate-limit": "node scripts/test-rate-limit.js"
+    "setup:upstash": "bash scripts/setup-upstash.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
