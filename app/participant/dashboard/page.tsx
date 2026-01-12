@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { LOYALTY_TIERS } from '@/types/participant-account'
+import { LOYALTY_TIERS, type LoyaltyTier } from '@/types/participant-account'
 
 export default function ParticipantDashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -139,20 +139,30 @@ export default function ParticipantDashboardPage() {
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{
-                    width: `${Math.max(
-                      0,
-                      Math.min(
-                        100,
-                        ((LOYALTY_TIERS[loyalty_info.tier].events_required +
-                          (LOYALTY_TIERS[loyalty_info.next_tier]
-                            .events_required -
-                            LOYALTY_TIERS[loyalty_info.tier].events_required -
-                            loyalty_info.events_until_next_tier)) /
-                          LOYALTY_TIERS[loyalty_info.next_tier]
-                            .events_required) *
-                          100
-                      )
-                    )}%`,
+                    width: `${
+                      loyalty_info.next_tier
+                        ? Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              ((LOYALTY_TIERS[
+                                loyalty_info.tier as LoyaltyTier
+                              ].events_required +
+                                (LOYALTY_TIERS[
+                                  loyalty_info.next_tier as LoyaltyTier
+                                ].events_required -
+                                  LOYALTY_TIERS[
+                                    loyalty_info.tier as LoyaltyTier
+                                  ].events_required -
+                                  loyalty_info.events_until_next_tier)) /
+                                LOYALTY_TIERS[
+                                  loyalty_info.next_tier as LoyaltyTier
+                                ].events_required) *
+                                100
+                            )
+                          )
+                        : 100
+                    }%`,
                   }}
                 ></div>
               </div>
