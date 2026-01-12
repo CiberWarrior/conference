@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -17,11 +17,7 @@ export default function EventDetailsPage({
   const [cancelReason, setCancelReason] = useState('')
   const [requestRefund, setRequestRefund] = useState(false)
 
-  useEffect(() => {
-    fetchRegistration()
-  }, [params.id])
-
-  const fetchRegistration = async () => {
+  const fetchRegistration = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/participant/registrations/${params.id}`
@@ -37,7 +33,11 @@ export default function EventDetailsPage({
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, router])
+
+  useEffect(() => {
+    fetchRegistration()
+  }, [fetchRegistration])
 
   const handleCancelRegistration = async () => {
     setCancelling(true)

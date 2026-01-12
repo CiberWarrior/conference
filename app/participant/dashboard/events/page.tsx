@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 
 export default function ParticipantEventsPage() {
@@ -8,11 +8,7 @@ export default function ParticipantEventsPage() {
   const [registrations, setRegistrations] = useState<any[]>([])
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all')
 
-  useEffect(() => {
-    fetchRegistrations()
-  }, [])
-
-  const fetchRegistrations = async () => {
+  const fetchRegistrations = useCallback(async () => {
     try {
       const response = await fetch('/api/participant/registrations')
       if (response.ok) {
@@ -24,7 +20,11 @@ export default function ParticipantEventsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchRegistrations()
+  }, [fetchRegistrations])
 
   const getStatusColor = (status: string) => {
     switch (status) {

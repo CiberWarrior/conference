@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Check if email already exists in participant_profiles
     const { data: existingProfile, error: checkError } = await supabase
       .from('participant_profiles')
-      .select('id, email, has_account')
+      .select('id, email, has_account, phone, country, institution')
       .eq('email', validatedData.email)
       .single()
 
