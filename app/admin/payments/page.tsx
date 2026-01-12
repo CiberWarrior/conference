@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
 import { showSuccess, showError } from '@/utils/toast'
+
+// Force dynamic rendering for this page (uses searchParams)
+export const dynamic = 'force-dynamic'
 
 interface Refund {
   id: string
@@ -33,7 +36,7 @@ interface PaymentHistory {
   created_at: string
 }
 
-export default function PaymentsPage() {
+function PaymentsPageContent() {
   const searchParams = useSearchParams()
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [activeTab, setActiveTab] = useState<'reminders' | 'refunds' | 'history'>('reminders')
@@ -555,3 +558,15 @@ export default function PaymentsPage() {
   )
 }
 
+// Wrapper with Suspense boundary
+export default function PaymentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <PaymentsPageContent />
+    </Suspense>
+  )
+}
