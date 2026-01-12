@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import type { Registration } from '@/types/registration'
@@ -9,7 +10,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { showSuccess, showError, showInfo } from '@/utils/toast'
 
 export default function RegistrationsPage() {
-  const { currentConference, loading: conferenceLoading } = useConference()
+  const searchParams = useSearchParams()
+  const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,6 +31,18 @@ export default function RegistrationsPage() {
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [selectedQRRegistration, setSelectedQRRegistration] = useState<Registration | null>(null)
+
+  // Handle conference query parameter - set conference from URL if provided
+  useEffect(() => {
+    const conferenceId = searchParams?.get('conference')
+    if (conferenceId && conferences.length > 0) {
+      const conference = conferences.find((c) => c.id === conferenceId)
+      if (conference && conference.id !== currentConference?.id) {
+        setCurrentConference(conference)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, conferences])
 
   useEffect(() => {
     if (currentConference) {

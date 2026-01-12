@@ -370,7 +370,7 @@ export default function FeaturesPage() {
                   href="/#contact"
                   className={`inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-br ${feature.gradientFrom} ${feature.gradientVia} ${feature.gradientTo} text-white rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all`}
                 >
-                  Get Started
+                  Welcome
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </div>
@@ -383,7 +383,7 @@ export default function FeaturesPage() {
       <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-violet-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
-            Ready to Get Started?
+            Ready to Welcome You?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
             Contact us today to discuss how we can help make your conference a success.

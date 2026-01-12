@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical } from 'lucide-react'
 import type { CustomPricingField, HotelOption } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -1444,9 +1444,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     onDragStart={() => handleHotelDragStart(index)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => handleHotelDrop(index)}
-                    className={`bg-white rounded-lg border-2 transition-all ${
+                    className={`bg-white rounded-lg border-2 transition-all cursor-grab active:cursor-grabbing ${
                       draggedHotelIndex === index 
-                        ? 'opacity-50 border-green-300' 
+                        ? 'opacity-50 border-green-300 shadow-xl scale-105' 
                         : isExpanded
                           ? 'border-green-500 shadow-lg'
                           : 'border-gray-200 hover:border-green-300 hover:shadow-md'
@@ -1458,9 +1458,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="p-4 cursor-pointer flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3 flex-1">
-                        <span className="text-gray-400 text-lg cursor-move" title="Drag to reorder">
-                          ⋮⋮
-                        </span>
+                        <div 
+                          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Drag to reorder"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <GripVertical className="w-5 h-5" />
+                        </div>
                         <div className="flex-1">
                           <h4 className="text-sm font-semibold text-gray-900">
                             {hotel.name || `Hotel #${index + 1}`}

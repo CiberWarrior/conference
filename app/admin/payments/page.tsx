@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
@@ -33,7 +34,8 @@ interface PaymentHistory {
 }
 
 export default function PaymentsPage() {
-  const { currentConference, loading: conferenceLoading } = useConference()
+  const searchParams = useSearchParams()
+  const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [activeTab, setActiveTab] = useState<'reminders' | 'refunds' | 'history'>('reminders')
   const [loading, setLoading] = useState(false)
   const [refunds, setRefunds] = useState<Refund[]>([])
@@ -48,6 +50,18 @@ export default function PaymentsPage() {
   const [refundAmount, setRefundAmount] = useState('')
   const [refundReason, setRefundReason] = useState('')
   const [processing, setProcessing] = useState(false)
+
+  // Handle conference query parameter - set conference from URL if provided
+  useEffect(() => {
+    const conferenceId = searchParams?.get('conference')
+    if (conferenceId && conferences.length > 0) {
+      const conference = conferences.find((c) => c.id === conferenceId)
+      if (conference && conference.id !== currentConference?.id) {
+        setCurrentConference(conference)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, conferences])
 
   useEffect(() => {
     if (currentConference) {

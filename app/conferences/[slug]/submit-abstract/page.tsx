@@ -26,7 +26,6 @@ export default function SubmitAbstractPage() {
   const [submittedEmail, setSubmittedEmail] = useState<string>('')
 
   // Form state
-  const [file, setFile] = useState<File | null>(null)
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
 
   useEffect(() => {
@@ -135,11 +134,6 @@ export default function SubmitAbstractPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!file) {
-      showError('Please select a file to upload')
-      return
-    }
-
     // Validate required custom fields (skip separators)
     const abstractCustomFields = Array.isArray(conference?.settings?.custom_abstract_fields)
       ? conference.settings.custom_abstract_fields
@@ -153,10 +147,23 @@ export default function SubmitAbstractPage() {
       showError('Email is required. Please fill in the email field.')
       return
     }
+
+    // Validate all required fields including file uploads
     for (const field of abstractCustomFields) {
-      if (field && field.type !== 'separator' && field.required && !customFields[field.name]) {
-        showError(`Please fill in the required field: ${field.label}`)
-        return
+      if (field && field.type !== 'separator' && field.required) {
+        const value = customFields[field.name]
+        if (!value || (typeof value === 'string' && value.trim() === '')) {
+          showError(`Please fill in the required field: ${field.label}`)
+          return
+        }
+        
+        // Validate minLength for longtext fields
+        if (field.type === 'longtext' && field.validation?.minLength) {
+          if (typeof value === 'string' && value.length < field.validation.minLength) {
+            showError(`${field.label} must be at least ${field.validation.minLength} characters`)
+            return
+          }
+        }
       }
     }
 
@@ -164,10 +171,38 @@ export default function SubmitAbstractPage() {
 
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      
+      // Append files from custom fields
+      const fileFields = abstractCustomFields.filter(f => f && f.type === 'file')
+      for (const fileField of fileFields) {
+        const fileValue = customFields[fileField.name]
+        if (fileValue && typeof fileValue === 'object' && 'name' in fileValue) {
+          formData.append(`file_${fileField.name}`, fileValue as File)
+        }
+      }
+      
       formData.append('email', email)
-      // Append custom_data as JSON
-      formData.append('custom_data', JSON.stringify(customFields))
+      
+      // Append custom_data as JSON (excluding files)
+      const customDataWithoutFiles: Record<string, any> = {}
+      for (const key in customFields) {
+        const value = customFields[key]
+        // Skip file objects, only send metadata or text values
+        if (typeof value !== 'object' || value === null) {
+          customDataWithoutFiles[key] = value
+        } else if ('name' in value) {
+          // Store file metadata instead of the file itself
+          customDataWithoutFiles[key] = {
+            fileName: (value as File).name,
+            fileSize: (value as File).size,
+            fileType: (value as File).type,
+          }
+        } else {
+          customDataWithoutFiles[key] = value
+        }
+      }
+      
+      formData.append('custom_data', JSON.stringify(customDataWithoutFiles))
 
       const response = await fetch(`/api/conferences/${slug}/submit-abstract`, {
         method: 'POST',
@@ -186,11 +221,13 @@ export default function SubmitAbstractPage() {
       showSuccess('Abstract submitted successfully!')
 
       // Reset form
-      setFile(null)
       setCustomFields({})
-      // Reset file input
-      const fileInput = document.getElementById('file-input') as HTMLInputElement
-      if (fileInput) fileInput.value = ''
+      
+      // Reset all file inputs
+      const fileInputs = document.querySelectorAll('input[type="file"]')
+      fileInputs.forEach((input) => {
+        (input as HTMLInputElement).value = ''
+      })
     } catch (err) {
       console.error('Error submitting abstract:', err)
       showError('Failed to submit abstract. Please try again.')
@@ -328,13 +365,13 @@ export default function SubmitAbstractPage() {
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
               <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700">
-                Word or PDF format (.doc, .docx, .pdf)
+                Simple submission process
               </span>
             </div>
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700">
-                Quick upload process
+                Flexible format options
               </span>
             </div>
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -632,8 +669,128 @@ export default function SubmitAbstractPage() {
                             </div>
                           )}
 
+                          {/* Long Text (Paste with Character Counter) */}
+                          {field.type === 'longtext' && (
+                            <div>
+                              <textarea
+                                id={`custom-${field.name}`}
+                                value={fieldValue}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  const maxLength = field.validation?.maxLength || 5000
+                                  if (value.length <= maxLength) {
+                                    handleCustomFieldChange(field.name, value)
+                                  }
+                                }}
+                                required={field.required}
+                                disabled={isSubmitting}
+                                rows={12}
+                                maxLength={field.validation?.maxLength || 5000}
+                                placeholder={field.placeholder}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all resize-y font-mono text-sm"
+                              />
+                              <div className="flex items-center justify-between mt-2">
+                                <p className="text-xs text-gray-500">
+                                  Paste your abstract text here (max {field.validation?.maxLength || 5000} characters)
+                                </p>
+                                <div className={`text-sm font-semibold ${
+                                  (fieldValue?.length || 0) >= (field.validation?.maxLength || 5000) * 0.9
+                                    ? 'text-red-600'
+                                    : (fieldValue?.length || 0) >= (field.validation?.maxLength || 5000) * 0.7
+                                    ? 'text-yellow-600'
+                                    : 'text-gray-600'
+                                }`}>
+                                  {fieldValue?.length || 0} / {field.validation?.maxLength || 5000}
+                                </div>
+                              </div>
+                              {field.validation?.minLength && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Minimum {field.validation.minLength} characters required
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* File Upload */}
+                          {field.type === 'file' && (
+                            <div>
+                              <label
+                                htmlFor={`custom-file-${field.name}`}
+                                className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                              >
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                  <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                                  <p className="mb-2 text-sm text-gray-500">
+                                    <span className="font-semibold">Click to upload</span> or drag and drop
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {field.fileTypes?.join(', ') || '.pdf, .doc, .docx'} - Max {field.maxFileSize || 10}MB
+                                  </p>
+                                </div>
+                                <input
+                                  id={`custom-file-${field.name}`}
+                                  type="file"
+                                  className="hidden"
+                                  accept={field.fileTypes?.join(',') || '.pdf,.doc,.docx'}
+                                  onChange={(e) => {
+                                    const selectedFile = e.target.files?.[0]
+                                    if (selectedFile) {
+                                      // Validate file size
+                                      const maxSize = (field.maxFileSize || 10) * 1024 * 1024 // Convert to bytes
+                                      if (selectedFile.size > maxSize) {
+                                        alert(`File size exceeds ${field.maxFileSize || 10}MB limit`)
+                                        e.target.value = ''
+                                        return
+                                      }
+                                      
+                                      // Validate file type
+                                      const fileExt = '.' + selectedFile.name.split('.').pop()?.toLowerCase()
+                                      const allowedTypes = field.fileTypes || ['.pdf', '.doc', '.docx']
+                                      if (!allowedTypes.includes(fileExt)) {
+                                        alert(`File type not allowed. Please upload: ${allowedTypes.join(', ')}`)
+                                        e.target.value = ''
+                                        return
+                                      }
+                                      
+                                      handleCustomFieldChange(field.name, selectedFile)
+                                    }
+                                  }}
+                                  required={field.required}
+                                  disabled={isSubmitting}
+                                />
+                              </label>
+                              
+                              {/* Show selected file */}
+                              {fieldValue && typeof fieldValue === 'object' && 'name' in fieldValue && (
+                                <div className="mt-3 flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                                  <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                      {(fieldValue as File).name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {((fieldValue as File).size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleCustomFieldChange(field.name, null)
+                                      const input = document.getElementById(`custom-file-${field.name}`) as HTMLInputElement
+                                      if (input) input.value = ''
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600"
+                                    disabled={isSubmitting}
+                                  >
+                                    <X className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {/* Fallback for unknown field types */}
-                          {!['text', 'textarea', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'separator'].includes(field.type) && (
+                          {!['text', 'textarea', 'longtext', 'file', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'separator'].includes(field.type) && (
                             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                               <p className="text-sm text-yellow-800">
                                 <strong>Warning:</strong> Unknown field type "{field.type}" for field "{field.label}". Please contact support.
@@ -646,67 +803,11 @@ export default function SubmitAbstractPage() {
                   </div>
                 )}
 
-              {/* File Upload - moved to end */}
-              <div className="pt-4 border-t-2 border-gray-100">
-                <label
-                  htmlFor="file-input"
-                  className="block text-sm font-semibold text-gray-900 mb-2"
-                >
-                  Abstract File <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-2">
-                  <label
-                    htmlFor="file-input"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-10 h-10 mb-3 text-gray-400" />
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click to upload</span> or
-                        drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Word documents or PDF (.doc, .docx, .pdf) - Max 10MB
-                      </p>
-                    </div>
-                    <input
-                      id="file-input"
-                      type="file"
-                      className="hidden"
-                      accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
-                      onChange={handleFileChange}
-                      disabled={isSubmitting}
-                    />
-                  </label>
-                  {file && (
-                    <div className="mt-3 flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setFile(null)}
-                        className="text-gray-400 hover:text-gray-600"
-                        disabled={isSubmitting}
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Submit Button */}
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={isSubmitting || !file}
+                  disabled={isSubmitting}
                   className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                   style={
                     conference.primary_color

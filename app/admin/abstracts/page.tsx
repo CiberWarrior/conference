@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import { showSuccess, showError } from '@/utils/toast'
@@ -13,6 +15,7 @@ import {
   Mail,
   User,
   X,
+  ExternalLink,
 } from 'lucide-react'
 
 interface Abstract {
@@ -33,7 +36,8 @@ interface Abstract {
 }
 
 export default function AbstractsPage() {
-  const { currentConference, conferences, loading: conferenceLoading } =
+  const searchParams = useSearchParams()
+  const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } =
     useConference()
   const [abstracts, setAbstracts] = useState<Abstract[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,6 +47,18 @@ export default function AbstractsPage() {
     string | 'all'
   >('all')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  // Handle conference query parameter - set conference from URL if provided
+  useEffect(() => {
+    const conferenceId = searchParams?.get('conference')
+    if (conferenceId && conferences.length > 0) {
+      const conference = conferences.find((c) => c.id === conferenceId)
+      if (conference && conference.id !== currentConference?.id) {
+        setCurrentConference(conference)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, conferences])
 
   useEffect(() => {
     loadAbstracts()
@@ -172,36 +188,37 @@ export default function AbstractsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             Abstract Submission
           </h1>
-          <p className="text-gray-600 mt-1">
-            View and manage submitted abstracts
+          <p className="text-gray-600 mt-2">
+            View and manage submitted abstracts for your conferences
           </p>
         </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="grid md:grid-cols-2 gap-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by file name, email, or conference..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -210,11 +227,11 @@ export default function AbstractsPage() {
 
           {/* Conference Filter */}
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
             <select
               value={selectedConferenceId}
               onChange={(e) => setSelectedConferenceId(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer outline-none"
             >
               <option value="all">All Conferences</option>
               {conferences.map((conf) => (
@@ -228,43 +245,43 @@ export default function AbstractsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Abstracts</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
+              <p className="text-sm font-medium text-blue-700">Total Abstracts</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">
                 {abstracts.length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-blue-600" />
+            <div className="w-14 h-14 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+              <FileText className="w-7 h-7 text-white" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Filtered Results</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
+              <p className="text-sm font-medium text-purple-700">Filtered Results</p>
+              <p className="text-3xl font-bold text-purple-900 mt-2">
                 {filteredAbstracts.length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Filter className="w-6 h-6 text-purple-600" />
+            <div className="w-14 h-14 bg-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Filter className="w-7 h-7 text-white" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Current Conference</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">
+              <p className="text-sm font-medium text-green-700">Current Conference</p>
+              <p className="text-lg font-semibold text-green-900 mt-2 line-clamp-1">
                 {currentConference?.name || 'None selected'}
               </p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-green-600" />
+            <div className="w-14 h-14 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Calendar className="w-7 h-7 text-white" />
             </div>
           </div>
         </div>
@@ -272,67 +289,91 @@ export default function AbstractsPage() {
 
       {/* Abstracts List */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <X className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+          </div>
         </div>
       )}
 
       {filteredAbstracts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-16 text-center">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
             No abstracts found
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 max-w-md mx-auto">
             {searchTerm || selectedConferenceId !== 'all'
-              ? 'Try adjusting your filters'
-              : 'No abstracts have been submitted yet'}
+              ? 'Try adjusting your search or filter criteria to find abstracts.'
+              : 'No abstracts have been submitted yet. They will appear here once participants start submitting.'}
           </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          {loading && (
+            <div className="p-8 text-center">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Refreshing abstracts...</p>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     File Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Conference
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Size
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Uploaded
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredAbstracts.map((abstract) => (
-                  <tr key={abstract.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <FileText className="w-5 h-5 text-gray-400 mr-2" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
+                  <tr
+                    key={abstract.id}
+                    className="hover:bg-blue-50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="ml-3 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
                             {abstract.file_name}
                           </div>
                           {abstract.custom_data &&
                             Object.keys(abstract.custom_data).length > 0 && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
                                 {Object.entries(abstract.custom_data)
                                   .slice(0, 2)
                                   .map(([key, value]) => (
-                                    <span key={key} className="mr-2">
-                                      <strong>{key}:</strong> {String(value)}
+                                    <span
+                                      key={key}
+                                      className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+                                    >
+                                      <strong className="mr-1">{key}:</strong>
+                                      {String(value)}
                                     </span>
                                   ))}
                               </div>
@@ -340,19 +381,38 @@ export default function AbstractsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {abstract.conference?.name || 'N/A'}
-                      </div>
+                    <td className="px-6 py-4">
+                      {abstract.conference?.slug ? (
+                        <Link
+                          href={`/conferences/${abstract.conference.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>{abstract.conference.name}</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      ) : (
+                        <div className="text-sm text-gray-900">
+                          <span className="text-gray-400 italic">N/A</span>
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <div className="flex items-center text-sm text-gray-900">
-                        <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                        {abstract.email || 'N/A'}
+                        <Mail className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <span className="truncate">
+                          {abstract.email || (
+                            <span className="text-gray-400 italic">N/A</span>
+                          )}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatFileSize(abstract.file_size)}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {formatFileSize(abstract.file_size)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(abstract.uploaded_at).toLocaleDateString('en-US', {
@@ -365,9 +425,12 @@ export default function AbstractsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => downloadAbstract(abstract)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadAbstract(abstract)
+                        }}
                         disabled={downloadingId === abstract.id}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                       >
                         {downloadingId === abstract.id ? (
                           <>

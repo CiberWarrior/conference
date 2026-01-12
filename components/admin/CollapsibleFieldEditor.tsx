@@ -87,6 +87,7 @@ export default function CollapsibleFieldEditor({
           <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
             {field.type === 'text' && 'Text'}
             {field.type === 'textarea' && 'Textarea'}
+            {field.type === 'longtext' && 'Long Text'}
             {field.type === 'email' && 'Email'}
             {field.type === 'tel' && 'Phone'}
             {field.type === 'number' && 'Number'}
@@ -94,6 +95,7 @@ export default function CollapsibleFieldEditor({
             {field.type === 'select' && 'Dropdown'}
             {field.type === 'radio' && 'Radio'}
             {field.type === 'checkbox' && 'Checkbox'}
+            {field.type === 'file' && 'File Upload'}
             {(field.type as string) === 'separator' && 'Separator'}
           </span>
           {field.required && (field.type as string) !== 'separator' && (
@@ -233,12 +235,17 @@ export default function CollapsibleFieldEditor({
                         type: e.target.value as CustomRegistrationField['type'],
                         options: (e.target.value === 'select' || e.target.value === 'radio') ? [] : undefined,
                         required: e.target.value === 'separator' ? false : field.required,
+                        fileTypes: e.target.value === 'file' ? ['.pdf', '.doc', '.docx'] : undefined,
+                        maxFileSize: e.target.value === 'file' ? 10 : undefined,
+                        validation: e.target.value === 'longtext' ? { maxLength: 5000 } : field.validation,
                       })
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="text">Text (Short Answer)</option>
                     <option value="textarea">Textarea (Long Answer)</option>
+                    <option value="longtext">Long Text (Paste - Max 5000 chars)</option>
+                    <option value="file">File Upload (Abstract)</option>
                     <option value="number">Number</option>
                     <option value="email">Email</option>
                     <option value="tel">Phone Number</option>
@@ -340,6 +347,162 @@ export default function CollapsibleFieldEditor({
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* File Upload Options */}
+              {field.type === 'file' && (
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                    <span className="text-sm font-semibold text-green-900">File Upload Settings</span>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Allowed File Types
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png'].map((type) => (
+                        <label key={type} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={field.fileTypes?.includes(type) || false}
+                            onChange={(e) => {
+                              const current = field.fileTypes || ['.pdf', '.doc', '.docx']
+                              const updated = e.target.checked
+                                ? [...current, type]
+                                : current.filter(t => t !== type)
+                              onUpdate(field.id, { fileTypes: updated })
+                            }}
+                            className="w-4 h-4 text-green-600 rounded"
+                          />
+                          <span className="text-sm text-gray-700">{type}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Max File Size (MB)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={field.maxFileSize || 10}
+                      onChange={(e) => onUpdate(field.id, { maxFileSize: parseInt(e.target.value) || 10 })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Maximum: 50 MB</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Long Text Options */}
+              {field.type === 'longtext' && (
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                    <span className="text-sm font-semibold text-purple-900">Long Text Settings</span>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Maximum Characters
+                    </label>
+                    <input
+                      type="number"
+                      min="100"
+                      max="5000"
+                      step="1"
+                      value={field.validation?.maxLength ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === '') {
+                          // Allow empty field during typing
+                          onUpdate(field.id, { 
+                            validation: { 
+                              ...field.validation, 
+                              maxLength: undefined as any
+                            } 
+                          })
+                        } else {
+                          const numValue = parseInt(value)
+                          if (!isNaN(numValue)) {
+                            onUpdate(field.id, { 
+                              validation: { 
+                                ...field.validation, 
+                                maxLength: numValue
+                              } 
+                            })
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Validate and set defaults on blur
+                        const value = parseInt(e.target.value)
+                        if (isNaN(value) || value < 100) {
+                          onUpdate(field.id, { 
+                            validation: { 
+                              ...field.validation, 
+                              maxLength: 5000
+                            } 
+                          })
+                        } else if (value > 5000) {
+                          onUpdate(field.id, { 
+                            validation: { 
+                              ...field.validation, 
+                              maxLength: 5000
+                            } 
+                          })
+                        }
+                      }}
+                      placeholder="Enter max characters (100-5000)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Users can paste up to {field.validation?.maxLength || 5000} characters (Range: 100-5000)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Minimum Characters (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={field.validation?.maxLength || 5000}
+                      step="1"
+                      value={field.validation?.minLength || ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === '') {
+                          onUpdate(field.id, { 
+                            validation: { 
+                              ...field.validation, 
+                              minLength: undefined
+                            } 
+                          })
+                        } else {
+                          const numValue = Math.max(0, parseInt(value) || 0)
+                          onUpdate(field.id, { 
+                            validation: { 
+                              ...field.validation, 
+                              minLength: numValue
+                            } 
+                          })
+                        }
+                      }}
+                      placeholder="No minimum"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave empty for no minimum requirement
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

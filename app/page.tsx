@@ -716,7 +716,7 @@ export default function Home() {
             href="#contact"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
           >
-            Get Started
+            Welcome
             <ArrowRight className="w-5 h-5" />
           </a>
         </div>

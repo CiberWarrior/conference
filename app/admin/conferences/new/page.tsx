@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save, Building2, Users, Settings, Upload, Plus, X } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save, Building2, Users, Settings, Upload, Plus, X, GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import { showSuccess, showError } from '@/utils/toast'
 import type { CustomPricingField, HotelOption, CustomRegistrationField } from '@/types/conference'
@@ -32,6 +32,7 @@ export default function NewConferencePage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    event_type: 'conference' as 'conference' | 'workshop' | 'seminar' | 'webinar' | 'training' | 'other',
     description: '',
     start_date: '',
     end_date: '',
@@ -375,10 +376,16 @@ export default function NewConferencePage() {
         showSuccess('Conference created successfully!')
         router.push('/admin/conferences')
       } else {
-        showError(`Failed to create conference: ${data.error || 'Unknown error'}`)
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}`
+          : data.error || 'Unknown error'
+        showError(`Failed to create conference: ${errorMsg}`)
+        console.error('Conference creation error:', data)
       }
-    } catch (error) {
-      showError('An error occurred while creating the conference')
+    } catch (error: any) {
+      console.error('Error creating conference:', error)
+      const errorMessage = error?.message || error?.details || 'An error occurred while creating the conference'
+      showError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -451,7 +458,17 @@ export default function NewConferencePage() {
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Conference Name *
+                      {formData.event_type === 'conference' 
+                        ? 'Conference Name *' 
+                        : formData.event_type === 'workshop'
+                        ? 'Workshop Name *'
+                        : formData.event_type === 'seminar'
+                        ? 'Seminar Name *'
+                        : formData.event_type === 'webinar'
+                        ? 'Webinar Name *'
+                        : formData.event_type === 'training'
+                        ? 'Training Course Name *'
+                        : 'Event Name *'}
                     </label>
                     <input
                       type="text"
@@ -461,8 +478,44 @@ export default function NewConferencePage() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="e.g., International Tech Conference 2024"
+                      placeholder={
+                        formData.event_type === 'conference'
+                          ? 'e.g., International Tech Conference 2024'
+                          : formData.event_type === 'workshop'
+                          ? 'e.g., Advanced React Workshop'
+                          : formData.event_type === 'seminar'
+                          ? 'e.g., Business Strategy Seminar'
+                          : formData.event_type === 'webinar'
+                          ? 'e.g., Introduction to AI Webinar'
+                          : formData.event_type === 'training'
+                          ? 'e.g., Project Management Training'
+                          : 'e.g., Event Name'
+                      }
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="event_type" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Event Type *
+                    </label>
+                    <select
+                      id="event_type"
+                      name="event_type"
+                      value={formData.event_type}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                    >
+                      <option value="conference">Conference</option>
+                      <option value="workshop">Workshop</option>
+                      <option value="seminar">Seminar</option>
+                      <option value="webinar">Webinar</option>
+                      <option value="training">Training Course</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select the type of event you're creating
+                    </p>
                   </div>
 
                   <div>
@@ -1151,9 +1204,9 @@ export default function NewConferencePage() {
                         onDragStart={() => handleHotelDragStart(index)}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={() => handleHotelDrop(index)}
-                        className={`bg-white rounded-lg border-2 transition-all ${
+                        className={`bg-white rounded-lg border-2 transition-all cursor-grab active:cursor-grabbing ${
                           draggedHotelIndex === index 
-                            ? 'opacity-50 border-green-300' 
+                            ? 'opacity-50 border-green-300 shadow-xl scale-105' 
                             : isExpanded
                               ? 'border-green-500 shadow-lg'
                               : 'border-gray-200 hover:border-green-300 hover:shadow-md'
@@ -1164,9 +1217,13 @@ export default function NewConferencePage() {
                           className="p-4 cursor-pointer flex items-center justify-between"
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <span className="text-gray-400 text-lg cursor-move" title="Drag to reorder">
-                              ⋮⋮
-                            </span>
+                            <div 
+                              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors"
+                              title="Drag to reorder"
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <GripVertical className="w-5 h-5" />
+                            </div>
                             <div className="flex-1">
                               <h4 className="text-sm font-semibold text-gray-900">
                                 {hotel.name || `Hotel #${index + 1}`}

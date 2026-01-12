@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import type { CreateConferenceInput } from '@/types/conference'
 import { log } from '@/lib/logger'
 
@@ -163,56 +163,28 @@ export async function POST(request: NextRequest) {
       .trim()
 
     // Check if slug already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: slugCheckError } = await supabase
       .from('conferences')
       .select('id')
       .eq('slug', slug)
-      .single()
+      .maybeSingle()
 
-    if (existing) {
+    // If slug exists, generate a unique one
+    let finalSlug = slug
+    if (existing && !slugCheckError) {
       // Add random suffix to make it unique
       const randomSuffix = Math.random().toString(36).substring(2, 6)
-      const uniqueSlug = `${slug}-${randomSuffix}`
-      
-      const { data: conference, error } = await supabase
-        .from('conferences')
-        .insert({
-          name: body.name,
-          slug: uniqueSlug,
-          description: body.description,
-          start_date: body.start_date,
-          end_date: body.end_date,
-          location: body.location,
-          venue: body.venue,
-          website_url: body.website_url,
-          logo_url: body.logo_url || undefined,
-          primary_color: body.primary_color || undefined,
-          pricing: body.pricing || undefined,
-          settings: body.settings || undefined,
-          email_settings: body.email_settings || undefined,
-          owner_id: profile.id,
-        })
-        .select()
-        .single()
-
-      if (error) {
-        log.error('Create conference error', error, {
-          userId: profile.id,
-          conferenceName: body.name,
-          action: 'create_conference',
-        })
-        return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
-      }
-
-      return NextResponse.json({ conference }, { status: 201 })
+      finalSlug = `${slug}-${randomSuffix}`
     }
 
-    // Create conference with generated slug
-    const { data: conference, error } = await supabase
+    // Create conference with generated slug using admin client to bypass RLS
+    const adminSupabase = createAdminClient()
+    const { data: conference, error } = await adminSupabase
       .from('conferences')
       .insert({
         name: body.name,
-        slug,
+        slug: finalSlug,
+        event_type: body.event_type || 'conference', // Default to 'conference' for backward compatibility
         description: body.description,
         start_date: body.start_date,
         end_date: body.end_date,
@@ -233,13 +205,22 @@ export async function POST(request: NextRequest) {
       log.error('Create conference error', error, {
         userId: profile.id,
         conferenceName: body.name,
+        slug: finalSlug,
+        errorMessage: error.message,
+        errorCode: error.code,
         action: 'create_conference',
       })
-      return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
+      return NextResponse.json(
+        { 
+          error: 'Failed to create conference',
+          details: error.message || 'Unknown error occurred'
+        },
+        { status: 500 }
+      )
     }
 
-    // Auto-create permission for the creator (super admin)
-    const { error: permError } = await supabase
+    // Auto-create permission for the creator (super admin) using admin client
+    const { error: permError } = await adminSupabase
       .from('conference_permissions')
       .insert({
         user_id: profile.id,

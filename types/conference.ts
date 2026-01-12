@@ -1,7 +1,11 @@
+// Event types supported by the platform
+export type EventType = 'conference' | 'workshop' | 'seminar' | 'webinar' | 'training' | 'other'
+
 export interface Conference {
   id: string
   name: string
   slug: string
+  event_type?: EventType // Type of event (defaults to 'conference' for backward compatibility)
   description?: string
 
   // Event Details
@@ -75,17 +79,19 @@ export interface ConferencePricing {
 export interface CustomRegistrationField {
   id: string
   name: string // Naziv polja (npr. "Dietary Requirements", "Special Needs")
-  type: 'text' | 'textarea' | 'number' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' | 'separator' // Tip polja
+  type: 'text' | 'textarea' | 'longtext' | 'number' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' | 'file' | 'separator' // Tip polja
   label: string // Label koji se prikazuje u formi (za separator, ovo je naslov sekcije)
   placeholder?: string // Placeholder tekst
   description?: string // Opis polja (help text)
   required: boolean // Je li polje obavezno (separator nikad nije required)
   options?: string[] // Opcije za select tip (razdvojene zarezom ili array)
+  fileTypes?: string[] // Dozvoljeni file tipovi za 'file' tip polja (npr. ['.pdf', '.doc', '.docx'])
+  maxFileSize?: number // Maksimalna veličina fajla u MB (za 'file' tip)
   validation?: {
     min?: number // Minimalna vrijednost za number
     max?: number // Maksimalna vrijednost za number
-    minLength?: number // Minimalna duljina za text
-    maxLength?: number // Maksimalna duljina za text
+    minLength?: number // Minimalna duljina za text/textarea/longtext
+    maxLength?: number // Maksimalna duljina za text/textarea/longtext (max 5000 za longtext)
     pattern?: string // Regex pattern za validaciju
   }
 }
@@ -122,6 +128,7 @@ export interface EmailSettings {
 
 export interface CreateConferenceInput {
   name: string
+  event_type?: EventType // Type of event (defaults to 'conference')
   description?: string
   start_date?: string
   end_date?: string
