@@ -74,6 +74,7 @@ export interface ParticipantRegistration {
   participant_id: string
   conference_id: string
   registration_id?: string | null
+  registration_number?: string | null // Display registration number (e.g., ICD11-001)
   status: ParticipantRegistrationStatus
   custom_data?: Record<string, any>
   registration_fee_type?: string | null

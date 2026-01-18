@@ -182,6 +182,15 @@ export default function ParticipantEventsPage() {
                       </p>
                     )}
 
+                    {registration.registration_number && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        Registration #:{' '}
+                        <span className="font-mono font-semibold text-blue-600">
+                          {registration.registration_number}
+                        </span>
+                      </p>
+                    )}
+
                     <div className="space-y-1 text-sm text-gray-600">
                       {registration.conference?.start_date && (
                         <p>

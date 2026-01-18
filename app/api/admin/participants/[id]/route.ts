@@ -94,3 +94,73 @@ export async function GET(
     )
   }
 }
+
+/**
+ * PATCH /api/admin/participants/[id]
+ * Update participant basic information
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerClient()
+
+    // Check authentication
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check permissions - only Super Admin can edit
+    const hasPermission = await isSuperAdmin()
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    // Get request body
+    const body = await request.json()
+    const { first_name, last_name, phone, country, institution } = body
+
+    // Update participant profile
+    const { data: updatedParticipant, error: updateError } = await supabase
+      .from('participant_profiles')
+      .update({
+        first_name,
+        last_name,
+        phone: phone || null,
+        country: country || null,
+        institution: institution || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .select()
+      .single()
+
+    if (updateError || !updatedParticipant) {
+      log.error('Failed to update participant', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update participant' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      participant: updatedParticipant,
+    })
+  } catch (error) {
+    log.error('Update participant error', error as Error)
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}

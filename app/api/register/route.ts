@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         custom_data: validatedData.custom_data || {},
         participants: validatedData.participants || [],
         registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
-        accommodation: validatedData.accommodation || null, // Store accommodation details
+        // Note: accommodation is stored in participant_registrations, not here
         payment_status: 'not_required', // Simplified - no payment handling yet
         // Legacy fields set to null/false for compatibility
         first_name: null,
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         // Try to extract from custom_data
         if (validatedData.custom_data) {
           for (const [key, value] of Object.entries(validatedData.custom_data)) {
-            const lowerKey = key.toLowerCase()
+            const lowerKey = key.toLowerCase().trim() // Trim whitespace from field names!
             if (lowerKey.includes('first') && lowerKey.includes('name')) {
               participantInfo.first_name = String(value || '')
             } else if (lowerKey.includes('last') && lowerKey.includes('name')) {
@@ -242,8 +242,9 @@ export async function POST(request: NextRequest) {
         // If still no name, try first participant
         if ((!participantInfo.first_name || !participantInfo.last_name) && validatedData.participants && validatedData.participants.length > 0) {
           const firstParticipant = validatedData.participants[0].customFields
+          
           for (const [key, value] of Object.entries(firstParticipant)) {
-            const lowerKey = key.toLowerCase()
+            const lowerKey = key.toLowerCase().trim() // Trim whitespace from field names!
             if (!participantInfo.first_name && lowerKey.includes('first') && lowerKey.includes('name')) {
               participantInfo.first_name = String(value || '')
             } else if (!participantInfo.last_name && lowerKey.includes('last') && lowerKey.includes('name')) {
@@ -305,10 +306,19 @@ export async function POST(request: NextRequest) {
             })
 
             // Update registration with participant_profile_id
-            await supabase
+            const { error: updateError } = await supabase
               .from('registrations')
               .update({ participant_profile_id: participantProfileId })
               .eq('id', registration.id)
+
+            if (updateError) {
+              log.error('Failed to update registration with participant_profile_id', updateError)
+            } else {
+              log.info('Successfully linked registration to participant profile', {
+                registrationId: registration.id,
+                participantProfileId,
+              })
+            }
 
             // Create participant_registration linking record
             const { error: linkError } = await supabase

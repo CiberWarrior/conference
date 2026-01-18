@@ -5,6 +5,7 @@ export interface Conference {
   id: string
   name: string
   slug: string
+  conference_code?: string // Short abbreviation (e.g., ICD11, ISMB2025) - used in registration numbers
   event_type?: EventType // Type of event (defaults to 'conference' for backward compatibility)
   description?: string
 
@@ -128,6 +129,7 @@ export interface EmailSettings {
 
 export interface CreateConferenceInput {
   name: string
+  conference_code?: string // Short abbreviation (e.g., ICD11) - used in registration numbers
   event_type?: EventType // Type of event (defaults to 'conference')
   description?: string
   start_date?: string

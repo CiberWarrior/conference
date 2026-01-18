@@ -64,37 +64,70 @@ function RegistrationsPageContent() {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('registrations')
-        .select('*')
+        .select(`
+          *,
+          participant_profiles (
+            phone,
+            country,
+            institution
+          )
+        `)
         .eq('conference_id', currentConference.id)
         .order('created_at', { ascending: false })
 
       if (fetchError) throw fetchError
 
       setRegistrations(
-        data.map((r) => ({
-          id: r.id,
-          firstName: r.first_name || '',
-          lastName: r.last_name || '',
-          email: r.email || '',
-          phone: r.phone || '',
-          country: r.country || '',
-          institution: r.institution || '',
-          arrivalDate: r.arrival_date || '',
-          departureDate: r.departure_date || '',
-          paymentRequired: r.payment_required,
-          paymentByCard: r.payment_by_card || false,
-          accompanyingPersons: r.accompanying_persons || false,
-          accompanyingPersonsData: r.accompanying_persons_data || [],
-          galaDinner: r.gala_dinner || false,
-          presentationType: r.presentation_type || false,
-          abstractSubmission: r.abstract_submission || false,
-          paymentStatus: r.payment_status,
-          createdAt: r.created_at,
-          checkedIn: r.checked_in || false,
-          checkedInAt: r.checked_in_at || null,
-          customFields: r.custom_data || {},
-          participants: r.participants || [], // Add participants field
-        }))
+        data.map((r) => {
+          // Helper: Extract data from participants[0].customFields if available
+          const firstParticipant = r.participants?.[0]?.customFields || {}
+          const customData = r.custom_data || {}
+          // participant_profiles is returned as object, not array
+          const participantProfile = r.participant_profiles || null
+          
+          // Helper function to find field value by common names
+          const findField = (possibleNames: string[], profileField?: string) => {
+            // Check participant_profiles first (if field specified and profile exists)
+            if (profileField && participantProfile && participantProfile[profileField]) {
+              return participantProfile[profileField]
+            }
+            // Check participants array
+            for (const name of possibleNames) {
+              if (firstParticipant[name]) return firstParticipant[name]
+            }
+            // Then check custom_data
+            for (const name of possibleNames) {
+              if (customData[name]) return customData[name]
+            }
+            return ''
+          }
+
+          return {
+            id: r.id,
+            registration_number: r.registration_number || undefined,
+            firstName: r.first_name || findField(['First Name', 'FIRST NAME', 'FirstName', 'first_name', 'Name', 'NAME']),
+            lastName: r.last_name || findField(['Last Name', 'LAST NAME', 'LastName', 'last_name', 'SURNAME', 'Surname']),
+            email: r.email || findField(['EMAIL', 'Email', 'email', 'E-mail']),
+            phone: r.phone || findField(['Phone Number', 'PHONE', 'Phone', 'phone', 'Telephone', 'Mobile', 'Mobile Number', 'Contact Number', 'Tel'], 'phone'),
+            country: r.country || findField(['COUNTRY', 'Country', 'country'], 'country'),
+            institution: r.institution || findField(['INSTITUTION', 'Institution', 'institution', 'ORGANIZATION', 'Organization', 'Company'], 'institution'),
+            arrivalDate: r.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In']),
+            departureDate: r.departure_date || findField(['Departure Date', 'departure_date', 'Check Out']),
+            paymentRequired: r.payment_required,
+            paymentByCard: r.payment_by_card || false,
+            accompanyingPersons: r.accompanying_persons || false,
+            accompanyingPersonsData: r.accompanying_persons_data || [],
+            galaDinner: r.gala_dinner || false,
+            presentationType: r.presentation_type || false,
+            abstractSubmission: r.abstract_submission || false,
+            paymentStatus: r.payment_status,
+            createdAt: r.created_at,
+            checkedIn: r.checked_in || false,
+            checkedInAt: r.checked_in_at || null,
+            customFields: customData,
+            participants: r.participants || [],
+          }
+        })
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load registrations')
@@ -110,6 +143,7 @@ function RegistrationsPageContent() {
       (reg.firstName || '').toLowerCase().includes(searchLower) ||
       (reg.lastName || '').toLowerCase().includes(searchLower) ||
       (reg.email || '').toLowerCase().includes(searchLower) ||
+      (reg.registration_number || '').toLowerCase().includes(searchLower) ||
       (reg.country && reg.country.toLowerCase().includes(searchLower)) ||
       (reg.institution && reg.institution.toLowerCase().includes(searchLower))
 
@@ -763,6 +797,9 @@ function RegistrationsPageContent() {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Reg #
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -803,7 +840,7 @@ function RegistrationsPageContent() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={14} className="px-6 py-12 text-center text-gray-500">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
@@ -830,6 +867,11 @@ function RegistrationsPageContent() {
                         onChange={() => toggleSelect(reg.id)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="font-mono text-sm font-semibold text-blue-600">
+                        {reg.registration_number || '-'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">

@@ -29,6 +29,7 @@ export interface RegistrationData {
 
 export interface Registration extends RegistrationData {
   id: string
+  registration_number?: string // Auto-generated conference-specific number (e.g., ICD11-001)
   paymentStatus: PaymentStatus
   createdAt: string
   stripeSessionId?: string | null

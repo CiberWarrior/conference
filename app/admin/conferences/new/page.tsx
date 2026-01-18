@@ -32,6 +32,7 @@ export default function NewConferencePage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    conference_code: '',
     event_type: 'conference' as 'conference' | 'workshop' | 'seminar' | 'webinar' | 'training' | 'other',
     description: '',
     start_date: '',
@@ -324,6 +325,8 @@ export default function NewConferencePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
+          conference_code: formData.conference_code || undefined,
+          event_type: formData.event_type,
           description: formData.description,
           start_date: formData.start_date || undefined,
           end_date: formData.end_date || undefined,
@@ -492,6 +495,38 @@ export default function NewConferencePage() {
                           : 'e.g., Event Name'
                       }
                     />
+                  </div>
+
+                  {/* Conference Code */}
+                  <div>
+                    <label htmlFor="conference_code" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Conference Code *
+                      <span className="text-xs text-gray-500 font-normal ml-2">
+                        (Used in registration numbers)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      id="conference_code"
+                      name="conference_code"
+                      value={formData.conference_code}
+                      onChange={(e) => {
+                        // Auto-uppercase and limit to alphanumeric + hyphens
+                        const code = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')
+                        setFormData({ ...formData, conference_code: code })
+                      }}
+                      required
+                      maxLength={20}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase"
+                      placeholder="e.g., ICD11, ISMB2025, TEDx2024"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      Short abbreviation for your event. Registration numbers will be formatted as:
+                      <strong className="text-blue-600 ml-1 font-mono">
+                        {formData.conference_code || 'CODE'}-001, {formData.conference_code || 'CODE'}-002
+                      </strong>
+                      , etc.
+                    </p>
                   </div>
 
                   <div>
