@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { ZodError } from 'zod'
 import { createServerClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
 import {
@@ -376,9 +377,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (error instanceof ZodError) {
       log.warn('Registration validation error', {
         errors: error.errors,
         action: 'registration_validation',
@@ -392,15 +393,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    log.error('Registration error', error, {
+    // Handle other errors
+    const errorMessage = error instanceof Error ? error.message : 'Please try again later'
+    log.error('Registration error', error instanceof Error ? error : undefined, {
       action: 'registration_error',
-      errorMessage: error.message,
+      errorMessage,
     })
 
     return NextResponse.json(
       {
         error: 'An unexpected error occurred',
-        message: error.message || 'Please try again later',
+        message: errorMessage,
       },
       { status: 500 }
     )

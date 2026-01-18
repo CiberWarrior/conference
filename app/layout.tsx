@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import ConditionalNavigation from '@/components/ConditionalNavigation'
 import { Toaster } from 'react-hot-toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export const metadata: Metadata = {
   title: 'MeetFlow | Event Management Platform',
@@ -16,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ConditionalNavigation />
-        {children}
+        <ErrorBoundary>
+          <ConditionalNavigation />
+          {children}
+        </ErrorBoundary>
         <Toaster
           position="top-right"
           toastOptions={{

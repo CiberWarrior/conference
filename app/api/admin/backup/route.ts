@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 /**
  * API endpoint za kreiranje backupa svih registracija
@@ -109,7 +110,9 @@ export async function GET(request: NextRequest) {
       )
     }
   } catch (error) {
-    console.error('Backup error:', error)
+    log.error('Backup error', error instanceof Error ? error : undefined, {
+      action: 'admin_backup',
+    })
     return NextResponse.json(
       { error: 'Failed to create backup' },
       { status: 500 }

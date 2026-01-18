@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { sendGenericEmail } from '@/lib/email'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (dbError) {
-      console.error('Database error:', dbError)
+      log.error('Database error saving contact inquiry', dbError instanceof Error ? dbError : undefined, {
+        email,
+        organization,
+        action: 'contact_inquiry_save',
+      })
       return NextResponse.json(
         { error: 'Failed to save inquiry' },
         { status: 500 }
@@ -73,16 +78,32 @@ export async function POST(request: NextRequest) {
     // Send notification email to admin
     try {
       await sendInquiryNotificationEmail(inquiry)
+      log.info('Contact inquiry notification email sent', {
+        inquiryId: inquiry.id,
+        email,
+        action: 'contact_inquiry_notification',
+      })
     } catch (emailError) {
-      console.error('Failed to send notification email:', emailError)
+      log.error('Failed to send notification email', emailError instanceof Error ? emailError : undefined, {
+        inquiryId: inquiry.id,
+        action: 'contact_inquiry_notification',
+      })
       // Don't fail the request if email fails
     }
 
     // Send confirmation email to customer
     try {
       await sendCustomerConfirmationEmail(inquiry)
+      log.info('Contact inquiry confirmation email sent', {
+        inquiryId: inquiry.id,
+        email,
+        action: 'contact_inquiry_confirmation',
+      })
     } catch (emailError) {
-      console.error('Failed to send confirmation email:', emailError)
+      log.error('Failed to send confirmation email', emailError instanceof Error ? emailError : undefined, {
+        inquiryId: inquiry.id,
+        action: 'contact_inquiry_confirmation',
+      })
       // Don't fail the request if email fails
     }
 
@@ -95,7 +116,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Contact form error:', error)
+    log.error('Contact form error', error instanceof Error ? error : undefined, {
+      action: 'contact_inquiry_error',
+    })
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }
@@ -141,8 +164,23 @@ function escapeText(text: string | null | undefined): string {
   return String(text).replace(/<[^>]*>/g, '')
 }
 
+// Type for contact inquiry
+interface ContactInquiry {
+  id: string
+  name: string
+  email: string
+  organization: string
+  phone?: string | null
+  conference_type?: string | null
+  expected_attendees?: string | null
+  service_type?: string | null
+  message: string
+  priority: string
+  created_at?: string
+}
+
 // Send notification email to admin team
-async function sendInquiryNotificationEmail(inquiry: any) {
+async function sendInquiryNotificationEmail(inquiry: ContactInquiry) {
   const subject = `🔔 New Inquiry: ${escapeText(inquiry.organization)} - ${escapeText(inquiry.expected_attendees || 'Size not specified')}`
   
   const html = `
@@ -269,7 +307,7 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
 }
 
 // Send confirmation email to customer
-async function sendCustomerConfirmationEmail(inquiry: any) {
+async function sendCustomerConfirmationEmail(inquiry: ContactInquiry) {
   const subject = `Thank you for contacting MeetFlow`
   
   const html = `

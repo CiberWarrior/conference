@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { log } from '@/lib/logger'
 import { createServerClient } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 
@@ -160,7 +161,10 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Invoice PDF generation error:', error)
+    log.error('Invoice PDF generation error', error instanceof Error ? error : undefined, {
+      registrationId: body.registrationId,
+      action: 'invoice_pdf_generation',
+    })
     return NextResponse.json(
       { error: 'Failed to generate invoice PDF' },
       { status: 500 }

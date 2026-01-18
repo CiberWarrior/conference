@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { sendCertificate } from '@/lib/email'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,10 @@ export async function POST(request: NextRequest) {
       message: 'Certificate email sent successfully',
     })
   } catch (error) {
-    console.error('Send certificate email error:', error)
+    log.error('Send certificate email error', error instanceof Error ? error : undefined, {
+      registrationId: body.registrationId,
+      action: 'certificate_email',
+    })
     return NextResponse.json(
       { error: 'Failed to send certificate email' },
       { status: 500 }

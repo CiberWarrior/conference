@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -182,7 +183,11 @@ export async function POST(request: NextRequest) {
           .in('id', registrationIds)
 
         if (deleteError) {
-          console.error('Delete error:', deleteError)
+          log.error('Failed to delete registrations in bulk operation', deleteError instanceof Error ? deleteError : undefined, {
+            registrationIds,
+            count: registrationIds.length,
+            action: 'bulk_delete',
+          })
           return NextResponse.json(
             { error: `Failed to delete registrations: ${deleteError.message}` },
             { status: 500 }
@@ -202,7 +207,9 @@ export async function POST(request: NextRequest) {
         )
     }
   } catch (error) {
-    console.error('Bulk operation error:', error)
+    log.error('Bulk operation error', error instanceof Error ? error : undefined, {
+      action: 'bulk_operation',
+    })
     return NextResponse.json(
       { error: 'Failed to process bulk operation' },
       { status: 500 }

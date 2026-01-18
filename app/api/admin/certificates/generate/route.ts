@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import jsPDF from 'jspdf'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,11 @@ export async function POST(request: NextRequest) {
           )
         }
       } catch (error) {
-        console.error('Failed to add logo:', error)
+        log.warn('Failed to add logo to certificate', error instanceof Error ? error : undefined, {
+          registrationId,
+          logoUrl,
+          action: 'certificate_logo',
+        })
         // Fallback: show placeholder
         logoHeight = 20
         doc.setFillColor(200, 200, 200)
@@ -256,7 +261,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Certificate generation error:', error)
+    log.error('Certificate generation error', error instanceof Error ? error : undefined, {
+      registrationId: body.registrationId,
+      action: 'certificate_generation',
+    })
     return NextResponse.json(
       { error: 'Failed to generate certificate' },
       { status: 500 }

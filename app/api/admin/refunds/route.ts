@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { stripe } from '@/lib/stripe'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -209,7 +210,10 @@ export async function GET(request: NextRequest) {
       total: refunds?.length || 0,
     })
   } catch (error) {
-    console.error('Get refunds error:', error)
+    log.error('Get refunds error', error instanceof Error ? error : undefined, {
+      conferenceId: searchParams.get('conference_id'),
+      action: 'get_refunds',
+    })
     return NextResponse.json(
       { error: 'Failed to get refunds' },
       { status: 500 }
@@ -265,7 +269,11 @@ export async function PATCH(request: NextRequest) {
       refund: updated,
     })
   } catch (error) {
-    console.error('Update refund error:', error)
+    log.error('Update refund error', error instanceof Error ? error : undefined, {
+      registrationId: body.registrationId,
+      status: body.status,
+      action: 'update_refund',
+    })
     return NextResponse.json(
       { error: 'Failed to update refund' },
       { status: 500 }

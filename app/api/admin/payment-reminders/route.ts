@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { sendPaymentReminder } from '@/lib/email'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,7 +118,9 @@ export async function POST(request: NextRequest) {
       ...results,
     })
   } catch (error) {
-    console.error('Payment reminders error:', error)
+    log.error('Payment reminders error', error instanceof Error ? error : undefined, {
+      action: 'payment_reminders',
+    })
     return NextResponse.json(
       { error: 'Failed to process payment reminders' },
       { status: 500 }
@@ -156,7 +159,9 @@ export async function GET() {
         : 0,
     })
   } catch (error) {
-    console.error('Get payment reminders stats error:', error)
+    log.error('Get payment reminders stats error', error instanceof Error ? error : undefined, {
+      action: 'payment_reminders_stats',
+    })
     return NextResponse.json(
       { error: 'Failed to get statistics' },
       { status: 500 }

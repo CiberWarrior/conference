@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { log } from '@/lib/logger'
 import { createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -111,7 +112,10 @@ export async function GET(request: NextRequest) {
       total: history?.length || 0,
     })
   } catch (error) {
-    console.error('Get payment history error:', error)
+    log.error('Get payment history error', error instanceof Error ? error : undefined, {
+      conferenceId: searchParams.get('conference_id'),
+      action: 'payment_history',
+    })
     return NextResponse.json(
       { error: 'Failed to get payment history' },
       { status: 500 }

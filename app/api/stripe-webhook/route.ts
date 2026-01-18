@@ -118,7 +118,11 @@ export async function POST(request: NextRequest) {
           registration.last_name,
           registration.invoice_url || undefined
         ).catch((err) => {
-          console.error('Failed to send payment confirmation email:', err)
+          log.error('Failed to send payment confirmation email', err instanceof Error ? err : undefined, {
+            registrationId,
+            email: registration.email,
+            action: 'payment_confirmation_email',
+          })
         })
       }
     }

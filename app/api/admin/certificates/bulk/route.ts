@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,7 +114,11 @@ export async function POST(request: NextRequest) {
       ...results,
     })
   } catch (error) {
-    console.error('Bulk certificate generation error:', error)
+    log.error('Bulk certificate generation error', error instanceof Error ? error : undefined, {
+      conferenceId: body.conferenceId,
+      count: body.registrationIds?.length || 0,
+      action: 'bulk_certificate_generation',
+    })
     return NextResponse.json(
       { error: 'Failed to generate certificates' },
       { status: 500 }

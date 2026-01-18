@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,7 +85,11 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Check-in error:', error)
+    log.error('Check-in error', error instanceof Error ? error : undefined, {
+      registrationId: body.registrationId,
+      conferenceId: body.conferenceId,
+      action: 'checkin',
+    })
     return NextResponse.json(
       { error: 'Failed to process check-in' },
       { status: 500 }
@@ -139,7 +144,11 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Get check-in status error:', error)
+    log.error('Get check-in status error', error instanceof Error ? error : undefined, {
+      registrationId: searchParams.get('registrationId'),
+      conferenceId: searchParams.get('conferenceId'),
+      action: 'checkin_status',
+    })
     return NextResponse.json(
       { error: 'Failed to get check-in status' },
       { status: 500 }
