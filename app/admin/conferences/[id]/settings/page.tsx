@@ -1391,7 +1391,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="mt-3 p-3 bg-white rounded border border-gray-200">
                         <p className="text-xs text-gray-500 mb-1">Preview:</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {field.name}: {formData.currency} {field.value.toFixed(2)}
+                          {field.name}: {field.value.toFixed(2)} {formData.currency}
                         </p>
                         {field.description && (
                           <p className="text-xs text-gray-600 mt-1">{field.description}</p>
@@ -1473,7 +1473,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                               <span>{hotel.occupancy}</span>
                               <span>•</span>
-                              <span>{formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                              <span>{hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
                             </div>
                           )}
                         </div>
@@ -1660,7 +1660,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             <p className="text-sm font-semibold text-gray-900">🏨 {hotel.name}</p>
                             <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
                               <span>👤 {hotel.occupancy}</span>
-                              <span>💶 {formData.currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                              <span>💶 {hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
                             </div>
                             {hotel.description && (
                               <p className="text-xs text-gray-600 mt-1">{hotel.description}</p>

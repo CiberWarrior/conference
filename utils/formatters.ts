@@ -49,7 +49,7 @@ export function formatDateTime(
 export function formatCurrency(
   amount: number,
   currency: string = 'EUR',
-  locale: string = 'en-US'
+  locale: string = 'de-DE'
 ): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',

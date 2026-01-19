@@ -213,7 +213,7 @@ export default function EventDetailsPage({
               <div>
                 <p className="text-sm text-gray-600 mb-1">Amount Paid</p>
                 <p className="font-medium">
-                  {registration.currency} {registration.amount_paid.toFixed(2)}
+                  {registration.amount_paid.toFixed(2)} {registration.currency}
                 </p>
               </div>
             )}

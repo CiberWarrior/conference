@@ -220,8 +220,8 @@ export default function ParticipantEventsPage() {
                           <span
                             className={`font-medium ${getPaymentStatusColor(registration.payment_status)}`}
                           >
-                            {registration.currency}{' '}
-                            {registration.amount_paid.toFixed(2)} -{' '}
+                            {registration.amount_paid.toFixed(2)}{' '}
+                            {registration.currency} -{' '}
                             {registration.payment_status}
                           </span>
                         </p>

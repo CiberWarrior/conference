@@ -110,7 +110,7 @@ export function getCurrentPricing(
  * Format price with currency
  */
 export function formatPrice(amount: number, currency: string): string {
-  return `${currency} ${amount.toFixed(2)}`
+  return `${amount.toFixed(2)} ${currency}`
 }
 
 /**

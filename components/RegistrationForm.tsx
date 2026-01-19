@@ -346,7 +346,7 @@ export default function RegistrationForm({
                   </div>
                 </div>
                     <div className="text-xl font-bold text-blue-600">
-                      {pricing.currency} {pricing.early_bird.amount.toFixed(2)}
+                      {pricing.early_bird.amount.toFixed(2)} {pricing.currency}
             </div>
               </label>
                 )}
@@ -375,7 +375,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-purple-600">
-                      {pricing.currency} {pricing.regular.amount.toFixed(2)}
+                      {pricing.regular.amount.toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
@@ -404,7 +404,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-orange-600">
-                      {pricing.currency} {pricing.late.amount.toFixed(2)}
+                      {pricing.late.amount.toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
@@ -433,7 +433,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-green-600">
-                      {pricing.currency} {(pricing.regular.amount - pricing.student_discount).toFixed(2)}
+                      {(pricing.regular.amount - pricing.student_discount).toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
@@ -462,7 +462,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-pink-600">
-                      {pricing.currency} {pricing.accompanying_person_price.toFixed(2)}
+                      {pricing.accompanying_person_price.toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
@@ -494,7 +494,7 @@ export default function RegistrationForm({
             </div>
           </div>
                     <div className="text-xl font-bold text-indigo-600">
-                      {pricing.currency} {customField.value.toFixed(2)}
+                      {customField.value.toFixed(2)} {pricing.currency}
                     </div>
             </label>
                 ))}
@@ -671,7 +671,7 @@ export default function RegistrationForm({
               </div>
                                 <div className="text-right ml-4">
                                   <div className="text-2xl font-bold text-green-600">
-                                    {currency} {totalPrice.toFixed(2)}
+                                    {totalPrice.toFixed(2)} {currency}
             </div>
                                   <p className="text-xs text-gray-500 mt-1">Total</p>
           </div>
@@ -702,7 +702,7 @@ export default function RegistrationForm({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                                  <span>{currency} {hotel.pricePerNight.toFixed(2)}/night</span>
+                                  <span>{hotel.pricePerNight.toFixed(2)} {currency}/night</span>
               </div>
                 </div>
               </div>
