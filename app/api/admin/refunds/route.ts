@@ -170,11 +170,12 @@ export async function POST(request: NextRequest) {
  * Get refund requests
  */
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const status = searchParams.get('status') // 'requested', 'approved', 'rejected', 'processed'
-    const conferenceId = searchParams.get('conference_id')
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  const searchParams = request.nextUrl.searchParams
+  const status = searchParams.get('status') // 'requested', 'approved', 'rejected', 'processed'
+  const conferenceId = searchParams.get('conference_id')
 
+  try {
     if (!conferenceId) {
       return NextResponse.json(
         { error: 'Conference ID is required' },
@@ -211,7 +212,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     log.error('Get refunds error', error instanceof Error ? error : undefined, {
-      conferenceId: searchParams.get('conference_id'),
+      conferenceId: conferenceId || 'unknown',
       action: 'get_refunds',
     })
     return NextResponse.json(
@@ -226,8 +227,10 @@ export async function GET(request: NextRequest) {
  * Update refund status (approve/reject)
  */
 export async function PATCH(request: NextRequest) {
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  let body: any = null
   try {
-    const body = await request.json()
+    body = await request.json()
     const { registrationId, status, reason } = body
 
     if (!registrationId || !status) {
@@ -270,8 +273,8 @@ export async function PATCH(request: NextRequest) {
     })
   } catch (error) {
     log.error('Update refund error', error instanceof Error ? error : undefined, {
-      registrationId: body.registrationId,
-      status: body.status,
+      registrationId: body?.registrationId || 'unknown',
+      status: body?.status || 'unknown',
       action: 'update_refund',
     })
     return NextResponse.json(

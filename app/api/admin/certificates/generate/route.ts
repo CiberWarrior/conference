@@ -19,7 +19,8 @@ interface CertificateData {
  * Generate certificate PDF for a registration
  */
 export async function POST(request: NextRequest) {
-  let body: any
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  let body: any = null
   try {
     body = await request.json()
     const {
@@ -263,7 +264,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     log.error('Certificate generation error', error instanceof Error ? error : undefined, {
-      registrationId: body.registrationId,
+      registrationId: body?.registrationId || 'unknown',
       action: 'certificate_generation',
     })
     return NextResponse.json(

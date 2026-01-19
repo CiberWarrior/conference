@@ -10,10 +10,11 @@ export const dynamic = 'force-dynamic'
  * Generate PDF invoice for a registration
  */
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const registrationId = searchParams.get('registrationId')
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  const searchParams = request.nextUrl.searchParams
+  const registrationId = searchParams.get('registrationId')
 
+  try {
     if (!registrationId) {
       return NextResponse.json(
         { error: 'Registration ID is required' },
@@ -162,7 +163,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     log.error('Invoice PDF generation error', error instanceof Error ? error : undefined, {
-      registrationId: body.registrationId,
+      registrationId: registrationId || 'unknown',
       action: 'invoice_pdf_generation',
     })
     return NextResponse.json(

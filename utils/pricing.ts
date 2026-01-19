@@ -72,26 +72,27 @@ export function getCurrentPricing(
 
   switch (tier) {
     case 'early_bird':
-      participantPrice = pricing.early_bird?.amount || 0
-      accompanyingPersonPrice = pricing.accompanying_person_price || 0
+      participantPrice = getPriceAmount(pricing.early_bird?.amount, currency)
+      accompanyingPersonPrice = getPriceAmount(pricing.accompanying_person_price, currency)
       deadline = pricing.early_bird?.deadline
       nextTier = 'regular'
       break
     case 'regular':
-      participantPrice = pricing.regular?.amount || 0
+      participantPrice = getPriceAmount(pricing.regular?.amount, currency)
       // Use early bird accompanying person price as fallback, or add regular/late specific prices later
-      accompanyingPersonPrice = pricing.accompanying_person_price || 0
+      accompanyingPersonPrice = getPriceAmount(pricing.accompanying_person_price, currency)
       break
     case 'late':
-      participantPrice = pricing.late?.amount || 0
-      accompanyingPersonPrice = pricing.accompanying_person_price || 0
+      participantPrice = getPriceAmount(pricing.late?.amount, currency)
+      accompanyingPersonPrice = getPriceAmount(pricing.accompanying_person_price, currency)
       break
   }
 
   // Calculate student price (discount applies to all tiers)
+  const studentDiscount = getPriceAmount(pricing.student_discount, currency)
   const studentPrice =
-    participantPrice > 0 && pricing.student_discount
-      ? Math.max(0, participantPrice - pricing.student_discount)
+    participantPrice > 0 && studentDiscount > 0
+      ? Math.max(0, participantPrice - studentDiscount)
       : 0
 
   return {

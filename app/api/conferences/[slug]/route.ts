@@ -67,11 +67,11 @@ export async function GET(
       // Get organizer bank account status (not cached, need fresh data)
       const supabase = await createServerClient()
       let organizer_has_bank_account = false
-      if (cached.owner_id) {
+      if (conference.owner_id) {
         const { data: ownerProfile } = await supabase
           .from('user_profiles')
           .select('bank_account_number')
-          .eq('id', cached.owner_id)
+          .eq('id', conference.owner_id)
           .maybeSingle()
         organizer_has_bank_account = !!ownerProfile?.bank_account_number
       }

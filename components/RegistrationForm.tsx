@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
+import { getPriceAmount } from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
@@ -45,23 +46,35 @@ export default function RegistrationForm({
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
   
-  // Payment preference state - default based on payment settings
-  const defaultPaymentPreference = paymentSettings?.default_preference === 'card' 
-    ? 'pay_now_card' 
-    : paymentSettings?.default_preference === 'bank' 
-    ? 'pay_now_bank' 
-    : 'pay_later'
-  
-  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | 'pay_later'>(defaultPaymentPreference)
-  const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
-  const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
-  
   // Determine which payment options are available based on settings
   const availablePaymentOptions = {
     card: paymentSettings?.allow_card ?? true,
     bank: (paymentSettings?.allow_bank_transfer ?? true) && hasBankAccount,
     later: paymentSettings?.allow_pay_later ?? true,
   }
+
+  // Payment preference state - default based on payment settings (and constrained by available options)
+  const defaultPaymentPreference: 'pay_now_card' | 'pay_now_bank' | 'pay_later' = (() => {
+    const configured = paymentSettings?.default_preference ?? 'pay_later'
+
+    const isAllowed =
+      (configured === 'pay_now_card' && availablePaymentOptions.card) ||
+      (configured === 'pay_now_bank' && availablePaymentOptions.bank) ||
+      (configured === 'pay_later' && availablePaymentOptions.later)
+
+    if (isAllowed) return configured
+
+    // Fallback to first available option
+    if (availablePaymentOptions.card) return 'pay_now_card'
+    if (availablePaymentOptions.bank) return 'pay_now_bank'
+    return 'pay_later'
+  })()
+  
+  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | 'pay_later'>(
+    defaultPaymentPreference
+  )
+  const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
+  const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
   
   // Count available options
   const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
@@ -372,7 +385,7 @@ export default function RegistrationForm({
                   </div>
                 </div>
                     <div className="text-xl font-bold text-blue-600">
-                      {pricing.early_bird.amount.toFixed(2)} {pricing.currency}
+                      {getPriceAmount(pricing.early_bird.amount, pricing.currency).toFixed(2)} {pricing.currency}
             </div>
               </label>
                 )}
@@ -401,7 +414,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-purple-600">
-                      {pricing.regular.amount.toFixed(2)} {pricing.currency}
+                      {getPriceAmount(pricing.regular.amount, pricing.currency).toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
@@ -430,13 +443,13 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-orange-600">
-                      {pricing.late.amount.toFixed(2)} {pricing.currency}
+                      {getPriceAmount(pricing.late.amount, pricing.currency).toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}
 
                 {/* Student */}
-                {pricing.student_discount && pricing.regular?.amount && (
+                {getPriceAmount(pricing.student_discount, pricing.currency) > 0 && pricing.regular?.amount && (
               <label
                     className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedFee === 'student'
@@ -459,13 +472,17 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-green-600">
-                      {(pricing.regular.amount - pricing.student_discount).toFixed(2)} {pricing.currency}
+                      {(
+                        getPriceAmount(pricing.regular.amount, pricing.currency) -
+                        getPriceAmount(pricing.student_discount, pricing.currency)
+                      ).toFixed(2)}{' '}
+                      {pricing.currency}
           </div>
               </label>
                 )}
 
                 {/* Accompanying Person */}
-                {pricing.accompanying_person_price && (
+                {getPriceAmount(pricing.accompanying_person_price, pricing.currency) > 0 && (
               <label
                     className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedFee === 'accompanying_person'
@@ -488,7 +505,7 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className="text-xl font-bold text-pink-600">
-                      {pricing.accompanying_person_price.toFixed(2)} {pricing.currency}
+                      {getPriceAmount(pricing.accompanying_person_price, pricing.currency).toFixed(2)} {pricing.currency}
           </div>
               </label>
                 )}

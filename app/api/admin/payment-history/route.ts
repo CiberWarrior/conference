@@ -9,11 +9,12 @@ export const dynamic = 'force-dynamic'
  * Get payment history for a registration or all registrations
  */
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const registrationId = searchParams.get('registrationId')
-    const conferenceId = searchParams.get('conference_id')
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  const searchParams = request.nextUrl.searchParams
+  const registrationId = searchParams.get('registrationId')
+  const conferenceId = searchParams.get('conference_id')
 
+  try {
     const supabase = await createServerClient()
 
     // If conference_id provided, filter through registrations
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     log.error('Get payment history error', error instanceof Error ? error : undefined, {
-      conferenceId: searchParams.get('conference_id'),
+      conferenceId: conferenceId || 'unknown',
       action: 'payment_history',
     })
     return NextResponse.json(

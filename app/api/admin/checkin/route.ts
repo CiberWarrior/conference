@@ -5,8 +5,10 @@ import { log } from '@/lib/logger'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  let body: any = null
   try {
-    const body = await request.json()
+    body = await request.json()
     const { registrationId, conferenceId } = body
 
     if (!registrationId) {
@@ -86,8 +88,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     log.error('Check-in error', error instanceof Error ? error : undefined, {
-      registrationId: body.registrationId,
-      conferenceId: body.conferenceId,
+      registrationId: body?.registrationId || 'unknown',
+      conferenceId: body?.conferenceId || 'unknown',
       action: 'checkin',
     })
     return NextResponse.json(
@@ -99,11 +101,12 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint to retrieve check-in status
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const registrationId = searchParams.get('registrationId')
-    const conferenceId = searchParams.get('conferenceId')
+  // NOTE: Defined outside try so we can safely reference it in catch logs
+  const searchParams = request.nextUrl.searchParams
+  const registrationId = searchParams.get('registrationId')
+  const conferenceId = searchParams.get('conferenceId')
 
+  try {
     if (!registrationId) {
       return NextResponse.json(
         { error: 'Registration ID is required' },
@@ -145,8 +148,8 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     log.error('Get check-in status error', error instanceof Error ? error : undefined, {
-      registrationId: searchParams.get('registrationId'),
-      conferenceId: searchParams.get('conferenceId'),
+      registrationId: registrationId || 'unknown',
+      conferenceId: conferenceId || 'unknown',
       action: 'checkin_status',
     })
     return NextResponse.json(
