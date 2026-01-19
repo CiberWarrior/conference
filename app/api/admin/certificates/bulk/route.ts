@@ -9,8 +9,9 @@ export const dynamic = 'force-dynamic'
  * Generate certificates for multiple registrations
  */
 export async function POST(request: NextRequest) {
+  let body: any
   try {
-    const body = await request.json()
+    body = await request.json()
     const {
       registrationIds,
       conferenceId,
