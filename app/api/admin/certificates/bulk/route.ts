@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
  * Generate certificates for multiple registrations
  */
 export async function POST(request: NextRequest) {
-  let body: any
+  let body: any = null
   try {
     body = await request.json()
     const {
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     log.error('Bulk certificate generation error', error instanceof Error ? error : undefined, {
-      conferenceId: body.conferenceId,
-      count: body.registrationIds?.length || 0,
+      conferenceId: body?.conferenceId || 'unknown',
+      count: body?.registrationIds?.length || 0,
       action: 'bulk_certificate_generation',
     })
     return NextResponse.json(
