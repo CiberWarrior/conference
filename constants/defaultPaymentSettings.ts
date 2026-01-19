@@ -9,7 +9,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   allow_card: true, // Allow credit/debit card (Stripe)
   allow_bank_transfer: true, // Allow bank transfer
   allow_pay_later: true, // Allow "Pay Later" option
-  default_preference: 'later', // Default to "Pay Later" (industry standard)
+  default_preference: 'pay_later', // Default to "Pay Later" (industry standard)
   require_at_registration: false, // Payment preference is optional (not forced)
   bank_transfer_deadline_days: 7, // 7 days to complete bank transfer
   payment_deadline_days: 30, // 30 days before conference for "pay later"
