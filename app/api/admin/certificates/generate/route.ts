@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           )
         }
       } catch (error) {
-        log.warn('Failed to add logo to certificate', error instanceof Error ? error : undefined, {
+        log.error('Failed to add logo to certificate', error instanceof Error ? error : undefined, {
           registrationId,
           logoUrl,
           action: 'certificate_logo',
