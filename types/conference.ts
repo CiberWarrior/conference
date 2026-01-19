@@ -39,6 +39,10 @@ export interface Conference {
   // Timestamps
   created_at: string
   updated_at: string
+
+  // Multi-currency support
+  supported_currencies?: string[] // Array of supported currency codes
+  default_currency?: string // Default currency for this conference
 }
 
 export interface CustomPricingField {
@@ -61,19 +65,21 @@ export interface HotelOption {
 }
 
 export interface ConferencePricing {
-  currency: string
+  currency: string // Default currency
+  vat_percentage?: number // PDV postotak (npr. 25 za 25% PDV-a) - opcionalno, ako nije postavljen, ne prikazuje se PDV
+  currencies?: string[] // Supported currencies (e.g., ['EUR', 'USD', 'GBP'])
   early_bird: {
-    amount: number
+    amount: number | Record<string, number> // Single amount or multi-currency: { EUR: 150, USD: 170 }
     deadline?: string // ISO date string
   }
   regular: {
-    amount: number
+    amount: number | Record<string, number> // Single amount or multi-currency
   }
   late: {
-    amount: number
+    amount: number | Record<string, number> // Single amount or multi-currency
   }
-  student_discount: number
-  accompanying_person_price?: number // Price for accompanying persons (early bird)
+  student_discount: number | Record<string, number> // Single discount or multi-currency
+  accompanying_person_price?: number | Record<string, number> // Price for accompanying persons (early bird)
   custom_fields?: CustomPricingField[] // Custom pricing polja koja korisnik definira
 }
 
@@ -107,6 +113,17 @@ export interface ParticipantSettings {
   participantLabel?: string
 }
 
+export interface PaymentSettings {
+  enabled: boolean // Enable/disable payment for this conference
+  allow_card: boolean // Show "Pay Now - Card" option (Stripe)
+  allow_bank_transfer: boolean // Show "Pay Now - Bank Transfer" option
+  allow_pay_later: boolean // Show "Pay Later" option
+  default_preference: 'card' | 'bank' | 'later' // Default payment preference selection
+  require_at_registration: boolean // Force payment preference selection (cannot be optional)
+  bank_transfer_deadline_days: number // Days to complete bank transfer (default: 7)
+  payment_deadline_days: number // Days before conference for "pay later" (default: 30)
+}
+
 export interface ConferenceSettings {
   registration_enabled: boolean
   abstract_submission_enabled: boolean
@@ -119,6 +136,7 @@ export interface ConferenceSettings {
   custom_abstract_fields?: CustomRegistrationField[] // Custom polja za abstract submission obrazac
   participant_settings?: ParticipantSettings // Settings for multiple participants
   hotel_options?: HotelOption[] // Dostupni hoteli za accommodation
+  payment_settings?: PaymentSettings // Payment options and preferences
 }
 
 export interface EmailSettings {

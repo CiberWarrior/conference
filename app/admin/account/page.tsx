@@ -20,6 +20,8 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Receipt,
+  CreditCard,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -51,12 +53,44 @@ export default function AccountPage() {
     confirm: false,
   })
   
+  // VAT settings state
+  const [isEditingVAT, setIsEditingVAT] = useState(false)
+  const [vatData, setVatData] = useState({
+    default_vat_percentage: '',
+    vat_label: '',
+  })
+  const [savingVAT, setSavingVAT] = useState(false)
+  
+  // Bank Account settings state
+  const [isEditingBank, setIsEditingBank] = useState(false)
+  const [bankData, setBankData] = useState({
+    bank_account_number: '',
+    bank_account_holder: '',
+    bank_name: '',
+    swift_bic: '',
+    bank_address: '',
+    bank_account_currency: 'EUR',
+  })
+  const [savingBank, setSavingBank] = useState(false)
+  
   useEffect(() => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || '',
         organization: profile.organization || '',
         phone: profile.phone || '',
+      })
+      setVatData({
+        default_vat_percentage: profile.default_vat_percentage?.toString() || '',
+        vat_label: profile.vat_label || '',
+      })
+      setBankData({
+        bank_account_number: profile.bank_account_number || '',
+        bank_account_holder: profile.bank_account_holder || '',
+        bank_name: profile.bank_name || '',
+        swift_bic: profile.swift_bic || '',
+        bank_address: profile.bank_address || '',
+        bank_account_currency: profile.bank_account_currency || 'EUR',
       })
     }
     setLoading(false)
@@ -87,6 +121,66 @@ export default function AccountPage() {
       showError('Failed to update profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveVAT = async () => {
+    if (!user?.id) return
+
+    try {
+      setSavingVAT(true)
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          default_vat_percentage: vatData.default_vat_percentage 
+            ? parseFloat(vatData.default_vat_percentage) 
+            : null,
+          vat_label: vatData.vat_label || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await refreshProfile()
+      setIsEditingVAT(false)
+      showSuccess('VAT settings updated successfully!')
+    } catch (error) {
+      console.error('Error updating VAT settings:', error)
+      showError('Failed to update VAT settings')
+    } finally {
+      setSavingVAT(false)
+    }
+  }
+
+  const handleSaveBank = async () => {
+    if (!user?.id) return
+
+    try {
+      setSavingBank(true)
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          bank_account_number: bankData.bank_account_number || null,
+          bank_account_holder: bankData.bank_account_holder || null,
+          bank_name: bankData.bank_name || null,
+          swift_bic: bankData.swift_bic || null,
+          bank_address: bankData.bank_address || null,
+          bank_account_currency: bankData.bank_account_currency,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await refreshProfile()
+      setIsEditingBank(false)
+      showSuccess('Bank account settings updated successfully!')
+    } catch (error) {
+      console.error('Error updating bank settings:', error)
+      showError('Failed to update bank account settings')
+    } finally {
+      setSavingBank(false)
     }
   }
 
@@ -456,6 +550,334 @@ export default function AccountPage() {
                       Cancel
                     </button>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Organization Settings (VAT) */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+                    <Receipt className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Organization Settings</h2>
+                    <p className="text-sm text-gray-600">Default VAT/PDV for all conferences</p>
+                  </div>
+                </div>
+                {!isEditingVAT && (
+                  <button
+                    onClick={() => setIsEditingVAT(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-900">
+                  <strong>Tip:</strong> Set a default VAT percentage here (e.g., 25% for Croatia). 
+                  All new conferences will automatically use this setting, but you can override it 
+                  for individual conferences if needed.
+                </p>
+              </div>
+
+              {/* VAT Percentage */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Default VAT Percentage (%)
+                </label>
+                {isEditingVAT ? (
+                  <>
+                    <input
+                      type="number"
+                      value={vatData.default_vat_percentage}
+                      onChange={(e) => setVatData({ ...vatData, default_vat_percentage: e.target.value })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      placeholder="npr. 25 za 25%"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave empty if you don't want to set a default VAT
+                    </p>
+                  </>
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.default_vat_percentage 
+                      ? `${profile.default_vat_percentage}%` 
+                      : 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* VAT Label */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  VAT Label (Optional)
+                </label>
+                {isEditingVAT ? (
+                  <>
+                    <input
+                      type="text"
+                      value={vatData.vat_label}
+                      onChange={(e) => setVatData({ ...vatData, vat_label: e.target.value })}
+                      placeholder="e.g., Croatia PDV, Germany MwSt"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Friendly name for display (e.g., "Croatia PDV")
+                    </p>
+                  </>
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.vat_label || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Edit Actions */}
+              {isEditingVAT && (
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleSaveVAT}
+                    disabled={savingVAT}
+                    className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingVAT ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save VAT Settings
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingVAT(false)
+                      setVatData({
+                        default_vat_percentage: profile.default_vat_percentage?.toString() || '',
+                        vat_label: profile.vat_label || '',
+                      })
+                    }}
+                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bank Account Settings */}
+          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-teal-600 rounded-lg flex items-center justify-center">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Bank Account Settings</h2>
+                    <p className="text-sm text-gray-600">For receiving bank transfer payments</p>
+                  </div>
+                </div>
+                {!isEditingBank && (
+                  <button
+                    onClick={() => setIsEditingBank(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-yellow-900">
+                  <strong>Info:</strong> Add your bank account details here. This information will be shown 
+                  to participants who choose to pay by bank transfer. Leave empty if you don't accept bank transfers yet.
+                </p>
+              </div>
+
+              {/* Bank Account Number (IBAN) */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Bank Account Number (IBAN)
+                </label>
+                {isEditingBank ? (
+                  <input
+                    type="text"
+                    value={bankData.bank_account_number}
+                    onChange={(e) => setBankData({ ...bankData, bank_account_number: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
+                    placeholder="HR1234567890123456789"
+                    maxLength={34}
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
+                    {profile.bank_account_number || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Account Holder Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Account Holder Name
+                </label>
+                {isEditingBank ? (
+                  <input
+                    type="text"
+                    value={bankData.bank_account_holder}
+                    onChange={(e) => setBankData({ ...bankData, bank_account_holder: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    placeholder="Organization Name"
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.bank_account_holder || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Bank Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Bank Name
+                </label>
+                {isEditingBank ? (
+                  <input
+                    type="text"
+                    value={bankData.bank_name}
+                    onChange={(e) => setBankData({ ...bankData, bank_name: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    placeholder="e.g., Erste Bank, Zagrebačka banka"
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.bank_name || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* SWIFT/BIC Code */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  SWIFT/BIC Code (for international transfers)
+                </label>
+                {isEditingBank ? (
+                  <input
+                    type="text"
+                    value={bankData.swift_bic}
+                    onChange={(e) => setBankData({ ...bankData, swift_bic: e.target.value.toUpperCase() })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
+                    placeholder="ZABAHR2X"
+                    maxLength={11}
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
+                    {profile.swift_bic || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Bank Address */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Bank Address (optional)
+                </label>
+                {isEditingBank ? (
+                  <textarea
+                    value={bankData.bank_address}
+                    onChange={(e) => setBankData({ ...bankData, bank_address: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    placeholder="Full bank address for international transfers"
+                    rows={2}
+                  />
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.bank_address || 'Not set'}
+                  </p>
+                )}
+              </div>
+
+              {/* Account Currency */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Account Currency
+                </label>
+                {isEditingBank ? (
+                  <select
+                    value={bankData.bank_account_currency}
+                    onChange={(e) => setBankData({ ...bankData, bank_account_currency: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                  >
+                    <option value="EUR">EUR (€)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="CHF">CHF</option>
+                    <option value="HRK">HRK (kn)</option>
+                  </select>
+                ) : (
+                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                    {profile.bank_account_currency || 'EUR'}
+                  </p>
+                )}
+              </div>
+
+              {/* Edit Actions */}
+              {isEditingBank && (
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleSaveBank}
+                    disabled={savingBank}
+                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingBank ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Bank Settings
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingBank(false)
+                      setBankData({
+                        bank_account_number: profile.bank_account_number || '',
+                        bank_account_holder: profile.bank_account_holder || '',
+                        bank_name: profile.bank_name || '',
+                        swift_bic: profile.swift_bic || '',
+                        bank_address: profile.bank_address || '',
+                        bank_account_currency: profile.bank_account_currency || 'EUR',
+                      })
+                    }}
+                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
                 </div>
               )}
             </div>

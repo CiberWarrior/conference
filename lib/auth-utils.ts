@@ -44,6 +44,16 @@ export interface UserProfile {
   last_login: string | null
   created_at: string
   updated_at: string
+  default_vat_percentage?: number | null // Organization default VAT %
+  vat_label?: string | null // Optional VAT label (e.g., "Croatia PDV")
+  
+  // Bank Account settings (for receiving bank transfers)
+  bank_account_number?: string | null // IBAN
+  bank_account_holder?: string | null
+  bank_name?: string | null
+  swift_bic?: string | null
+  bank_address?: string | null
+  bank_account_currency?: string | null
 }
 
 export interface ConferencePermission {

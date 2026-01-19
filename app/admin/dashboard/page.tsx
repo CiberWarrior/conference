@@ -49,6 +49,7 @@ import {
 } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { ABSTRACT_APP_URL } from '@/constants/config'
+import { getEffectiveVAT } from '@/utils/pricing'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -103,6 +104,8 @@ export default function DashboardPage() {
       todayRevenue: 0,
       weekRevenue: 0,
       monthRevenue: 0,
+      vatPercentage: undefined as number | undefined,
+      currency: 'EUR',
     },
     engagement: {
       popularAccommodations: [] as { hotel: string; count: number }[],
@@ -332,6 +335,11 @@ export default function DashboardPage() {
         todayRevenue,
         weekRevenue,
         monthRevenue,
+        vatPercentage: getEffectiveVAT(
+          conference.pricing?.vat_percentage,
+          profile?.default_vat_percentage
+        ) ?? undefined,
+        currency: conference.pricing?.currency || 'EUR',
       }
 
       // 8. Engagement Metrics
@@ -447,11 +455,25 @@ export default function DashboardPage() {
         throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL in .env.local')
       }
 
+      // Reload fresh conference data from database (to get latest VAT settings, etc.)
+      const { data: freshConference, error: confError } = await supabase
+        .from('conferences')
+        .select('*')
+        .eq('id', currentConference.id)
+        .single()
+
+      if (confError) {
+        console.warn('Could not reload conference, using cached version:', confError)
+      }
+
+      // Use fresh conference data if available, otherwise fallback to context
+      const conferenceToUse = freshConference || currentConference
+
       // Load registrations for current conference
       const { data: registrations, error: regError } = await supabase
         .from('registrations')
         .select('*')
-        .eq('conference_id', currentConference.id)
+        .eq('conference_id', conferenceToUse.id)
         .order('created_at', { ascending: false })
 
       if (regError) {
@@ -532,7 +554,7 @@ export default function DashboardPage() {
         })
 
         // Fetch new analytics data
-        fetchNewAnalytics(registrations, currentConference)
+        fetchNewAnalytics(registrations, conferenceToUse)
       }
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -1620,7 +1642,9 @@ export default function DashboardPage() {
         </div>
 
         {/* 6. Revenue Breakdown */}
-        {newAnalyticsData.revenueBreakdown.total > 0 && (
+        {(newAnalyticsData.revenueBreakdown.total > 0 ||
+          (newAnalyticsData.revenueBreakdown.vatPercentage &&
+            newAnalyticsData.revenueBreakdown.vatPercentage > 0)) && (
           <div className="mb-6">
             <RevenueBreakdown data={newAnalyticsData.revenueBreakdown} />
           </div>

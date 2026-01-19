@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption } from '@/types/conference'
+import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
 import { AlertCircle, Euro, UserPlus, Bed, Upload } from 'lucide-react'
@@ -21,6 +21,8 @@ interface RegistrationFormProps {
   conferenceStartDate?: string // Conference start date (ISO string)
   conferenceEndDate?: string // Conference end date (ISO string)
   abstractSubmissionEnabled?: boolean // Whether abstract submission is enabled
+  paymentSettings?: PaymentSettings // Payment options and preferences (admin-controlled)
+  hasBankAccount?: boolean // Whether organizer has configured bank account
 }
 
 export default function RegistrationForm({
@@ -35,11 +37,34 @@ export default function RegistrationForm({
   conferenceStartDate,
   conferenceEndDate,
   abstractSubmissionEnabled = false,
+  paymentSettings,
+  hasBankAccount = false,
 }: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
+  
+  // Payment preference state - default based on payment settings
+  const defaultPaymentPreference = paymentSettings?.default_preference === 'card' 
+    ? 'pay_now_card' 
+    : paymentSettings?.default_preference === 'bank' 
+    ? 'pay_now_bank' 
+    : 'pay_later'
+  
+  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | 'pay_later'>(defaultPaymentPreference)
+  const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
+  const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
+  
+  // Determine which payment options are available based on settings
+  const availablePaymentOptions = {
+    card: paymentSettings?.allow_card ?? true,
+    bank: (paymentSettings?.allow_bank_transfer ?? true) && hasBankAccount,
+    later: paymentSettings?.allow_pay_later ?? true,
+  }
+  
+  // Count available options
+  const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
   
   // Accommodation state
   const [arrivalDate, setArrivalDate] = useState<string>('')
@@ -162,6 +187,7 @@ export default function RegistrationForm({
         custom_data: {}, // No global custom data anymore, everything is per-participant
         participants: participants,
         registration_fee_type: selectedFee || null, // Include selected fee type
+        payment_preference: paymentPreference, // Payment preference: pay_now_card, pay_now_bank, pay_later
         accommodation: arrivalDate && departureDate ? {
           arrival_date: arrivalDate,
           departure_date: departureDate,
@@ -508,6 +534,203 @@ export default function RegistrationForm({
                         )}
                       </div>
                     </div>
+          )}
+
+          {/* Payment Preference Section */}
+          {pricing && selectedFee && paymentSettings?.enabled && availableOptionsCount > 0 && (
+            <div className="mt-8 border-t-2 border-gray-100 pt-8">
+              <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 p-6 rounded-xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Payment Options</h3>
+                    <p className="text-sm text-gray-600">
+                      {availableOptionsCount === 1 
+                        ? 'Payment method' 
+                        : 'Choose when and how you want to pay'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Pay Now - Credit Card (conditional) */}
+                  {availablePaymentOptions.card && (
+                  <label
+                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                      paymentPreference === 'pay_now_card'
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_preference"
+                      value="pay_now_card"
+                      checked={paymentPreference === 'pay_now_card'}
+                      onChange={(e) => setPaymentPreference(e.target.value as any)}
+                      className="mt-1 w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <div className="font-semibold text-gray-900">Credit/Debit Card</div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Pay securely with Stripe (Instant confirmation)</p>
+                    </div>
+                    <div className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">
+                      Instant
+                    </div>
+                  </label>
+                  )}
+
+                  {/* Pay Now - Bank Transfer (conditional) */}
+                  {availablePaymentOptions.bank && (
+                  <label
+                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                      paymentPreference === 'pay_now_bank'
+                        ? 'border-green-500 bg-green-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_preference"
+                      value="pay_now_bank"
+                      checked={paymentPreference === 'pay_now_bank'}
+                      onChange={(e) => setPaymentPreference(e.target.value as any)}
+                      className="mt-1 w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                        <div className="font-semibold text-gray-900">Bank Transfer</div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Transfer to our bank account (Manual verification required)</p>
+                    </div>
+                    <div className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-3 py-1 rounded-full">
+                      1-2 days
+                    </div>
+                  </label>
+                  )}
+
+                  {/* Pay Later (conditional) */}
+                  {availablePaymentOptions.later && (
+                  <label
+                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                      paymentPreference === 'pay_later'
+                        ? 'border-purple-500 bg-purple-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_preference"
+                      value="pay_later"
+                      checked={paymentPreference === 'pay_later'}
+                      onChange={(e) => setPaymentPreference(e.target.value as any)}
+                      className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <div className="font-semibold text-gray-900">Pay Later</div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Register now, receive payment instructions via email</p>
+                    </div>
+                    <div className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
+                      Flexible
+                    </div>
+                  </label>
+                  )}
+                </div>
+
+                {/* Bank Transfer Instructions (conditional) */}
+                {paymentPreference === 'pay_now_bank' && availablePaymentOptions.bank && (
+                  <div className="mt-6 p-5 bg-white border-2 border-green-200 rounded-lg">
+                    <div className="flex items-start gap-3 mb-4">
+                      <svg className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 mb-2">🏦 Bank Transfer Instructions</h4>
+                        <p className="text-sm text-gray-700 mb-4">
+                          After submitting your registration, you will receive bank account details and a unique payment reference number via email.
+                          Please complete the transfer within <strong>7 days</strong> to secure your spot.
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
+                          <p className="font-semibold text-blue-900 mb-2">What happens next:</p>
+                          <ul className="space-y-1 text-sm">
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600">✓</span>
+                              <span>You'll receive an email with bank details and payment reference</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600">✓</span>
+                              <span>Transfer the amount and optionally upload proof of payment</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600">✓</span>
+                              <span>We'll verify your payment within 1-2 business days</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600">✓</span>
+                              <span>You'll receive a confirmation email once verified</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Optional: File upload for proof of payment */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Upload Proof of Payment (Optional)
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => setBankTransferProofFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        You can upload this now or later via the confirmation email link
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pay Later Info (conditional) */}
+                {paymentPreference === 'pay_later' && availablePaymentOptions.later && (
+                  <div className="mt-6 p-5 bg-white border-2 border-purple-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-6 h-6 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="font-bold text-gray-900 mb-2">📧 Payment Instructions via Email</h4>
+                        <p className="text-sm text-gray-700">
+                          You will receive an email with payment instructions and a payment link. 
+                          Please complete your payment before the conference to ensure your registration is confirmed.
+                        </p>
+                        <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-900">
+                          <strong>Reminder:</strong> Payment reminders will be sent automatically after 3, 7, and 14 days if payment is not received.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Submit Button - only visible in Registration tab */}

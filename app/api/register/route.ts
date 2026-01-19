@@ -17,6 +17,7 @@ const registrationSchema = z.object({
   conference_id: z.string().uuid(),
   custom_data: z.record(z.any()).optional(), // Custom fields defined by admin
   registration_fee_type: z.string().optional().nullable(), // Selected registration fee type (early_bird, regular, late, student, accompanying_person, or custom_{id})
+  payment_preference: z.enum(['pay_now_card', 'pay_now_bank', 'pay_later']).optional().default('pay_later'), // Payment preference
   participants: z
       .array(
         z.object({
@@ -153,6 +154,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine payment method and status based on payment preference
+    let paymentMethod: string | null = null
+    let paymentStatus: string = 'not_required'
+    
+    if (validatedData.payment_preference === 'pay_now_card') {
+      paymentMethod = 'card'
+      paymentStatus = 'pending'
+    } else if (validatedData.payment_preference === 'pay_now_bank') {
+      paymentMethod = 'bank_transfer'
+      paymentStatus = 'pending'
+    } else if (validatedData.payment_preference === 'pay_later') {
+      paymentMethod = null // Will be selected later
+      paymentStatus = 'pending' // Still needs to pay, but later
+    }
+
     // Insert registration with simplified data structure
     const { data: registration, error: insertError } = await supabase
       .from('registrations')
@@ -161,8 +177,9 @@ export async function POST(request: NextRequest) {
         custom_data: validatedData.custom_data || {},
         participants: validatedData.participants || [],
         registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
+        payment_method: paymentMethod, // Payment method: card, bank_transfer, or null
+        payment_status: paymentStatus, // Payment status based on preference
         // Note: accommodation is stored in participant_registrations, not here
-        payment_status: 'not_required', // Simplified - no payment handling yet
         // Legacy fields set to null/false for compatibility
         first_name: null,
         last_name: null,

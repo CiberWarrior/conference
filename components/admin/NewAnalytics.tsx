@@ -13,6 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { getPriceBreakdown, formatPrice } from '@/utils/pricing'
 
 // Colors for charts
 const COLORS = {
@@ -215,9 +216,31 @@ interface RevenueBreakdownData {
   todayRevenue: number
   weekRevenue: number
   monthRevenue: number
+  vatPercentage?: number // PDV postotak (opcionalno)
+  currency?: string // Valuta (default: EUR)
 }
 
 export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
+  const currency = data.currency || 'EUR'
+  const vatPercentage = data.vatPercentage
+  const showVAT = vatPercentage && vatPercentage > 0
+
+  // Helper function to format revenue with VAT info
+  const formatRevenue = (amount: number) => {
+    if (!showVAT) {
+      return formatPrice(amount, currency)
+    }
+    const breakdown = getPriceBreakdown(amount, vatPercentage)
+    return (
+      <div className="space-y-0.5">
+        <div className="text-lg font-bold">{formatPrice(breakdown.withVAT, currency)}</div>
+        <div className="text-xs text-gray-500">
+          {formatPrice(breakdown.withoutVAT, currency)} bez PDV-a
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ChartCard title="Revenue Breakdown">
       <div className="space-y-6">
@@ -225,21 +248,84 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">Today</p>
-            <p className="text-lg font-bold text-blue-700">€{data.todayRevenue.toFixed(0)}</p>
+            {showVAT ? (
+              <div className="space-y-0.5">
+                <p className="text-lg font-bold text-blue-700">
+                  {formatPrice(getPriceBreakdown(data.todayRevenue, vatPercentage).withVAT, currency)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatPrice(getPriceBreakdown(data.todayRevenue, vatPercentage).withoutVAT, currency)} bez PDV-a
+                </p>
+              </div>
+            ) : (
+              <p className="text-lg font-bold text-blue-700">{formatPrice(data.todayRevenue, currency)}</p>
+            )}
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">This Week</p>
-            <p className="text-lg font-bold text-green-700">€{data.weekRevenue.toFixed(0)}</p>
+            {showVAT ? (
+              <div className="space-y-0.5">
+                <p className="text-lg font-bold text-green-700">
+                  {formatPrice(getPriceBreakdown(data.weekRevenue, vatPercentage).withVAT, currency)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatPrice(getPriceBreakdown(data.weekRevenue, vatPercentage).withoutVAT, currency)} bez PDV-a
+                </p>
+              </div>
+            ) : (
+              <p className="text-lg font-bold text-green-700">{formatPrice(data.weekRevenue, currency)}</p>
+            )}
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">This Month</p>
-            <p className="text-lg font-bold text-purple-700">€{data.monthRevenue.toFixed(0)}</p>
+            {showVAT ? (
+              <div className="space-y-0.5">
+                <p className="text-lg font-bold text-purple-700">
+                  {formatPrice(getPriceBreakdown(data.monthRevenue, vatPercentage).withVAT, currency)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatPrice(getPriceBreakdown(data.monthRevenue, vatPercentage).withoutVAT, currency)} bez PDV-a
+                </p>
+              </div>
+            ) : (
+              <p className="text-lg font-bold text-purple-700">{formatPrice(data.monthRevenue, currency)}</p>
+            )}
           </div>
           <div className="bg-indigo-50 p-4 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">Avg Transaction</p>
-            <p className="text-lg font-bold text-indigo-700">€{data.averageTransaction.toFixed(0)}</p>
+            {showVAT ? (
+              <div className="space-y-0.5">
+                <p className="text-lg font-bold text-indigo-700">
+                  {formatPrice(getPriceBreakdown(data.averageTransaction, vatPercentage).withVAT, currency)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatPrice(getPriceBreakdown(data.averageTransaction, vatPercentage).withoutVAT, currency)} bez PDV-a
+                </p>
+              </div>
+            ) : (
+              <p className="text-lg font-bold text-indigo-700">{formatPrice(data.averageTransaction, currency)}</p>
+            )}
           </div>
         </div>
+
+        {/* Total Revenue with VAT breakdown */}
+        {showVAT && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-1">Ukupan Revenue</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  {formatPrice(getPriceBreakdown(data.total, vatPercentage).withVAT, currency)}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formatPrice(getPriceBreakdown(data.total, vatPercentage).withoutVAT, currency)} bez PDV-a
+                  {' • '}
+                  PDV ({vatPercentage}%): {formatPrice(getPriceBreakdown(data.total, vatPercentage).vatAmount, currency)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -46,6 +46,14 @@ export interface Registration extends RegistrationData {
     departure_date: string
     number_of_nights: number
   } | null // Accommodation details
+  // Multi-currency & bank transfer support
+  payment_method?: 'card' | 'bank_transfer' | 'cash' | 'other' // Method of payment
+  payment_reference?: string | null // Unique payment reference (poziv na broj)
+  payment_currency?: string // Currency used for this payment (e.g., 'EUR', 'USD')
+  payment_amount?: number // Amount paid in selected currency
+  bank_transfer_proof_url?: string | null // URL to uploaded proof of bank transfer
+  bank_transfer_verified?: boolean // Whether bank transfer was manually verified by admin
+  bank_transfer_verified_at?: string | null // When bank transfer was verified
 }
 
 export interface RegistrationFormData {

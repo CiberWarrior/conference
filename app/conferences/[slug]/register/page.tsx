@@ -1,19 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import RegistrationForm from '@/components/RegistrationForm'
 import { ArrowLeft, Users, CheckCircle } from 'lucide-react'
 import type { Conference } from '@/types/conference'
+import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 
 export default function ConferenceRegisterPage() {
   const params = useParams()
-  const router = useRouter()
   const slug = params?.slug as string
   const [conference, setConference] = useState<Conference | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasBankAccount, setHasBankAccount] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -38,6 +39,9 @@ export default function ConferenceRegisterPage() {
           setError('Registration is not available for this conference')
           return
         }
+
+        // Set bank account status from API response
+        setHasBankAccount(data.organizer_has_bank_account || false)
       } catch (err) {
         setError('Failed to load conference')
         console.error('Error loading conference:', err)
@@ -196,6 +200,8 @@ export default function ConferenceRegisterPage() {
               conferenceStartDate={conference.start_date}
               conferenceEndDate={conference.end_date}
               abstractSubmissionEnabled={conference.settings?.abstract_submission_enabled}
+              paymentSettings={conference.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS}
+              hasBankAccount={hasBankAccount}
             />
           </div>
         </div>

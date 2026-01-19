@@ -7,18 +7,21 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save, Building2, Users, Settings, Upload, Plus, X, GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import { showSuccess, showError } from '@/utils/toast'
-import type { CustomPricingField, HotelOption, CustomRegistrationField } from '@/types/conference'
+import type { CustomPricingField, HotelOption, CustomRegistrationField, PaymentSettings } from '@/types/conference'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
+import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 
 export default function NewConferencePage() {
   const router = useRouter()
   const { refreshConferences } = useConference()
-  const { isSuperAdmin, loading: authLoading } = useAuth()
+  const { isSuperAdmin, loading: authLoading, profile } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [useDefaultVAT, setUseDefaultVAT] = useState(true)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [participantSettings, setParticipantSettings] = useState<ParticipantSettings>(DEFAULT_PARTICIPANT_SETTINGS)
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
   const [registrationInfoText, setRegistrationInfoText] = useState<string>('')
   const [abstractInfoText, setAbstractInfoText] = useState<string>('')
   const [showParticipantSettings, setShowParticipantSettings] = useState(false)
@@ -50,6 +53,7 @@ export default function NewConferencePage() {
     late_amount: 250,
     student_discount: 50,
     accompanying_person_price: 140,
+    vat_percentage: '' as string | number, // PDV postotak (npr. 25 za 25%)
     custom_pricing_fields: [] as CustomPricingField[],
     // Settings
     registration_enabled: true,
@@ -337,6 +341,11 @@ export default function NewConferencePage() {
           primary_color: formData.primary_color,
           pricing: {
             currency: formData.currency,
+            vat_percentage: useDefaultVAT 
+              ? null  // Use organization default
+              : formData.vat_percentage 
+                ? parseFloat(formData.vat_percentage.toString()) 
+                : null,
             early_bird: {
               amount: formData.early_bird_amount,
               deadline: formData.early_bird_deadline || undefined,
@@ -360,6 +369,7 @@ export default function NewConferencePage() {
             custom_registration_fields: formData.custom_registration_fields,
             custom_abstract_fields: formData.custom_abstract_fields,
             participant_settings: participantSettings,
+            payment_settings: paymentSettings,
             registration_info_text: registrationInfoText || undefined,
             abstract_info_text: abstractInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
@@ -801,6 +811,255 @@ export default function NewConferencePage() {
               </div>
             </div>
 
+            {/* Payment Options */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Payment Options</h2>
+                <p className="text-sm text-gray-600">
+                  Configure which payment methods are available for this conference
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Enable Payment System Toggle */}
+                <div className="flex items-start justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 mb-1">Payment System</h3>
+                    <p className="text-sm text-gray-600">
+                      Enable payment processing for this conference
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentSettings({
+                        ...paymentSettings,
+                        enabled: !paymentSettings.enabled,
+                      })
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      paymentSettings.enabled ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        paymentSettings.enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {paymentSettings.enabled && (
+                  <>
+                    {/* Payment Methods */}
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h3 className="font-semibold text-gray-900 mb-3">Available Payment Methods</h3>
+                      
+                      {/* Card Payment */}
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={paymentSettings.allow_card}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              allow_card: e.target.checked,
+                            })
+                          }}
+                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-900">💳 Card Payment (Stripe)</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              Instant
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Accept credit/debit card payments through Stripe
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Bank Transfer */}
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={paymentSettings.allow_bank_transfer}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              allow_bank_transfer: e.target.checked,
+                            })
+                          }}
+                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-900">🏦 Bank Transfer</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                              1-2 days
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Allow participants to pay via bank transfer (requires manual verification)
+                          </p>
+                          {!profile?.bank_account_number && (
+                            <p className="text-xs text-amber-600 mt-2 font-medium">
+                              ⚠️ Bank account not configured. Go to Account Settings to add bank details.
+                            </p>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* Pay Later */}
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={paymentSettings.allow_pay_later}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              allow_pay_later: e.target.checked,
+                            })
+                          }}
+                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-900">⏰ Pay Later</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              Flexible
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Allow participants to register now and pay later
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Default Preference */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Default Payment Preference
+                      </label>
+                      <select
+                        value={paymentSettings.default_preference}
+                        onChange={(e) => {
+                          setPaymentSettings({
+                            ...paymentSettings,
+                            default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank' | 'pay_later',
+                          })
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {paymentSettings.allow_card && (
+                          <option value="pay_now_card">Card Payment (Recommended for instant confirmation)</option>
+                        )}
+                        {paymentSettings.allow_bank_transfer && (
+                          <option value="pay_now_bank">Bank Transfer</option>
+                        )}
+                        {paymentSettings.allow_pay_later && (
+                          <option value="pay_later">Pay Later</option>
+                        )}
+                      </select>
+                      <p className="text-xs text-gray-500">
+                        This option will be pre-selected in the registration form
+                      </p>
+                    </div>
+
+                    {/* Payment Requirements */}
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={paymentSettings.required_at_registration}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              required_at_registration: e.target.checked,
+                            })
+                          }}
+                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div>
+                          <p className="font-semibold text-gray-900">Require Payment Preference at Registration</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            If enabled, participants must select a payment method during registration
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Deadlines */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Bank Transfer Deadline (days)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="30"
+                          value={paymentSettings.bank_transfer_deadline_days}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              bank_transfer_deadline_days: parseInt(e.target.value) || 7,
+                            })
+                          }}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Days after registration to complete bank transfer
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          General Payment Deadline (days)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={paymentSettings.payment_deadline_days}
+                          onChange={(e) => {
+                            setPaymentSettings({
+                              ...paymentSettings,
+                              payment_deadline_days: parseInt(e.target.value) || 30,
+                            })
+                          }}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Days after registration to complete payment
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                      <div className="flex gap-3">
+                        <div className="text-purple-600 mt-0.5">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">Payment Reminders</p>
+                          <p className="text-sm text-gray-600">
+                            Automatic payment reminders will be sent 3 days after registration for pending payments.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Multiple Participants Settings */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
@@ -999,6 +1258,74 @@ export default function NewConferencePage() {
                     <option value="CHF">CHF (Fr) - Swiss Franc</option>
                     <option value="HRK">HRK (kn) - Croatian Kuna</option>
                   </select>
+                </div>
+
+                {/* VAT Settings - same as Conference Settings */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    PDV / VAT Settings
+                  </label>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50/50" style={{
+                      borderColor: useDefaultVAT ? '#3B82F6' : '#E5E7EB',
+                      backgroundColor: useDefaultVAT ? '#EFF6FF' : 'white'
+                    }}>
+                      <input
+                        type="radio"
+                        checked={useDefaultVAT}
+                        onChange={() => setUseDefaultVAT(true)}
+                        className="mt-1 w-4 h-4 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">
+                          Use organization default
+                          {profile?.default_vat_percentage && (
+                            <span className="ml-2 text-blue-600">
+                              ({profile.default_vat_percentage}%)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {profile?.default_vat_percentage 
+                            ? 'Recommended: Use the default VAT setting from your organization.'
+                            : 'No default VAT set. Go to Account Settings to set one.'}
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-purple-300 hover:bg-purple-50/50" style={{
+                      borderColor: !useDefaultVAT ? '#9333EA' : '#E5E7EB',
+                      backgroundColor: !useDefaultVAT ? '#FAF5FF' : 'white'
+                    }}>
+                      <input
+                        type="radio"
+                        checked={!useDefaultVAT}
+                        onChange={() => setUseDefaultVAT(false)}
+                        className="mt-1 w-4 h-4 text-purple-600"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">
+                          Set custom VAT for this conference
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 mb-3">
+                          Override the organization default
+                        </p>
+                        
+                        <input
+                          type="number"
+                          value={formData.vat_percentage}
+                          onChange={(e) => setFormData(prev => ({ ...prev, vat_percentage: e.target.value }))}
+                          disabled={useDefaultVAT}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          placeholder="npr. 19 za 19%"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 <div>

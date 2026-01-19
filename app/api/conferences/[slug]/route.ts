@@ -64,8 +64,23 @@ export async function GET(
         })
       }
 
+      // Get organizer bank account status (not cached, need fresh data)
+      const supabase = await createServerClient()
+      let organizer_has_bank_account = false
+      if (cached.owner_id) {
+        const { data: ownerProfile } = await supabase
+          .from('user_profiles')
+          .select('bank_account_number')
+          .eq('id', cached.owner_id)
+          .maybeSingle()
+        organizer_has_bank_account = !!ownerProfile?.bank_account_number
+      }
+
       return NextResponse.json(
-        { conference },
+        { 
+          conference,
+          organizer_has_bank_account 
+        },
         {
           headers: {
             'X-Cache': 'HIT',
@@ -94,6 +109,17 @@ export async function GET(
         { error: 'Conference not found' },
         { status: 404 }
       )
+    }
+
+    // Get organizer's bank account status
+    let organizer_has_bank_account = false
+    if (conference.owner_id) {
+      const { data: ownerProfile } = await supabase
+        .from('user_profiles')
+        .select('bank_account_number')
+        .eq('id', conference.owner_id)
+        .maybeSingle()
+      organizer_has_bank_account = !!ownerProfile?.bank_account_number
     }
 
     // Ensure JSONB fields are properly parsed (Supabase should do this automatically,
@@ -144,7 +170,10 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { conference: parsedConference },
+      { 
+        conference: parsedConference,
+        organizer_has_bank_account 
+      },
       {
         headers: {
           'X-Cache': 'MISS',
