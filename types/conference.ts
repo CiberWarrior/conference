@@ -119,7 +119,7 @@ export interface PaymentSettings {
   allow_bank_transfer: boolean // Show "Pay Now - Bank Transfer" option
   allow_pay_later: boolean // Show "Pay Later" option
   default_preference: 'pay_now_card' | 'pay_now_bank' | 'pay_later' // Default payment preference selection
-  require_at_registration: boolean // Force payment preference selection (cannot be optional)
+  required_at_registration: boolean // Force payment preference selection (cannot be optional)
   bank_transfer_deadline_days: number // Days to complete bank transfer (default: 7)
   payment_deadline_days: number // Days before conference for "pay later" (default: 30)
 }
