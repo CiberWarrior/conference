@@ -148,13 +148,6 @@ export async function POST(
     if (typeof body.hero_background_color === 'string') insertData.hero_background_color = body.hero_background_color.trim() || null
     if (typeof body.hero_layout_type === 'string') insertData.hero_layout_type = body.hero_layout_type.trim() || null
     if (typeof body.hero_logo_url === 'string') insertData.hero_logo_url = body.hero_logo_url.trim() || null
-    if (body.hero_info_cards !== undefined) {
-      // hero_info_cards can be array or null
-      insertData.hero_info_cards = body.hero_info_cards || null
-    }
-    if (typeof (body as any).hero_layout_type === 'string')
-      insertData.hero_layout_type = (body as any).hero_layout_type.trim() || null
-    if (typeof (body as any).hero_logo_url === 'string') insertData.hero_logo_url = (body as any).hero_logo_url.trim() || null
 
     // hero_info_cards can be array/object or JSON string from UI
     const heroInfoCardsRaw: any = (body as any).hero_info_cards
