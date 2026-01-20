@@ -11,6 +11,7 @@ import type { CustomPricingField, HotelOption, CustomRegistrationField, PaymentS
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
 import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 
 export default function NewConferencePage() {
@@ -1594,7 +1595,7 @@ export default function NewConferencePage() {
                                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                                   <span>{hotel.occupancy}</span>
                                   <span>•</span>
-                                  <span>{hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
+                                  <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {formData.currency}/night</span>
                                 </div>
                               )}
                             </div>

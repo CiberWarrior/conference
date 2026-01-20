@@ -14,6 +14,7 @@ import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
 
 export default function ConferenceSettingsPage() {
   const router = useRouter()
@@ -1825,7 +1826,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                               <span>{hotel.occupancy}</span>
                               <span>•</span>
-                              <span>{hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
+                              <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {formData.currency}/night</span>
                             </div>
                           )}
                         </div>

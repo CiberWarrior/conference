@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { ArrowLeft, Mail, Phone, MapPin, Building2, Award, Calendar, CheckCircle, XCircle, Clock, Edit2 } from 'lucide-react'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
 
 interface ParticipantDetail {
   id: string
@@ -351,7 +352,7 @@ export default function AdminParticipantDetailPage() {
             <div>
               <p className="text-sm text-gray-600">Total Paid</p>
               <p className="text-3xl font-bold text-gray-900">
-                {registrations[0]?.currency || '€'}{totalPaid.toFixed(2)}
+                {registrations[0]?.currency || '€'}{formatPriceWithoutZeros(totalPaid)}
               </p>
             </div>
             <Award className="w-10 h-10 text-yellow-500" />
@@ -433,7 +434,7 @@ export default function AdminParticipantDetailPage() {
                       {getPaymentStatusBadge(reg.payment_status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {reg.amount_paid ? `${reg.currency || '€'}${reg.amount_paid.toFixed(2)}` : '-'}
+                      {reg.amount_paid ? `${reg.currency || '€'}${formatPriceWithoutZeros(reg.amount_paid)}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.checked_in ? (

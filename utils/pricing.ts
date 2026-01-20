@@ -108,10 +108,19 @@ export function getCurrentPricing(
 }
 
 /**
+ * Format price without trailing zeros (450.00 -> 450, 450.50 -> 450.5, 450.55 -> 450.55)
+ */
+export function formatPriceWithoutZeros(amount: number): string {
+  // Convert to string with 2 decimals, then remove trailing zeros
+  const formatted = amount.toFixed(2)
+  return formatted.replace(/\.?0+$/, '')
+}
+
+/**
  * Format price with currency
  */
 export function formatPrice(amount: number, currency: string): string {
-  return `${amount.toFixed(2)} ${currency}`
+  return `${formatPriceWithoutZeros(amount)} ${currency}`
 }
 
 /**
@@ -140,12 +149,13 @@ export function formatPriceWithSymbol(
   currency: string = 'EUR'
 ): string {
   const symbol = getCurrencySymbol(currency)
+  const formattedAmount = formatPriceWithoutZeros(amount)
   // For currencies with prefix symbols (USD, GBP, CAD, AUD)
   if (['$', '£', 'CA$', 'A$'].includes(symbol)) {
-    return `${symbol}${amount.toFixed(2)}`
+    return `${symbol}${formattedAmount}`
   }
   // For currencies with suffix symbols (EUR, CHF, HRK, JPY, CNY)
-  return `${amount.toFixed(2)} ${symbol}`
+  return `${formattedAmount} ${symbol}`
 }
 
 /**

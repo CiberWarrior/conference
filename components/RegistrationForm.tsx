@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import { getPriceAmount } from '@/utils/pricing'
+import { getPriceAmount, formatPriceWithoutZeros } from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
@@ -222,16 +222,22 @@ export default function RegistrationForm({
 
   if (submitSuccess) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white p-8 md:p-10 rounded-xl shadow-xl border border-gray-200">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-12 md:p-16 rounded-2xl shadow-xl border-2 border-green-200">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h2>
-            <p className="text-gray-600">Thank you for registering. You will receive a confirmation email shortly.</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Registration Successful!</h2>
+            <p className="text-lg text-gray-700 mb-6">Thank you for registering. You will receive a confirmation email shortly.</p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-green-200">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-700">Check your email for confirmation</span>
+            </div>
           </div>
         </div>
       </div>
@@ -239,255 +245,183 @@ export default function RegistrationForm({
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="max-w-4xl mx-auto animate-fade-in"
-    >
-      <div className="bg-white p-8 md:p-10 rounded-xl shadow-xl border border-gray-200 hover:shadow-2xl transition-shadow duration-300">
-        {/* Registration Information Text */}
-        {registrationInfoText && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-r-lg">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">Registration Information</h3>
-                <div className="text-sm text-blue-800 whitespace-pre-line">
-                  {registrationInfoText}
-                  </div>
+    <>
+      {/* Registration Fee Selection - OUTSIDE FORM CONTAINER */}
+      {pricing && customFields.length > 0 && activeTab === 'registration' && (
+        <div className="w-full -mx-8 px-8 mb-10" style={{ marginLeft: 'calc(-2rem - 1px)', marginRight: 'calc(-2rem - 1px)', width: 'calc(100% + 4rem + 2px)' }}>
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg">
+                <Euro className="w-6 h-6 text-white" />
               </div>
-                    </div>
-                  </div>
-                )}
-
-        {/* Tab Navigation */}
-        <div className="mb-8">
-          <nav className="flex gap-3 bg-gray-100 p-2 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setActiveTab('registration')}
-              className={`flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 ${
-                activeTab === 'registration'
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 transform scale-105'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-md'
-              }`}
-            >
-              <UserPlus className={`w-5 h-5 ${activeTab === 'registration' ? 'text-white' : 'text-gray-500'}`} />
-              <span>Registration</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('accommodation')}
-              className={`flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 ${
-                activeTab === 'accommodation'
-                  ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30 transform scale-105'
-                  : 'text-green-700 bg-green-50 hover:bg-green-100 hover:shadow-md border-2 border-green-200'
-              }`}
-            >
-              <Bed className={`w-5 h-5 ${activeTab === 'accommodation' ? 'text-white' : 'text-green-600'}`} />
-              <span>Accommodation</span>
-            </button>
-            
-            {abstractSubmissionEnabled && conferenceSlug && (
-              <Link
-                href={`/conferences/${conferenceSlug}/submit-abstract`}
-                className="flex items-center gap-2 px-6 py-4 text-base font-semibold rounded-lg transition-all duration-200 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:shadow-md border-2 border-purple-200"
-              >
-                <Upload className="w-5 h-5 text-purple-600" />
-                <span>Abstract Submission</span>
-              </Link>
-            )}
-          </nav>
-                    </div>
-
-        {/* Registration Tab Content */}
-        {activeTab === 'registration' && (
-          <div className="space-y-6">
-          {/* Multiple Participants Section - ALWAYS shown, participants get ALL custom fields */}
-          <div className="animate-slide-in">
-            <ParticipantManager
-              participants={participants}
-              onChange={setParticipants}
-              maxParticipants={participantSettings?.maxParticipants || 5}
-              participantFields={participantSettings?.participantFields || []}
-              customFields={customFields}
-              participantLabel={participantSettings?.participantLabel || 'Participant'}
-              customFieldsPerParticipant={true}
-            />
-                    </div>
-
-          {/* Empty state when no fields */}
-          {customFields.length === 0 && (
-            <div className="text-center py-12">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No registration fields configured yet.</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Please contact the conference administrator.
-              </p>
-                      </div>
-                    )}
-
-          {/* Registration Fee Selection */}
-          {pricing && customFields.length > 0 && (
-            <div className="mt-8 border-t-2 border-gray-100 pt-8">
-            <div className="bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-2 border-purple-200 p-6 rounded-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shadow-lg">
-                  <Euro className="w-6 h-6 text-white" />
-                  </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Select Registration Fee</h3>
-                  <p className="text-sm text-gray-600">Choose your registration category</p>
-                </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Select Registration Fee</h2>
+                <p className="text-sm text-gray-600">Choose your registration category</p>
               </div>
+            </div>
 
-              <div className="space-y-3">
-                {/* Early Bird */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {/* Early Bird - 1st */}
                 {pricing.early_bird?.amount && (
               <label
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
                       selectedFee === 'early_bird'
-                        ? 'border-blue-500 bg-blue-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+                        ? 'border-blue-600 bg-blue-50 shadow-md'
+                        : 'border-blue-200 bg-blue-50/30 hover:border-blue-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 mb-4">
                 <input
                         type="radio"
                         name="registration_fee"
                         value="early_bird"
                         checked={selectedFee === 'early_bird'}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                       />
-                    <div>
-                        <div className="font-semibold text-gray-900">Early Bird</div>
-                        <div className="text-xs text-gray-500">
+                    <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'early_bird' ? 'text-blue-900' : 'text-blue-800'}`}>Early Bird</div>
+                        <div className="text-xs text-blue-600 leading-relaxed">
                           {pricing.early_bird.deadline && `Until ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`}
                     </div>
                   </div>
                 </div>
-                    <div className="text-xl font-bold text-blue-600">
-                      {getPriceAmount(pricing.early_bird.amount, pricing.currency).toFixed(2)} {pricing.currency}
+                    <div className="mt-auto pt-4 border-t-2 border-blue-200">
+                      <div className="text-2xl font-bold text-blue-700 mb-1">
+                        {formatPriceWithoutZeros(getPriceAmount(pricing.early_bird.amount, pricing.currency))}
+                      </div>
+                      <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{pricing.currency}</div>
             </div>
               </label>
                 )}
 
-                {/* Regular */}
+                {/* Regular - 2nd */}
                 {pricing.regular?.amount && (
               <label
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
                       selectedFee === 'regular'
-                        ? 'border-purple-500 bg-purple-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
+                        ? 'border-indigo-600 bg-indigo-50 shadow-md'
+                        : 'border-indigo-200 bg-indigo-50/30 hover:border-indigo-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 mb-4">
                 <input
                         type="radio"
                         name="registration_fee"
                         value="regular"
                         checked={selectedFee === 'regular'}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                        className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
-                      <div>
-                        <div className="font-semibold text-gray-900">Regular</div>
-                        <div className="text-xs text-gray-500">Standard registration</div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'regular' ? 'text-indigo-900' : 'text-indigo-800'}`}>Regular</div>
+                        <div className="text-xs text-indigo-600 leading-relaxed">Standard registration</div>
               </div>
             </div>
-                    <div className="text-xl font-bold text-purple-600">
-                      {getPriceAmount(pricing.regular.amount, pricing.currency).toFixed(2)} {pricing.currency}
+                    <div className="mt-auto pt-4 border-t-2 border-indigo-200">
+                      <div className="text-2xl font-bold text-indigo-700 mb-1">
+                        {formatPriceWithoutZeros(getPriceAmount(pricing.regular.amount, pricing.currency))}
+                      </div>
+                      <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{pricing.currency}</div>
           </div>
               </label>
                 )}
 
-                {/* Late */}
-                {pricing.late?.amount && (
-              <label
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedFee === 'late'
-                        ? 'border-orange-500 bg-orange-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="late"
-                        checked={selectedFee === 'late'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-orange-600 focus:ring-2 focus:ring-orange-500"
-                />
-                      <div>
-                        <div className="font-semibold text-gray-900">Late Registration</div>
-                        <div className="text-xs text-gray-500">After deadline</div>
-              </div>
-            </div>
-                    <div className="text-xl font-bold text-orange-600">
-                      {getPriceAmount(pricing.late.amount, pricing.currency).toFixed(2)} {pricing.currency}
-          </div>
-              </label>
-                )}
-
-                {/* Student */}
+                {/* Student - 3rd */}
                 {getPriceAmount(pricing.student_discount, pricing.currency) > 0 && pricing.regular?.amount && (
               <label
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
                       selectedFee === 'student'
-                        ? 'border-green-500 bg-green-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
+                        ? 'border-emerald-600 bg-emerald-50 shadow-md'
+                        : 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 mb-4">
                 <input
                         type="radio"
                         name="registration_fee"
                         value="student"
                         checked={selectedFee === 'student'}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                        className="w-5 h-5 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
-                          <div>
-                        <div className="font-semibold text-gray-900">Student</div>
-                        <div className="text-xs text-gray-500">Special discount for students</div>
+                          <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'student' ? 'text-emerald-900' : 'text-emerald-800'}`}>Student</div>
+                        <div className="text-xs text-emerald-600 leading-relaxed">Special discount for students</div>
               </div>
             </div>
-                    <div className="text-xl font-bold text-green-600">
-                      {(
-                        getPriceAmount(pricing.regular.amount, pricing.currency) -
-                        getPriceAmount(pricing.student_discount, pricing.currency)
-                      ).toFixed(2)}{' '}
-                      {pricing.currency}
+                    <div className="mt-auto pt-4 border-t-2 border-emerald-200">
+                      <div className="text-2xl font-bold text-emerald-700 mb-1">
+                        {formatPriceWithoutZeros(
+                          getPriceAmount(pricing.regular.amount, pricing.currency) -
+                          getPriceAmount(pricing.student_discount, pricing.currency)
+                        )}
+                      </div>
+                      <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{pricing.currency}</div>
           </div>
               </label>
                 )}
 
-                {/* Accompanying Person */}
-                {getPriceAmount(pricing.accompanying_person_price, pricing.currency) > 0 && (
+                {/* Late Registration - 4th */}
+                {pricing.late?.amount && (
               <label
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedFee === 'accompanying_person'
-                        ? 'border-pink-500 bg-pink-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-pink-300 hover:shadow-sm'
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
+                      selectedFee === 'late'
+                        ? 'border-amber-600 bg-amber-50 shadow-md'
+                        : 'border-amber-200 bg-amber-50/30 hover:border-amber-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 mb-4">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value="late"
+                        checked={selectedFee === 'late'}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
+                />
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'late' ? 'text-amber-900' : 'text-amber-800'}`}>Late Registration</div>
+                        <div className="text-xs text-amber-600 leading-relaxed">After deadline</div>
+              </div>
+            </div>
+                    <div className="mt-auto pt-4 border-t-2 border-amber-200">
+                      <div className="text-2xl font-bold text-amber-700 mb-1">
+                        {formatPriceWithoutZeros(getPriceAmount(pricing.late.amount, pricing.currency))}
+                      </div>
+                      <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{pricing.currency}</div>
+          </div>
+              </label>
+                )}
+
+                {/* Accompanying Person - 5th */}
+                {getPriceAmount(pricing.accompanying_person_price, pricing.currency) > 0 && (
+              <label
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
+                      selectedFee === 'accompanying_person'
+                        ? 'border-rose-600 bg-rose-50 shadow-md'
+                        : 'border-rose-200 bg-rose-50/30 hover:border-rose-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-3">
                 <input
                         type="radio"
                         name="registration_fee"
                         value="accompanying_person"
                         checked={selectedFee === 'accompanying_person'}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-pink-600 focus:ring-2 focus:ring-pink-500"
+                        className="w-4 h-4 text-rose-600 focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
-                      <div>
-                        <div className="font-semibold text-gray-900">Accompanying Person</div>
-                        <div className="text-xs text-gray-500">For guests and companions</div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-bold mb-1 leading-tight ${selectedFee === 'accompanying_person' ? 'text-rose-900' : 'text-rose-800'}`}>Accompanying Person</div>
+                        <div className="text-xs text-rose-600 leading-snug">For guests and companions</div>
               </div>
             </div>
-                    <div className="text-xl font-bold text-pink-600">
-                      {getPriceAmount(pricing.accompanying_person_price, pricing.currency).toFixed(2)} {pricing.currency}
+                    <div className="mt-auto pt-4 border-t-2 border-rose-200">
+                      <div className="text-2xl font-bold text-rose-700 mb-1">
+                        {formatPriceWithoutZeros(getPriceAmount(pricing.accompanying_person_price, pricing.currency))}
+                      </div>
+                      <div className="text-xs font-semibold text-rose-600 uppercase tracking-wide">{pricing.currency}</div>
           </div>
               </label>
                 )}
@@ -496,72 +430,178 @@ export default function RegistrationForm({
                 {pricing.custom_fields && pricing.custom_fields.map((customField) => (
               <label
                     key={customField.id}
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
                       selectedFee === `custom_${customField.id}`
-                        ? 'border-indigo-500 bg-indigo-50 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'
+                        ? 'border-violet-600 bg-violet-50 shadow-md'
+                        : 'border-violet-200 bg-violet-50/30 hover:border-violet-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 mb-4">
                 <input
                         type="radio"
                         name="registration_fee"
                         value={`custom_${customField.id}`}
                         checked={selectedFee === `custom_${customField.id}`}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                        className="w-5 h-5 text-violet-600 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
-                      <div>
-                        <div className="font-semibold text-gray-900">{customField.name}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === `custom_${customField.id}` ? 'text-violet-900' : 'text-violet-800'}`}>{customField.name}</div>
                         {customField.description && (
-                          <div className="text-xs text-gray-500">{customField.description}</div>
+                          <div className="text-xs text-violet-600 leading-relaxed">{customField.description}</div>
               )}
             </div>
           </div>
-                    <div className="text-xl font-bold text-indigo-600">
-                      {customField.value.toFixed(2)} {pricing.currency}
+                    <div className="mt-auto pt-4 border-t-2 border-violet-200">
+                      <div className="text-2xl font-bold text-violet-700 mb-1">
+                        {formatPriceWithoutZeros(customField.value)}
+                      </div>
+                      <div className="text-xs font-semibold text-violet-600 uppercase tracking-wide">{pricing.currency}</div>
                     </div>
             </label>
                 ))}
-                      </div>
+          </div>
 
-              {!selectedFee && (
-                <p className="text-sm text-red-600 mt-4 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  Please select a registration fee option to continue
-                </p>
-                        )}
-                      </div>
-                    </div>
+          {!selectedFee && (
+            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-amber-800">Please select a registration fee option to continue</p>
+            </div>
+          )}
+            </div>
+          </div>
+      )}
+
+      <form
+        onSubmit={onSubmit}
+        className="max-w-7xl mx-auto animate-fade-in space-y-8"
+      >
+      {/* Registration Information Text */}
+      {registrationInfoText && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 p-6 rounded-lg shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-gray-900 mb-2">Registration Information</h3>
+              <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {registrationInfoText}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Navigation */}
+      <div className="mb-10">
+        <nav className="flex flex-wrap gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('registration')}
+              className={`flex items-center gap-3 px-6 py-3.5 text-base font-semibold rounded-xl transition-all duration-200 ${
+                activeTab === 'registration'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
+              }`}
+            >
+              <UserPlus className={`w-5 h-5 ${activeTab === 'registration' ? 'text-white' : 'text-gray-500'}`} />
+              <span>Registration</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('accommodation')}
+              className={`flex items-center gap-3 px-6 py-3.5 text-base font-semibold rounded-xl transition-all duration-200 ${
+                activeTab === 'accommodation'
+                  ? 'bg-green-600 text-white shadow-md shadow-green-500/20'
+                  : 'text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
+              }`}
+            >
+              <Bed className={`w-5 h-5 ${activeTab === 'accommodation' ? 'text-white' : 'text-gray-500'}`} />
+              <span>Accommodation</span>
+            </button>
+            
+            {abstractSubmissionEnabled && conferenceSlug && (
+              <Link
+                href={`/conferences/${conferenceSlug}/submit-abstract`}
+                className="flex items-center gap-3 px-6 py-3.5 text-base font-semibold rounded-xl transition-all duration-200 text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 border border-gray-200"
+              >
+                <Upload className="w-5 h-5 text-gray-500" />
+                <span>Abstract Submission</span>
+              </Link>
+            )}
+        </nav>
+      </div>
+
+      {/* Registration Tab Content */}
+      {activeTab === 'registration' && (
+        <div className="space-y-10">
+          {/* Registration Form Section - Main Focus, No Nesting */}
+          {customFields.length > 0 && (
+            <div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                  <UserPlus className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">Registration Form</h2>
+                  <p className="text-sm text-gray-600">Fill in your details below</p>
+                </div>
+              </div>
+              
+              <div className="animate-slide-in">
+                <ParticipantManager
+                  participants={participants}
+                  onChange={setParticipants}
+                  maxParticipants={participantSettings?.maxParticipants || 5}
+                  participantFields={participantSettings?.participantFields || []}
+                  customFields={customFields}
+                  participantLabel={participantSettings?.participantLabel || 'Participant'}
+                  customFieldsPerParticipant={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Empty state when no fields */}
+          {customFields.length === 0 && (
+            <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+              <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-700 mb-2">No registration fields configured yet.</p>
+              <p className="text-sm text-gray-500">
+                Please contact the conference administrator.
+              </p>
+            </div>
           )}
 
           {/* Payment Preference Section */}
           {pricing && selectedFee && paymentSettings?.enabled && availableOptionsCount > 0 && (
-            <div className="mt-8 border-t-2 border-gray-100 pt-8">
-              <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 p-6 rounded-xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Payment Options</h3>
-                    <p className="text-sm text-gray-600">
-                      {availableOptionsCount === 1 
-                        ? 'Payment method' 
-                        : 'Choose when and how you want to pay'}
-                    </p>
-                  </div>
+            <div className="pt-8 border-t-2 border-gray-100">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
                 </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">Payment Options</h2>
+                  <p className="text-sm text-gray-600">
+                    {availableOptionsCount === 1 
+                      ? 'Payment method' 
+                      : 'Choose when and how you want to pay'}
+                  </p>
+                </div>
+              </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* Pay Now - Credit Card (conditional) */}
                   {availablePaymentOptions.card && (
                   <label
-                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
                       paymentPreference === 'pay_now_card'
-                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-100'
                         : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
                     }`}
                   >
@@ -571,18 +611,20 @@ export default function RegistrationForm({
                       value="pay_now_card"
                       checked={paymentPreference === 'pay_now_card'}
                       onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
-                        <div className="font-semibold text-gray-900">Credit/Debit Card</div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                          </svg>
+                        </div>
+                        <div className="font-bold text-gray-900">Credit/Debit Card</div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">Pay securely with Stripe (Instant confirmation)</p>
+                      <p className="text-sm text-gray-600 ml-11">Pay securely with Stripe (Instant confirmation)</p>
                     </div>
-                    <div className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    <div className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
                       Instant
                     </div>
                   </label>
@@ -591,9 +633,9 @@ export default function RegistrationForm({
                   {/* Pay Now - Bank Transfer (conditional) */}
                   {availablePaymentOptions.bank && (
                   <label
-                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
                       paymentPreference === 'pay_now_bank'
-                        ? 'border-green-500 bg-green-50 shadow-md'
+                        ? 'border-green-500 bg-green-50 shadow-md ring-2 ring-green-100'
                         : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
                     }`}
                   >
@@ -603,18 +645,20 @@ export default function RegistrationForm({
                       value="pay_now_bank"
                       checked={paymentPreference === 'pay_now_bank'}
                       onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500"
+                      className="mt-1 w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                        </svg>
-                        <div className="font-semibold text-gray-900">Bank Transfer</div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                          </svg>
+                        </div>
+                        <div className="font-bold text-gray-900">Bank Transfer</div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">Transfer to our bank account (Manual verification required)</p>
+                      <p className="text-sm text-gray-600 ml-11">Transfer to our bank account (Manual verification required)</p>
                     </div>
-                    <div className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    <div className="bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
                       1-2 days
                     </div>
                   </label>
@@ -623,9 +667,9 @@ export default function RegistrationForm({
                   {/* Pay Later (conditional) */}
                   {availablePaymentOptions.later && (
                   <label
-                    className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
                       paymentPreference === 'pay_later'
-                        ? 'border-purple-500 bg-purple-50 shadow-md'
+                        ? 'border-purple-500 bg-purple-50 shadow-md ring-2 ring-purple-100'
                         : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
                     }`}
                   >
@@ -635,18 +679,20 @@ export default function RegistrationForm({
                       value="pay_later"
                       checked={paymentPreference === 'pay_later'}
                       onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                      className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <div className="font-semibold text-gray-900">Pay Later</div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div className="font-bold text-gray-900">Pay Later</div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">Register now, receive payment instructions via email</p>
+                      <p className="text-sm text-gray-600 ml-11">Register now, receive payment instructions via email</p>
                     </div>
-                    <div className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    <div className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
                       Flexible
                     </div>
                   </label>
@@ -655,34 +701,36 @@ export default function RegistrationForm({
 
                 {/* Bank Transfer Instructions (conditional) */}
                 {paymentPreference === 'pay_now_bank' && availablePaymentOptions.bank && (
-                  <div className="mt-6 p-5 bg-white border-2 border-green-200 rounded-lg">
-                    <div className="flex items-start gap-3 mb-4">
-                      <svg className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                  <div className="mt-6 p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-sm">
+                    <div className="flex items-start gap-4 mb-5">
+                      <div className="w-10 h-10 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-gray-900 mb-2">🏦 Bank Transfer Instructions</h4>
-                        <p className="text-sm text-gray-700 mb-4">
+                        <h4 className="text-base font-bold text-gray-900 mb-2">Bank Transfer Instructions</h4>
+                        <p className="text-sm text-gray-700 mb-4 leading-relaxed">
                           After submitting your registration, you will receive bank account details and a unique payment reference number via email.
-                          Please complete the transfer within <strong>7 days</strong> to secure your spot.
+                          Please complete the transfer within <strong className="text-gray-900">7 days</strong> to secure your spot.
                         </p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
-                          <p className="font-semibold text-blue-900 mb-2">What happens next:</p>
-                          <ul className="space-y-1 text-sm">
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600">✓</span>
+                        <div className="bg-white border border-green-200 rounded-lg p-5">
+                          <p className="font-bold text-gray-900 mb-3">What happens next:</p>
+                          <ul className="space-y-2.5 text-sm text-gray-700">
+                            <li className="flex items-start gap-3">
+                              <span className="text-green-600 font-bold mt-0.5">✓</span>
                               <span>You'll receive an email with bank details and payment reference</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600">✓</span>
+                            <li className="flex items-start gap-3">
+                              <span className="text-green-600 font-bold mt-0.5">✓</span>
                               <span>Transfer the amount and optionally upload proof of payment</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600">✓</span>
+                            <li className="flex items-start gap-3">
+                              <span className="text-green-600 font-bold mt-0.5">✓</span>
                               <span>We'll verify your payment within 1-2 business days</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600">✓</span>
+                            <li className="flex items-start gap-3">
+                              <span className="text-green-600 font-bold mt-0.5">✓</span>
                               <span>You'll receive a confirmation email once verified</span>
                             </li>
                           </ul>
@@ -691,17 +739,17 @@ export default function RegistrationForm({
                     </div>
 
                     {/* Optional: File upload for proof of payment */}
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <div className="mt-5 pt-5 border-t-2 border-green-200">
+                      <label className="block text-sm font-bold text-gray-900 mb-3">
                         Upload Proof of Payment (Optional)
                       </label>
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => setBankTransferProofFile(e.target.files?.[0] || null)}
-                        className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
+                        className="block w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 cursor-pointer transition-colors"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-600 mt-2">
                         You can upload this now or later via the confirmation email link
                       </p>
                     </div>
@@ -710,64 +758,74 @@ export default function RegistrationForm({
 
                 {/* Pay Later Info (conditional) */}
                 {paymentPreference === 'pay_later' && availablePaymentOptions.later && (
-                  <div className="mt-6 p-5 bg-white border-2 border-purple-200 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-6 h-6 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">📧 Payment Instructions via Email</h4>
-                        <p className="text-sm text-gray-700">
+                  <div className="mt-6 p-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-base font-bold text-gray-900 mb-2">Payment Instructions via Email</h4>
+                        <p className="text-sm text-gray-700 leading-relaxed mb-4">
                           You will receive an email with payment instructions and a payment link. 
                           Please complete your payment before the conference to ensure your registration is confirmed.
                         </p>
-                        <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-900">
-                          <strong>Reminder:</strong> Payment reminders will be sent automatically after 3, 7, and 14 days if payment is not received.
+                        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+                          <p className="text-sm font-semibold text-amber-900">
+                            <span className="inline-block mr-2">⚠️</span>
+                            <strong>Reminder:</strong> Payment reminders will be sent automatically after 3, 7, and 14 days if payment is not received.
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
           )}
 
           {/* Submit Button - only visible in Registration tab */}
           {customFields.length > 0 && (
-            <div className="mt-8 flex justify-end">
-                    <button
+            <div className="flex justify-end mt-10 pt-8 border-t-2 border-gray-200">
+              <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
-                    >
+                className="px-10 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 disabled:hover:scale-100 flex items-center gap-3 text-base"
+              >
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Submitting...
+                    <span>Submitting...</span>
                   </>
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Submit Registration
+                    <span>Submit Registration</span>
                   </>
                 )}
-                    </button>
-                  </div>
+              </button>
+            </div>
           )}
-          </div>
-        )}
+        </div>
+      )}
 
-        {/* Accommodation Tab Content */}
-        {activeTab === 'accommodation' && (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Accommodation</h3>
-              <p className="text-gray-600">Please select your arrival and departure dates</p>
-                        </div>
+      {/* Accommodation Tab Content */}
+      {activeTab === 'accommodation' && (
+        <div className="space-y-10">
+            {/* Date Selection Card */}
+            <div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg">
+                  <Bed className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">Accommodation Dates</h2>
+                  <p className="text-sm text-gray-600">Please select your arrival and departure dates</p>
+                </div>
+              </div>
 
-            {/* Date Selection */}
             <div className="max-w-md mx-auto space-y-4">
                           <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,55 +860,66 @@ export default function RegistrationForm({
 
               {/* Summary */}
               {arrivalDate && departureDate && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">Check-in:</span>
-                    <span className="font-semibold text-gray-900">
-                      {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
-                </span>
-                      </div>
-                  <div className="flex items-center justify-between text-sm mt-2">
-                    <span className="text-gray-700">Check-out:</span>
-                    <span className="font-semibold text-gray-900">
-                      {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 mt-8 shadow-sm">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Check-in:</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
                       </span>
                     </div>
-                  <div className="border-t border-green-300 mt-3 pt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Number of nights:</span>
-                      <span className="text-2xl font-bold text-green-600">{numberOfNights}</span>
+                      <span className="text-sm font-medium text-gray-700">Check-out:</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                      </span>
+                    </div>
+                    <div className="border-t-2 border-green-300 mt-4 pt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-semibold text-gray-900">Number of nights:</span>
+                        <span className="text-3xl font-bold text-green-600">{numberOfNights}</span>
                       </div>
                     </div>
+                  </div>
                 </div>
               )}
 
               {!arrivalDate && !departureDate && (
-                <div className="text-center py-8">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-                  <p className="text-gray-500 text-sm">No dates selected</p>
+                  <p className="text-gray-600 font-medium">No dates selected</p>
+                  <p className="text-sm text-gray-500 mt-1">Please select your arrival and departure dates</p>
                       </div>
                         )}
                       </div>
+            </div>
 
             {/* Hotel Selection - Only show when dates are selected */}
             {arrivalDate && departureDate && numberOfNights > 0 && (
-              <div className="mt-8 border-t border-gray-200 pt-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Select Your Hotel</h3>
-                <p className="text-sm text-gray-600 mb-6">Choose from available accommodation options</p>
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center">
+                    <Bed className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Select Your Hotel</h3>
+                    <p className="text-sm text-gray-500">Choose from available accommodation options</p>
+                  </div>
+                </div>
 
                 {(() => {
                   const availableHotels = getAvailableHotels()
                   
-                  if (availableHotels.length === 0) {
+                    if (availableHotels.length === 0) {
                     return (
-                      <div className="text-center py-8 bg-amber-50 border border-amber-200 rounded-lg">
-                        <svg className="w-12 h-12 text-amber-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="text-center py-12 bg-amber-50 border-2 border-amber-200 rounded-xl">
+                        <svg className="w-16 h-16 text-amber-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                        <p className="text-sm font-medium text-amber-800 mb-1">No hotels available for selected dates</p>
-                        <p className="text-xs text-amber-600">
+                        <p className="text-base font-semibold text-amber-900 mb-2">No hotels available for selected dates</p>
+                        <p className="text-sm text-amber-700">
                           Please try different dates or contact the conference organizers for accommodation options.
               </p>
           </div>
@@ -893,7 +962,7 @@ export default function RegistrationForm({
               </div>
                                 <div className="text-right ml-4">
                                   <div className="text-2xl font-bold text-green-600">
-                                    {totalPrice.toFixed(2)} {currency}
+                                    {formatPriceWithoutZeros(totalPrice)} {currency}
             </div>
                                   <p className="text-xs text-gray-500 mt-1">Total</p>
           </div>
@@ -924,7 +993,7 @@ export default function RegistrationForm({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                                  <span>{hotel.pricePerNight.toFixed(2)} {currency}/night</span>
+                                  <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {currency}/night</span>
               </div>
                 </div>
               </div>
@@ -937,41 +1006,41 @@ export default function RegistrationForm({
                 })()}
 
                 {!selectedHotel && getAvailableHotels().length > 0 && (
-                  <p className="text-sm text-amber-600 mt-4 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Please select a hotel to continue
-                  </p>
-                )}
+                  <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                    <p className="text-sm font-medium text-amber-800">Please select a hotel to continue</p>
                   </div>
+                )}
+              </div>
             )}
 
             {/* Submit Button for Accommodation Tab */}
             {arrivalDate && departureDate && (
-              <div className="mt-8 flex justify-end">
+              <div className="flex justify-end mt-10 pt-8 border-t-2 border-gray-200">
                 <button
                   type="submit"
                   disabled={isSubmitting || (hotelOptions.length > 0 && !selectedHotel)}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
+                  className="px-10 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 disabled:hover:scale-100 flex items-center gap-3 text-base"
                 >
                   {isSubmitting ? (
                     <>
                       <LoadingSpinner size="sm" />
-                      Submitting...
+                      <span>Submitting...</span>
                     </>
                   ) : (
                     <>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Complete Registration
+                      <span>Complete Registration</span>
                     </>
                   )}
                 </button>
               </div>
             )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </form>
+    </>
   )
 }

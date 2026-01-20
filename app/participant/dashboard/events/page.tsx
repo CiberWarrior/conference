@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
 
 export default function ParticipantEventsPage() {
   const [loading, setLoading] = useState(true)
@@ -220,7 +221,7 @@ export default function ParticipantEventsPage() {
                           <span
                             className={`font-medium ${getPaymentStatusColor(registration.payment_status)}`}
                           >
-                            {registration.amount_paid.toFixed(2)}{' '}
+                            {formatPriceWithoutZeros(registration.amount_paid)}{' '}
                             {registration.currency} -{' '}
                             {registration.payment_status}
                           </span>
