@@ -64,10 +64,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get all registrations
+    // Get all registrations with their conference email settings
     const { data: registrations, error: fetchError } = await supabase
       .from('registrations')
-      .select('*')
+      .select(`
+        *,
+        conference:conferences (
+          email_settings
+        )
+      `)
       .in('id', registrationIds)
 
     if (fetchError) {
@@ -133,6 +138,9 @@ export async function POST(request: NextRequest) {
           await Promise.all(
             batch.map(async (reg) => {
               try {
+                // Get email settings from conference (if available)
+                const emailSettings = (reg as any).conference?.email_settings || undefined
+
                 await sendEmail({
                   emailType,
                   registrationId: reg.id,
@@ -147,6 +155,7 @@ export async function POST(request: NextRequest) {
                   conferenceLocation: emailData?.conferenceLocation,
                   conferenceProgram: emailData?.conferenceProgram,
                   customMessage: emailData?.customMessage,
+                  emailSettings,
                 })
                 results.sent++
               } catch (error) {

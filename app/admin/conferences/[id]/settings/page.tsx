@@ -634,6 +634,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
             )}
           </div>
           <div className="flex items-center gap-3">
+            {/* Custom Pages (Phase 1) */}
+            <Link
+              href={`/admin/conferences/${conferenceId}/pages`}
+              className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
+            >
+              Pages
+            </Link>
             {/* Preview Button */}
             {conference.slug && (
               <Link

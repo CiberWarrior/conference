@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Verify conference exists and is active
       const { data: conference, error: confError } = await supabase
         .from('conferences')
-      .select('id, name, settings')
+      .select('id, name, settings, email_settings')
       .eq('id', validatedData.conference_id)
         .eq('published', true)
         .eq('active', true)
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
         payment_method: paymentMethod, // Payment method: card, bank_transfer, or null
         payment_status: paymentStatus, // Payment status based on preference
-        // Note: accommodation is stored in participant_registrations, not here
+        accommodation: validatedData.accommodation || null, // Store accommodation in registrations table as well
         // Legacy fields set to null/false for compatibility
         first_name: null,
         last_name: null,
@@ -385,6 +385,137 @@ export async function POST(request: NextRequest) {
     //     log.warn('Failed to send confirmation email', emailError)
     //   }
     // }
+
+    // Send notification to conference team (if reply_to email is configured)
+    if (conference.email_settings?.reply_to) {
+      try {
+        const { sendConferenceTeamNotification } = await import('@/lib/email')
+        
+        // Extract participant info for notification
+        let participantInfo = 'Guest Participant'
+        if (validatedData.participants && validatedData.participants.length > 0) {
+          const firstParticipant = validatedData.participants[0].customFields
+          const firstName = Object.entries(firstParticipant).find(([key]) => 
+            key.toLowerCase().includes('first') && key.toLowerCase().includes('name')
+          )?.[1] || ''
+          const lastName = Object.entries(firstParticipant).find(([key]) => 
+            key.toLowerCase().includes('last') && key.toLowerCase().includes('name')
+          )?.[1] || ''
+          participantInfo = `${firstName} ${lastName}`.trim() || primaryEmail || 'Guest Participant'
+        } else if (primaryEmail) {
+          participantInfo = primaryEmail
+        }
+
+        // Get hotel name if accommodation is selected
+        let hotelName = null
+        if (validatedData.accommodation?.hotel_id && conference.settings?.hotel_options) {
+          const hotelOptions = conference.settings.hotel_options as any[]
+          const selectedHotel = hotelOptions.find((h: any) => h.id === validatedData.accommodation?.hotel_id)
+          hotelName = selectedHotel?.name || null
+        }
+
+        await sendConferenceTeamNotification({
+          to: conference.email_settings.reply_to,
+          subject: `🎉 New Registration: ${conference.name}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                  .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                  .field { margin-bottom: 15px; }
+                  .label { font-weight: bold; color: #4b5563; display: block; margin-bottom: 5px; }
+                  .value { background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; }
+                  .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <div class="header">
+                    <h1 style="margin: 0;">🎉 New Registration</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Someone has registered for your conference</p>
+                  </div>
+                  <div class="content">
+                    <div class="field">
+                      <span class="label">Conference:</span>
+                      <div class="value">${conference.name}</div>
+                    </div>
+                    <div class="field">
+                      <span class="label">Participant:</span>
+                      <div class="value">${participantInfo}</div>
+                    </div>
+                    <div class="field">
+                      <span class="label">Registration ID:</span>
+                      <div class="value">${registration.id}</div>
+                    </div>
+                    <div class="field">
+                      <span class="label">Email:</span>
+                      <div class="value">${primaryEmail || 'N/A'}</div>
+                    </div>
+                    <div class="field">
+                      <span class="label">Participants Count:</span>
+                      <div class="value">${validatedData.participants?.length || 1}</div>
+                    </div>
+                    ${validatedData.accommodation ? `
+                    <div class="field">
+                      <span class="label">Accommodation:</span>
+                      <div class="value">
+                        ${hotelName ? `<strong>${hotelName}</strong><br/>` : ''}
+                        ${validatedData.accommodation?.arrival_date ? `Check-in: ${new Date(validatedData.accommodation.arrival_date).toLocaleDateString()}` : ''}
+                        ${validatedData.accommodation?.departure_date ? ` | Check-out: ${new Date(validatedData.accommodation.departure_date).toLocaleDateString()}` : ''}
+                        ${validatedData.accommodation?.number_of_nights ? ` | ${validatedData.accommodation.number_of_nights} nights` : ''}
+                      </div>
+                    </div>
+                    ` : ''}
+                    <div style="text-align: center; margin-top: 20px;">
+                      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations" class="button">
+                        View Registration →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `,
+          text: `
+New Registration
+
+Conference: ${conference.name}
+Participant: ${participantInfo}
+Registration ID: ${registration.id}
+Email: ${primaryEmail || 'N/A'}
+Participants Count: ${validatedData.participants?.length || 1}
+${validatedData.accommodation ? `
+Accommodation:
+${hotelName ? `Hotel: ${hotelName}` : ''}
+${validatedData.accommodation?.arrival_date ? `Check-in: ${new Date(validatedData.accommodation.arrival_date).toLocaleDateString()}` : ''}
+${validatedData.accommodation?.departure_date ? `Check-out: ${new Date(validatedData.accommodation.departure_date).toLocaleDateString()}` : ''}
+${validatedData.accommodation?.number_of_nights ? `Nights: ${validatedData.accommodation.number_of_nights}` : ''}
+` : ''}
+
+View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations
+          `,
+          conferenceName: conference.name,
+        })
+        log.info('Conference team notification sent for new registration', {
+          registrationId: registration.id,
+          conferenceId: validatedData.conference_id,
+          notificationEmail: conference.email_settings.reply_to,
+        })
+      } catch (notificationError) {
+        log.error('Failed to send conference team notification', notificationError instanceof Error ? notificationError : undefined, {
+          registrationId: registration.id,
+          conferenceId: validatedData.conference_id,
+          action: 'team_notification',
+        })
+        // Don't fail registration if notification fails
+      }
+    }
 
     return NextResponse.json(
       {

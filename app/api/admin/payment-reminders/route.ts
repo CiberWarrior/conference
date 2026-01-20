@@ -29,7 +29,12 @@ export async function POST(request: NextRequest) {
 
     const { data: registrations, error } = await supabase
       .from('registrations')
-      .select('*')
+      .select(`
+        *,
+        conference:conferences (
+          email_settings
+        )
+      `)
       .eq('payment_status', 'pending')
       .eq('payment_required', true)
       .lte('created_at', cutoffDate.toISOString())
@@ -82,6 +87,9 @@ export async function POST(request: NextRequest) {
         // Generate payment URL (you may need to adjust this based on your payment flow)
         const paymentUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/payment/${reg.id}`
 
+        // Get email settings from conference (if available)
+        const emailSettings = (reg as any).conference?.email_settings || undefined
+
         // Send reminder email
         await sendPaymentReminder(
           reg.id,
@@ -89,7 +97,8 @@ export async function POST(request: NextRequest) {
           reg.first_name,
           reg.last_name,
           paymentUrl,
-          `This is reminder ${(reg.payment_reminder_count || 0) + 1} of ${maxReminders}. Please complete your payment to secure your spot.`
+          `This is reminder ${(reg.payment_reminder_count || 0) + 1} of ${maxReminders}. Please complete your payment to secure your spot.`,
+          emailSettings
         )
 
         // Update registration with reminder info

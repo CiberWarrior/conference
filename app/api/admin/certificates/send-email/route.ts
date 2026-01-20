@@ -24,10 +24,15 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerClient()
 
-    // Get registration details
+    // Get registration details with conference email settings
     const { data: registration, error: regError } = await supabase
       .from('registrations')
-      .select('*')
+      .select(`
+        *,
+        conference:conferences (
+          email_settings
+        )
+      `)
       .eq('id', registrationId)
       .single()
 
@@ -38,6 +43,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get email settings from conference (if available)
+    const emailSettings = (registration as any).conference?.email_settings || undefined
+
     // Send certificate email
     await sendCertificate(
       registrationId,
@@ -45,7 +53,8 @@ export async function POST(request: NextRequest) {
       registration.first_name,
       registration.last_name,
       certificateUrl,
-      customMessage
+      customMessage,
+      emailSettings
     )
 
     // Update registration

@@ -962,6 +962,31 @@ export default function RegistrationForm({
                 )}
                   </div>
             )}
+
+            {/* Submit Button for Accommodation Tab */}
+            {arrivalDate && departureDate && (
+              <div className="mt-8 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || (hotelOptions.length > 0 && !selectedHotel)}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Complete Registration
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

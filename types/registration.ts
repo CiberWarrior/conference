@@ -45,6 +45,7 @@ export interface Registration extends RegistrationData {
     arrival_date: string
     departure_date: string
     number_of_nights: number
+    hotel_id?: string | null // Selected hotel ID
   } | null // Accommodation details
   // Multi-currency & bank transfer support
   payment_method?: 'card' | 'bank_transfer' | 'cash' | 'other' // Method of payment

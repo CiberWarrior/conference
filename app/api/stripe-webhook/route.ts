@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
     const registrationId = session.metadata?.registrationId
 
     if (registrationId) {
-      // Get registration details for email
+      // Get registration details for email (including conference_id)
       const { data: registration, error: regError } = await supabase
         .from('registrations')
-        .select('*')
+        .select('*, conference_id')
         .eq('id', registrationId)
         .single()
 
@@ -109,6 +109,24 @@ export async function POST(request: NextRequest) {
         metadata: { session_id: session.id },
       })
 
+      // Get conference email settings for this registration
+      let emailSettings = undefined
+      let conferenceName = undefined
+      if (registration?.conference_id) {
+        const { data: conference } = await supabase
+          .from('conferences')
+          .select('email_settings, name')
+          .eq('id', registration.conference_id)
+          .single()
+        
+        if (conference?.email_settings) {
+          emailSettings = conference.email_settings
+        }
+        if (conference?.name) {
+          conferenceName = conference.name
+        }
+      }
+
       // Send payment confirmation email
       if (registration) {
         sendPaymentConfirmation(
@@ -116,7 +134,8 @@ export async function POST(request: NextRequest) {
           registration.email,
           registration.first_name,
           registration.last_name,
-          registration.invoice_url || undefined
+          registration.invoice_url || undefined,
+          emailSettings
         ).catch((err) => {
           log.error('Failed to send payment confirmation email', err instanceof Error ? err : undefined, {
             registrationId,
@@ -124,6 +143,101 @@ export async function POST(request: NextRequest) {
             action: 'payment_confirmation_email',
           })
         })
+
+        // Send notification to conference team (if reply_to email is configured)
+        if (emailSettings?.reply_to) {
+          try {
+            const { sendConferenceTeamNotification } = await import('@/lib/email')
+            const amount = (session.amount_total || 0) / 100
+            const currency = session.currency?.toUpperCase() || 'EUR'
+            
+            await sendConferenceTeamNotification({
+              to: emailSettings.reply_to,
+              subject: `✅ Payment Received: ${conferenceName || 'Conference'}`,
+              html: `
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                      .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                      .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                      .field { margin-bottom: 15px; }
+                      .label { font-weight: bold; color: #4b5563; display: block; margin-bottom: 5px; }
+                      .value { background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; }
+                      .amount { font-size: 24px; font-weight: bold; color: #10b981; }
+                      .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="container">
+                      <div class="header">
+                        <h1 style="margin: 0;">✅ Payment Received</h1>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9;">A payment has been successfully processed</p>
+                      </div>
+                      <div class="content">
+                        <div class="field">
+                          <span class="label">Conference:</span>
+                          <div class="value">${conferenceName || 'N/A'}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Participant:</span>
+                          <div class="value">${registration.first_name} ${registration.last_name}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Email:</span>
+                          <div class="value">${registration.email}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Registration ID:</span>
+                          <div class="value">${registration.id}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Amount:</span>
+                          <div class="value amount">${amount} ${currency}</div>
+                        </div>
+                        <div style="text-align: center; margin-top: 20px;">
+                          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations" class="button">
+                            View Registration →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </body>
+                </html>
+              `,
+              text: `
+Payment Received
+
+Conference: ${conferenceName || 'N/A'}
+Participant: ${registration.first_name} ${registration.last_name}
+Email: ${registration.email}
+Registration ID: ${registration.id}
+Amount: ${amount} ${currency}
+
+View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations
+              `,
+              conferenceName: conferenceName,
+            })
+            log.info('Conference team notification sent for payment', {
+              registrationId,
+              conferenceId: registration.conference_id,
+              notificationEmail: emailSettings.reply_to,
+              amount,
+              currency,
+            })
+          } catch (notificationError) {
+            log.error('Failed to send conference team notification for payment', notificationError instanceof Error ? notificationError : undefined, {
+              registrationId,
+              conferenceId: registration.conference_id,
+              action: 'team_notification_payment',
+            })
+            // Don't fail payment processing if notification fails
+          }
+        }
       }
     }
   }
@@ -135,10 +249,10 @@ export async function POST(request: NextRequest) {
 
     if (registrationId) {
       try {
-        // Get registration details
+        // Get registration details (including conference_id)
         const { data: registration, error: regError } = await supabase
           .from('registrations')
-          .select('*')
+          .select('*, conference_id')
           .eq('id', registrationId)
           .single()
 
@@ -239,13 +353,32 @@ export async function POST(request: NextRequest) {
           metadata: { invoice_id: invoiceId, payment_intent_id: paymentIntent.id },
         })
 
+        // Get conference email settings for this registration
+        let emailSettings = undefined
+        let conferenceName = undefined
+        if (registration?.conference_id) {
+          const { data: conference } = await supabase
+            .from('conferences')
+            .select('email_settings, name')
+            .eq('id', registration.conference_id)
+            .single()
+          
+          if (conference?.email_settings) {
+            emailSettings = conference.email_settings
+          }
+          if (conference?.name) {
+            conferenceName = conference.name
+          }
+        }
+
         // Send payment confirmation email
         sendPaymentConfirmation(
           registration.id,
           registration.email,
           registration.first_name,
           registration.last_name,
-          invoiceUrl || undefined
+          invoiceUrl || undefined,
+          emailSettings
         ).catch((err) => {
           log.error('Failed to send payment confirmation email', err, {
             registrationId,
@@ -253,6 +386,108 @@ export async function POST(request: NextRequest) {
             eventType: 'payment_intent.succeeded',
           })
         })
+
+        // Send notification to conference team (if reply_to email is configured)
+        if (emailSettings?.reply_to) {
+          try {
+            const { sendConferenceTeamNotification } = await import('@/lib/email')
+            const amount = paymentIntent.amount / 100
+            const currency = paymentIntent.currency?.toUpperCase() || 'EUR'
+            
+            await sendConferenceTeamNotification({
+              to: emailSettings.reply_to,
+              subject: `✅ Payment Received: ${conferenceName || 'Conference'}`,
+              html: `
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                      .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                      .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                      .field { margin-bottom: 15px; }
+                      .label { font-weight: bold; color: #4b5563; display: block; margin-bottom: 5px; }
+                      .value { background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; }
+                      .amount { font-size: 24px; font-weight: bold; color: #10b981; }
+                      .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="container">
+                      <div class="header">
+                        <h1 style="margin: 0;">✅ Payment Received</h1>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9;">A payment has been successfully processed</p>
+                      </div>
+                      <div class="content">
+                        <div class="field">
+                          <span class="label">Conference:</span>
+                          <div class="value">${conferenceName || 'N/A'}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Participant:</span>
+                          <div class="value">${registration.first_name} ${registration.last_name}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Email:</span>
+                          <div class="value">${registration.email}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Registration ID:</span>
+                          <div class="value">${registration.id}</div>
+                        </div>
+                        <div class="field">
+                          <span class="label">Amount:</span>
+                          <div class="value amount">${amount} ${currency}</div>
+                        </div>
+                        ${invoiceUrl ? `
+                        <div class="field">
+                          <span class="label">Invoice:</span>
+                          <div class="value"><a href="${invoiceUrl}" target="_blank">View Invoice</a></div>
+                        </div>
+                        ` : ''}
+                        <div style="text-align: center; margin-top: 20px;">
+                          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations" class="button">
+                            View Registration →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </body>
+                </html>
+              `,
+              text: `
+Payment Received
+
+Conference: ${conferenceName || 'N/A'}
+Participant: ${registration.first_name} ${registration.last_name}
+Email: ${registration.email}
+Registration ID: ${registration.id}
+Amount: ${amount} ${currency}
+${invoiceUrl ? `Invoice: ${invoiceUrl}` : ''}
+
+View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/registrations
+              `,
+              conferenceName: conferenceName,
+            })
+            log.info('Conference team notification sent for payment', {
+              registrationId,
+              conferenceId: registration.conference_id,
+              notificationEmail: emailSettings.reply_to,
+              amount,
+              currency,
+            })
+          } catch (notificationError) {
+            log.error('Failed to send conference team notification for payment', notificationError instanceof Error ? notificationError : undefined, {
+              registrationId,
+              conferenceId: registration.conference_id,
+              action: 'team_notification_payment',
+            })
+            // Don't fail payment processing if notification fails
+          }
+        }
       } catch (invoiceError) {
         log.error('Error creating invoice', invoiceError, {
           registrationId,

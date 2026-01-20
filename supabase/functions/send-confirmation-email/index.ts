@@ -27,6 +27,12 @@ interface EmailRequest {
   abstractId?: string
   fileName?: string
   conferenceName?: string
+  // Conference email settings (optional - falls back to default if not provided)
+  emailSettings?: {
+    from_email?: string
+    from_name?: string
+    reply_to?: string
+  }
 }
 
 serve(async (req) => {
@@ -63,6 +69,7 @@ serve(async (req) => {
       abstractId,
       fileName,
       conferenceName,
+      emailSettings,
     } = (await req.json()) as EmailRequest
 
     // Validate required fields based on email type
@@ -520,6 +527,31 @@ Thank you for your submission!
 
     const emailTemplate = generateEmailTemplate(emailType)
 
+    // Determine email sender (from) - use conference settings if provided, otherwise fallback to default
+    let fromEmail = 'MeetFlow <noreply@renatahorvat.com>'
+    if (emailSettings?.from_email) {
+      // If from_name is provided, use it; otherwise just use the email
+      if (emailSettings.from_name) {
+        fromEmail = `${emailSettings.from_name} <${emailSettings.from_email}>`
+      } else {
+        fromEmail = emailSettings.from_email
+      }
+    }
+
+    // Prepare email payload
+    const emailPayload: any = {
+      from: fromEmail,
+      to: email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+      text: emailTemplate.text,
+    }
+
+    // Add reply-to if provided
+    if (emailSettings?.reply_to) {
+      emailPayload.reply_to = emailSettings.reply_to
+    }
+
     // Send email via Resend API
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -527,13 +559,7 @@ Thank you for your submission!
         'Content-Type': 'application/json',
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify({
-        from: 'MeetFlow <noreply@renatahorvat.com>',
-        to: email,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-        text: emailTemplate.text,
-      }),
+      body: JSON.stringify(emailPayload),
     })
 
     if (!resendResponse.ok) {

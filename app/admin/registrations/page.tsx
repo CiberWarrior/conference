@@ -111,8 +111,9 @@ function RegistrationsPageContent() {
             phone: r.phone || findField(['Phone Number', 'PHONE', 'Phone', 'phone', 'Telephone', 'Mobile', 'Mobile Number', 'Contact Number', 'Tel'], 'phone'),
             country: r.country || findField(['COUNTRY', 'Country', 'country'], 'country'),
             institution: r.institution || findField(['INSTITUTION', 'Institution', 'institution', 'ORGANIZATION', 'Organization', 'Company'], 'institution'),
-            arrivalDate: r.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In']),
-            departureDate: r.departure_date || findField(['Departure Date', 'departure_date', 'Check Out']),
+            arrivalDate: r.arrival_date || r.accommodation?.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In']),
+            departureDate: r.departure_date || r.accommodation?.departure_date || findField(['Departure Date', 'departure_date', 'Check Out']),
+            accommodation: r.accommodation || null, // Store accommodation data
             paymentRequired: r.payment_required,
             paymentByCard: r.payment_by_card || false,
             accompanyingPersons: r.accompanying_persons || false,
@@ -821,6 +822,9 @@ function RegistrationsPageContent() {
                   Departure
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Hotel
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Payment
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -901,6 +905,30 @@ function RegistrationsPageContent() {
                       <div className="text-sm text-gray-500">
                         {reg.departureDate ? new Date(reg.departureDate).toLocaleDateString() : '-'}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {reg.accommodation && (reg.accommodation as any).hotel_id ? (
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-900">
+                            {(() => {
+                              // Try to get hotel name from currentConference settings
+                              if (currentConference?.settings?.hotel_options) {
+                                const hotelOptions = currentConference.settings.hotel_options as any[]
+                                const hotel = hotelOptions.find((h: any) => h.id === (reg.accommodation as any).hotel_id)
+                                return hotel?.name || 'Hotel Selected'
+                              }
+                              return 'Hotel Selected'
+                            })()}
+                          </div>
+                          {reg.accommodation?.number_of_nights && (
+                            <div className="text-xs text-gray-500">
+                              {reg.accommodation.number_of_nights} nights
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.paymentRequired ? (

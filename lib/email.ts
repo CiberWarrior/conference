@@ -4,6 +4,7 @@
  */
 
 import { log } from './logger'
+import { EmailSettings } from '@/types/conference'
 
 type EmailType =
   | 'registration_confirmation'
@@ -33,6 +34,8 @@ interface SendEmailParams {
   tempPassword?: string
   planName?: string
   paymentLinkUrl?: string
+  // Conference email settings (optional - falls back to default if not provided)
+  emailSettings?: EmailSettings
 }
 
 /**
@@ -166,7 +169,8 @@ export async function sendRegistrationConfirmation(
   email: string,
   firstName: string,
   lastName: string,
-  paymentUrl?: string
+  paymentUrl?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'registration_confirmation',
@@ -175,6 +179,7 @@ export async function sendRegistrationConfirmation(
     firstName,
     lastName,
     paymentUrl,
+    emailSettings,
   })
 }
 
@@ -186,7 +191,8 @@ export async function sendPaymentConfirmation(
   email: string,
   firstName: string,
   lastName: string,
-  invoiceUrl?: string
+  invoiceUrl?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'payment_confirmation',
@@ -195,6 +201,7 @@ export async function sendPaymentConfirmation(
     firstName,
     lastName,
     invoiceUrl,
+    emailSettings,
   })
 }
 
@@ -207,7 +214,8 @@ export async function sendPaymentReminder(
   firstName: string,
   lastName: string,
   paymentUrl?: string,
-  customMessage?: string
+  customMessage?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'payment_reminder',
@@ -217,6 +225,7 @@ export async function sendPaymentReminder(
     lastName,
     paymentUrl,
     customMessage,
+    emailSettings,
   })
 }
 
@@ -231,7 +240,8 @@ export async function sendPreConferenceReminder(
   conferenceDate?: string,
   conferenceLocation?: string,
   conferenceProgram?: string,
-  customMessage?: string
+  customMessage?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'pre_conference_reminder',
@@ -243,6 +253,7 @@ export async function sendPreConferenceReminder(
     conferenceLocation,
     conferenceProgram,
     customMessage,
+    emailSettings,
   })
 }
 
@@ -257,7 +268,8 @@ export async function sendEventDetails(
   conferenceDate?: string,
   conferenceLocation?: string,
   conferenceProgram?: string,
-  customMessage?: string
+  customMessage?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'event_details',
@@ -269,6 +281,7 @@ export async function sendEventDetails(
     conferenceLocation,
     conferenceProgram,
     customMessage,
+    emailSettings,
   })
 }
 
@@ -281,7 +294,8 @@ export async function sendCertificate(
   firstName: string,
   lastName: string,
   certificateUrl: string,
-  customMessage?: string
+  customMessage?: string,
+  emailSettings?: EmailSettings
 ): Promise<void> {
   return sendEmail({
     emailType: 'certificate',
@@ -291,6 +305,7 @@ export async function sendCertificate(
     lastName,
     certificateUrl,
     customMessage,
+    emailSettings,
   })
 }
 
@@ -429,3 +444,68 @@ export async function sendPaymentOfferEmail(
   })
 }
 
+/**
+ * Send notification email to conference team
+ * Uses reply_to email from conference email settings
+ */
+export async function sendConferenceTeamNotification(params: {
+  to: string // reply_to email from conference settings
+  subject: string
+  html: string
+  text: string
+  conferenceName?: string
+}): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY
+
+  if (!resendApiKey) {
+    log.warn('RESEND_API_KEY not configured - notification email will not be sent', {
+      to: params.to,
+      subject: params.subject,
+      function: 'sendConferenceTeamNotification',
+    })
+    return
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM || 'MeetFlow <noreply@renatahorvat.com>',
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+        text: params.text,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      log.error('Failed to send conference team notification', new Error(error), {
+        to: params.to,
+        subject: params.subject,
+        function: 'sendConferenceTeamNotification',
+        status: response.status,
+      })
+      throw new Error(`Failed to send notification: ${error}`)
+    }
+
+    const result = await response.json()
+    log.info('Conference team notification sent successfully', {
+      to: params.to,
+      subject: params.subject,
+      messageId: result.id,
+      function: 'sendConferenceTeamNotification',
+    })
+  } catch (error) {
+    log.error('Error sending conference team notification', error, {
+      to: params.to,
+      subject: params.subject,
+      function: 'sendConferenceTeamNotification',
+    })
+    throw error
+  }
+}
