@@ -131,19 +131,14 @@ export default function RegistrationForm({
 
   // Validate required fields before submission
   const validateForm = (): boolean => {
-    console.log('🔍 Starting validation...')
-    
     // Check if there's at least one participant
     if (participants.length === 0) {
-      console.log('❌ Validation failed: No participants')
       showError('At least one participant is required')
       return false
     }
 
     // Check if registration fee is selected (if pricing is available)
     if (pricing && !selectedFee) {
-      console.log('❌ Validation failed: No registration fee selected')
-      console.log('Pricing exists:', !!pricing, 'Selected fee:', selectedFee)
       showError('Please select a registration fee option')
       return false
     }
@@ -151,12 +146,10 @@ export default function RegistrationForm({
     // Check all required custom fields for each participant
     for (let i = 0; i < participants.length; i++) {
       const participant = participants[i]
-      console.log(`🔍 Validating Participant ${i + 1}:`, participant.customFields)
       
       for (const field of customFields) {
         if (field.required) {
           const value = participant.customFields?.[field.name]
-          console.log(`  Checking field "${field.name}" (${field.label}): value =`, value, 'required =', field.required)
           
           // Check if required field is empty
           if (
@@ -165,7 +158,6 @@ export default function RegistrationForm({
             value === '' ||
             (field.type === 'checkbox' && value !== true)
           ) {
-            console.log(`❌ Validation failed: Participant ${i + 1}, field "${field.label}" is empty`)
             showError(`Participant ${i + 1}: ${field.label} is required`)
             return false
         }
@@ -173,24 +165,15 @@ export default function RegistrationForm({
       }
     }
 
-    console.log('✅ Validation passed!')
     return true
   }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    console.log('🔍 Form submission started')
-    console.log('📊 Participants:', participants)
-    console.log('💶 Selected Fee:', selectedFee)
-    console.log('📝 Custom Fields:', customFields)
-
     if (!validateForm()) {
-      console.log('❌ Validation failed')
       return
     }
-
-    console.log('✅ Validation passed')
 
     try {
       setIsSubmitting(true)
@@ -225,8 +208,7 @@ export default function RegistrationForm({
         throw new Error(errorData.error || 'Registration failed')
       }
 
-      const successData = await response.json()
-      console.log('✅ Registration successful:', successData)
+      await response.json()
 
       setSubmitSuccess(true)
       showSuccess('Registration submitted successfully!')

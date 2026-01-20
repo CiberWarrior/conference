@@ -439,8 +439,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
         })
 
         if (saveResponse.ok) {
-          const saveData = await saveResponse.json()
-          console.log('Logo saved to database:', saveData.conference?.logo_url)
+          await saveResponse.json()
           setFormData((prev) => ({ ...prev, logo_url: data.url }))
           // Reload conference to show updated logo without full page refresh
           await loadConference()

@@ -37,12 +37,8 @@ export default function AdminLoginPage() {
     setError('')
     setLoading(true)
 
-    console.log('🔐 Login attempt:', { email })
-
     try {
       // Call server-side login API to properly set session cookies
-      console.log('📡 Calling /api/auth/login...')
-      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -53,11 +49,8 @@ export default function AdminLoginPage() {
       })
 
       const data = await response.json()
-      console.log('📥 Login response:', { status: response.status, data })
 
       if (!response.ok) {
-        console.error('❌ Login failed:', data.error)
-        
         // Show specific error message for service unavailable
         if (response.status === 503) {
           setError('Authentication service is currently unavailable. Please check if Supabase project is active.')
@@ -68,38 +61,32 @@ export default function AdminLoginPage() {
         return
       }
 
-      console.log('✅ Login successful! User:', data.user?.email, 'Role:', data.user?.role)
-      
       // Show success state
       setSuccess(true)
       setError('')
       
       // IMPORTANT: Set session in client-side Supabase instance
       if (data.session) {
-        console.log('🔄 Setting client-side session...')
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         })
         
         if (sessionError) {
-          console.error('❌ Failed to set client session:', sessionError.message)
+          console.error('Failed to set client session:', sessionError.message)
           setError('Failed to set session. Please try again.')
           setLoading(false)
           return
-        } else {
-          console.log('✅ Client-side session set successfully')
         }
       }
       
       // Wait a bit for session to be fully set
       await new Promise(resolve => setTimeout(resolve, 100))
       
-      console.log('🚀 Redirecting to dashboard...')
       // Use window.location for full page reload to ensure session is properly loaded
       window.location.href = '/admin/dashboard'
     } catch (error) {
-      console.error('❌ Login error:', error)
+      console.error('Login error:', error)
       setError('An error occurred. Please try again.')
       setLoading(false)
     }

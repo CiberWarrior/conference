@@ -101,20 +101,16 @@ export default function TiptapEditor({ content, onChange, placeholder, conferenc
 
       // Insert image into editor using Image extension
       if (editor && data.url) {
-        console.log('Inserting image with URL:', data.url)
-        
         // Try setImage first, fallback to insertContent
         let inserted = false
         try {
           editor.chain().focus().setImage({ src: data.url, alt: '' }).run()
           inserted = true
-          console.log('Image inserted using setImage')
         } catch (e) {
           console.warn('setImage failed, trying insertContent:', e)
           // Fallback if setImage is not available
           editor.chain().focus().insertContent(`<img src="${data.url}" alt="" class="max-w-full h-auto rounded-lg my-4" />`).run()
           inserted = true
-          console.log('Image inserted using insertContent')
         }
 
         // Force a React state sync so the parent "Save" sends HTML that includes the image.
@@ -123,15 +119,9 @@ export default function TiptapEditor({ content, onChange, placeholder, conferenc
           try {
             const html = editor.getHTML()
             const hasImg = html.includes('<img')
-            console.log('Updating content after image insert:', {
-              htmlLength: html.length,
-              hasImg,
-              htmlPreview: html.substring(0, 300)
-            })
             
             if (hasImg) {
               onChange(html)
-              console.log('Content updated with image')
             } else {
               console.warn('Image not found in editor HTML after insert!')
             }

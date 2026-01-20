@@ -172,23 +172,20 @@ export default function DashboardPage() {
   const loadConferenceAdmins = async () => {
     try {
       setLoadingAdmins(true)
-      console.log('🔄 Loading conference admins...')
       const response = await fetch('/api/admin/users')
       const data = await response.json()
 
       if (response.ok) {
-        console.log('✅ Users loaded:', data.users?.length || 0)
         // Filter only conference_admin users
         const admins = (data.users || []).filter(
           (user: any) => user.role === 'conference_admin' && user.active
         )
-        console.log('📋 Conference admins found:', admins.length)
         setConferenceAdmins(admins)
       } else {
-        console.error('❌ Failed to load users:', data.error)
+        console.error('Failed to load users:', data.error)
       }
     } catch (error) {
-      console.error('❌ Error loading conference admins:', error)
+      console.error('Error loading conference admins:', error)
     } finally {
       setLoadingAdmins(false)
     }
@@ -197,12 +194,10 @@ export default function DashboardPage() {
   const handleImpersonate = async (userId: string) => {
     try {
       setImpersonatingUserId(userId)
-      console.log('🔄 Starting impersonation for user:', userId)
       await startImpersonation(userId)
-      console.log('✅ Impersonation started successfully')
       // Page will reload automatically after impersonation starts
     } catch (error: any) {
-      console.error('❌ Error starting impersonation:', error)
+      console.error('Error starting impersonation:', error)
       setImpersonatingUserId(null)
       alert(error.message || 'Failed to start impersonation. Please try again.')
     }
@@ -636,7 +631,7 @@ export default function DashboardPage() {
         .single()
 
       if (statsError) {
-        console.log('ℹ️ Inquiry stats view not available (this is OK)')
+        // Inquiry stats view may not be available - this is OK
         return
       }
 
@@ -649,7 +644,7 @@ export default function DashboardPage() {
         })
       }
     } catch (error) {
-      console.log('ℹ️ Could not load inquiry stats (this is OK)')
+      // Inquiry stats view may not be available - this is OK
     }
   }
 
@@ -1447,12 +1442,6 @@ export default function DashboardPage() {
 
       {/* Conference Admins Section - Show for super admin even when conference is selected */}
       {(() => {
-        console.log('🔍 Conference Admins Section Check:', {
-          isSuperAdmin,
-          isImpersonating,
-          conferenceAdminsLength: conferenceAdmins.length,
-          loadingAdmins,
-        })
         return null
       })()}
       {isSuperAdmin && !isImpersonating && (

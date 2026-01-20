@@ -39,7 +39,6 @@ export default function ConferenceCustomPage() {
       try {
         const DOMPurify = (await import('dompurify')).default
         ;(window as any).DOMPurify = DOMPurify
-        console.log('DOMPurify loaded successfully')
         setDomPurifyLoaded(true)
       } catch (err) {
         console.warn('Failed to load DOMPurify:', err)

@@ -45,17 +45,15 @@ function MyComponent() {
 }
 ```
 
-### `useToast`
-Provides toast notification functionality.
+### Toast Notifications
+Toast notifications are provided via `utils/toast.ts` (not a hook).
 
 ```typescript
-import { useToast } from '@/hooks/useToast'
+import { showSuccess, showError, showInfo } from '@/utils/toast'
 
 function MyComponent() {
-  const toast = useToast()
-  
   const handleSuccess = () => {
-    toast.success('Operation completed!')
+    showSuccess('Operation completed!')
   }
   // ...
 }

@@ -90,16 +90,6 @@ export default function ConferencePageEditor() {
     try {
       setSaving(true)
       
-      // Debug: log content before save
-      console.log('Saving content (length):', content.length)
-      console.log('Content contains <img>:', content.includes('<img'))
-      if (content.includes('<img')) {
-        const imgMatch = content.match(/<img[^>]+src="([^"]+)"/)
-        if (imgMatch) {
-          console.log('Image URL in content:', imgMatch[1])
-        }
-      }
-      
       const res = await fetch(`/api/admin/conferences/${conferenceId}/pages/${pageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

@@ -22,9 +22,6 @@ export function sanitizeHtml(html: string): string {
       },
       ALLOW_DATA_ATTR: false,
     })
-    console.log('DOMPurify sanitize - input:', html.substring(0, 200))
-    console.log('DOMPurify sanitize - output:', sanitized.substring(0, 200))
-    console.log('DOMPurify - img in output:', sanitized.includes('<img'))
     return sanitized
   }
 
