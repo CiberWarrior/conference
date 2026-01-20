@@ -22,15 +22,23 @@ export async function GET(
         pageSlug: params.pageSlug,
         action: 'get_public_conference_page',
       })
-      return NextResponse.json({ 
-        error: 'Server configuration error',
-        details: clientError.message 
-      }, { status: 500 })
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          details: clientError?.message || 'Supabase client initialization failed'
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
     }
 
     const { data: conference, error: confError } = await supabase
       .from('conferences')
-      .select('id, name, slug')
+      .select('id, name, slug, start_date, end_date, location, venue, logo_url')
       .eq('slug', params.slug)
       .eq('published', true)
       .eq('active', true)
@@ -51,9 +59,10 @@ export async function GET(
       return NextResponse.json({ error: 'Conference not found' }, { status: 404 })
     }
 
+    // Try to select all fields, but handle case where new columns don't exist yet
     const { data: page, error: pageError } = await supabase
       .from('conference_pages')
-      .select('id, slug, title, content, sort_order, published, hero_title, hero_subtitle, hero_image_url, hero_background_color, created_at, updated_at')
+      .select('*')
       .eq('conference_id', conference.id)
       .eq('slug', params.pageSlug)
       .eq('published', true)
@@ -80,6 +89,11 @@ export async function GET(
         id: conference.id,
         name: conference.name,
         slug: conference.slug,
+        start_date: (conference as any).start_date ?? null,
+        end_date: (conference as any).end_date ?? null,
+        location: (conference as any).location ?? null,
+        venue: (conference as any).venue ?? null,
+        logo_url: (conference as any).logo_url ?? null,
       },
       page,
     })
@@ -91,10 +105,20 @@ export async function GET(
       errorMessage: error?.message,
       errorStack: error?.stack,
     })
-    return NextResponse.json({ 
-      error: 'Failed to fetch page',
-      details: error?.message || 'Unknown error'
-    }, { status: 500 })
+    
+    // Ensure we always return JSON, never HTML
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch page',
+        details: error?.message || 'Unknown error'
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    )
   }
 }
 

@@ -146,6 +146,38 @@ export async function POST(
     if (typeof body.hero_subtitle === 'string') insertData.hero_subtitle = body.hero_subtitle.trim() || null
     if (typeof body.hero_image_url === 'string') insertData.hero_image_url = body.hero_image_url.trim() || null
     if (typeof body.hero_background_color === 'string') insertData.hero_background_color = body.hero_background_color.trim() || null
+    if (typeof body.hero_layout_type === 'string') insertData.hero_layout_type = body.hero_layout_type.trim() || null
+    if (typeof body.hero_logo_url === 'string') insertData.hero_logo_url = body.hero_logo_url.trim() || null
+    if (body.hero_info_cards !== undefined) {
+      // hero_info_cards can be array or null
+      insertData.hero_info_cards = body.hero_info_cards || null
+    }
+    if (typeof (body as any).hero_layout_type === 'string')
+      insertData.hero_layout_type = (body as any).hero_layout_type.trim() || null
+    if (typeof (body as any).hero_logo_url === 'string') insertData.hero_logo_url = (body as any).hero_logo_url.trim() || null
+
+    // hero_info_cards can be array/object or JSON string from UI
+    const heroInfoCardsRaw: any = (body as any).hero_info_cards
+    if (heroInfoCardsRaw !== undefined) {
+      if (heroInfoCardsRaw === null || heroInfoCardsRaw === '') {
+        insertData.hero_info_cards = null
+      } else if (typeof heroInfoCardsRaw === 'string') {
+        try {
+          insertData.hero_info_cards = JSON.parse(heroInfoCardsRaw)
+        } catch {
+          insertData.hero_info_cards = null
+        }
+      } else if (Array.isArray(heroInfoCardsRaw) || typeof heroInfoCardsRaw === 'object') {
+        insertData.hero_info_cards = heroInfoCardsRaw
+      }
+    }
+
+    // SEO / CSS fields
+    if (typeof (body as any).meta_title === 'string') insertData.meta_title = (body as any).meta_title.trim() || null
+    if (typeof (body as any).meta_description === 'string')
+      insertData.meta_description = (body as any).meta_description.trim() || null
+    if (typeof (body as any).og_image_url === 'string') insertData.og_image_url = (body as any).og_image_url.trim() || null
+    if (typeof (body as any).custom_css === 'string') insertData.custom_css = (body as any).custom_css || null
 
     const { data: page, error } = await adminSupabase
       .from('conference_pages')

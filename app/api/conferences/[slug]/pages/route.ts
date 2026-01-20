@@ -13,7 +13,27 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const supabase = createAdminClient()
+    let supabase
+    try {
+      supabase = createAdminClient()
+    } catch (clientError: any) {
+      log.error('Failed to create admin client', clientError, {
+        slug: params.slug,
+        action: 'list_public_conference_pages',
+      })
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          details: clientError?.message || 'Supabase client initialization failed'
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
+    }
 
     const { data: conference, error: confError } = await supabase
       .from('conferences')
@@ -44,12 +64,26 @@ export async function GET(
     }
 
     return NextResponse.json({ pages: pages || [] })
-  } catch (error) {
+  } catch (error: any) {
     log.error('Public conference pages list error', error, {
       slug: params.slug,
       action: 'list_public_conference_pages',
+      errorMessage: error?.message,
     })
-    return NextResponse.json({ error: 'Failed to fetch pages' }, { status: 500 })
+    
+    // Ensure we always return JSON, never HTML
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch pages',
+        details: error?.message || 'Unknown error'
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    )
   }
 }
 

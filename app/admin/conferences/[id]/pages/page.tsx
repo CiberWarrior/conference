@@ -5,6 +5,16 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { showError, showSuccess } from '@/utils/toast'
 import type { ConferencePage } from '@/types/conference-page'
+import { PAGE_TEMPLATES, getTemplateById, generateInfoCardsFromConference } from '@/templates/page-templates'
+
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 export default function ConferencePagesAdminPage() {
   const params = useParams()
@@ -19,6 +29,13 @@ export default function ConferencePagesAdminPage() {
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newSlug, setNewSlug] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank')
+  const [conferenceData, setConferenceData] = useState<{
+    start_date?: string | null
+    location?: string | null
+    venue?: string | null
+  } | null>(null)
+  const [slugTouched, setSlugTouched] = useState(false)
 
   const sortedPages = useMemo(() => {
     return [...pages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -48,8 +65,35 @@ export default function ConferencePagesAdminPage() {
 
   useEffect(() => {
     loadPages()
+    loadConferenceData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conferenceId])
+
+  const loadConferenceData = async () => {
+    if (!conferenceId) return
+    try {
+      const res = await fetch(`/api/admin/conferences/${conferenceId}`, {
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setConferenceData({
+          start_date: data.conference?.start_date,
+          location: data.conference?.location,
+          venue: data.conference?.venue,
+        })
+      }
+    } catch (e) {
+      // Silently fail - template system will work without conference data
+    }
+  }
+
+  // Smart slug defaults: auto-generate slug from title unless user manually edits slug.
+  useEffect(() => {
+    if (slugTouched) return
+    const s = slugify(newTitle)
+    setNewSlug(s)
+  }, [newTitle, slugTouched])
 
   const createPage = async () => {
     if (!newTitle.trim() || !newSlug.trim()) {
@@ -58,22 +102,45 @@ export default function ConferencePagesAdminPage() {
     }
     try {
       setCreating(true)
+      const template = getTemplateById(selectedTemplate)
+      
+      // Prepare page data with template defaults
+      const pageData: any = {
+        title: newTitle.trim(),
+        slug: newSlug.trim(),
+        content: template?.suggestedContent || '',
+        sort_order: sortedPages.length,
+        published: false,
+      }
+
+      // Apply template defaults
+      if (template) {
+        pageData.hero_layout_type = template.heroLayoutType
+        if (template.heroBackgroundColor) {
+          pageData.hero_background_color = template.heroBackgroundColor
+        }
+        
+        // Auto-populate info cards if template requires it and we have conference data
+        if (template.autoPopulateInfoCards && conferenceData) {
+          const infoCards = generateInfoCardsFromConference(conferenceData)
+          if (infoCards.length > 0) {
+            pageData.hero_info_cards = infoCards
+          }
+        }
+      }
+
       const res = await fetch(`/api/admin/conferences/${conferenceId}/pages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTitle.trim(),
-          slug: newSlug.trim(),
-          content: '',
-          sort_order: sortedPages.length,
-          published: false,
-        }),
+        body: JSON.stringify(pageData),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.details || data.error || 'Failed to create page')
       showSuccess('Page created')
       setNewTitle('')
       setNewSlug('')
+      setSlugTouched(false)
+      setSelectedTemplate('blank')
       await loadPages()
     } catch (e: any) {
       showError(e?.message || 'Failed to create page')
@@ -157,34 +224,56 @@ export default function ConferencePagesAdminPage() {
       {/* Create */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Create new page</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="md:col-span-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Template (Optional)</label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. Venue"
-            />
-          </div>
-          <div className="md:col-span-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Slug</label>
-            <input
-              value={newSlug}
-              onChange={(e) => setNewSlug(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. venue"
-            />
-            <p className="text-xs text-gray-500 mt-2">Used in URL: `/conferences/[slug]/p/{newSlug || '...'}`</p>
-          </div>
-          <div className="md:col-span-1 flex items-end justify-end">
-            <button
-              onClick={createPage}
-              disabled={creating}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
             >
-              {creating ? 'Creating…' : 'Create'}
-            </button>
+              {PAGE_TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name} - {template.description}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Choose a template to auto-configure hero layout and styling. You can change everything later.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Venue"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Slug</label>
+              <input
+                value={newSlug}
+                onChange={(e) => {
+                  setSlugTouched(true)
+                  setNewSlug(e.target.value)
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. venue"
+              />
+              <p className="text-xs text-gray-500 mt-2">Used in URL: `/conferences/[slug]/p/{newSlug || '...'}`</p>
+            </div>
+            <div className="md:col-span-1 flex items-end justify-end">
+              <button
+                onClick={createPage}
+                disabled={creating}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {creating ? 'Creating…' : 'Create'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

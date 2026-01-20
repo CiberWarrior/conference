@@ -6,6 +6,49 @@ import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Image from '@tiptap/extension-image'
+// Table extensions - use dynamic imports to handle both default and named exports
+let Table: any = null
+let TableRow: any = null
+let TableCell: any = null
+let TableHeader: any = null
+
+try {
+  const tableModule = require('@tiptap/extension-table')
+  Table = tableModule.default || tableModule.Table || tableModule
+  const tableRowModule = require('@tiptap/extension-table-row')
+  TableRow = tableRowModule.default || tableRowModule.TableRow || tableRowModule
+  const tableCellModule = require('@tiptap/extension-table-cell')
+  TableCell = tableCellModule.default || tableCellModule.TableCell || tableCellModule
+  const tableHeaderModule = require('@tiptap/extension-table-header')
+  TableHeader = tableHeaderModule.default || tableHeaderModule.TableHeader || tableHeaderModule
+} catch (e) {
+  // Extensions not installed or not available
+  console.warn('Table extensions not available. Install with: npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header')
+}
+
+// Code block with syntax highlighting - dynamic import
+let CodeBlockLowlight: any = null
+let createLowlight: any = null
+let lowlight: any = null
+
+try {
+  const codeBlockModule = require('@tiptap/extension-code-block-lowlight')
+  CodeBlockLowlight = codeBlockModule.default || codeBlockModule.CodeBlockLowlight || codeBlockModule
+  const lowlightModule = require('lowlight')
+  createLowlight = lowlightModule.createLowlight || lowlightModule.default?.createLowlight
+  
+  // Initialize lowlight if available
+  if (createLowlight) {
+    try {
+      lowlight = createLowlight()
+    } catch (e) {
+      console.warn('Lowlight initialization failed:', e)
+    }
+  }
+} catch (e) {
+  console.warn('Code block extensions not available. Install with: npm install @tiptap/extension-code-block-lowlight lowlight')
+}
+
 import { useEffect, useState, useRef } from 'react'
 
 interface TiptapEditorProps {
@@ -120,34 +163,80 @@ export default function TiptapEditor({ content, onChange, placeholder, conferenc
     e.target.value = ''
   }
 
+  // Build extensions array with optional table and code block extensions
+  const extensions: any[] = [
+    StarterKit.configure({
+      heading: {
+        levels: [1, 2, 3, 4, 5, 6],
+      },
+      // Disable link and underline from StarterKit since we add them separately with custom config
+      link: false,
+      underline: false,
+    }),
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: {
+        class: 'text-blue-600 hover:text-blue-700 underline',
+      },
+    }),
+    Underline,
+    TextAlign.configure({
+      types: ['heading', 'paragraph'],
+    }),
+    Image.configure({
+      inline: true,
+      allowBase64: true,
+      HTMLAttributes: {
+        class: 'max-w-full h-auto rounded-lg my-4',
+      },
+    }),
+  ]
+
+  // Add table extensions if available
+  try {
+    if (Table && TableRow && TableCell && TableHeader) {
+      extensions.push(
+        Table.configure({
+          resizable: true,
+          HTMLAttributes: {
+            class: 'border-collapse border border-gray-300 my-4',
+          },
+        }),
+        TableRow,
+        TableHeader.configure({
+          HTMLAttributes: {
+            class: 'border border-gray-300 px-4 py-2 bg-gray-100 font-semibold',
+          },
+        }),
+        TableCell.configure({
+          HTMLAttributes: {
+            class: 'border border-gray-300 px-4 py-2',
+          },
+        })
+      )
+    }
+  } catch (e) {
+    console.warn('Table extensions not available')
+  }
+
+  // Add code block with syntax highlighting if available
+  try {
+    if (CodeBlockLowlight && lowlight) {
+      extensions.push(
+        CodeBlockLowlight.configure({
+          lowlight,
+          HTMLAttributes: {
+            class: 'bg-gray-900 text-gray-100 rounded-lg p-4 my-4 font-mono text-sm overflow-x-auto',
+          },
+        })
+      )
+    }
+  } catch (e) {
+    console.warn('Code block with syntax highlighting not available')
+  }
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6],
-        },
-        // Disable link and underline from StarterKit since we add them separately with custom config
-        link: false,
-        underline: false,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-blue-600 hover:text-blue-700 underline',
-        },
-      }),
-      Underline,
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-      Image.configure({
-        inline: true,
-        allowBase64: true,
-        HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg my-4',
-        },
-      }),
-    ],
+    extensions,
     content,
     immediatelyRender: false, // Fix SSR hydration mismatch
     onUpdate: ({ editor }) => {
@@ -183,6 +272,180 @@ export default function TiptapEditor({ content, onChange, placeholder, conferenc
         <p className="text-gray-500">Loading editor...</p>
       </div>
     )
+  }
+
+  const insertVideo = () => {
+    const url = window.prompt('Enter YouTube or Vimeo URL:')
+    if (!url || !editor) return
+
+    // Extract video ID from YouTube URL
+    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/)
+    if (youtubeMatch) {
+      const videoId = youtubeMatch[1]
+      const embedUrl = `https://www.youtube.com/embed/${videoId}`
+      editor.chain().focus().insertContent(`
+        <div class="my-8 aspect-video w-full">
+          <iframe 
+            src="${embedUrl}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen
+            class="w-full h-full rounded-lg"
+          ></iframe>
+        </div>
+      `).run()
+      return
+    }
+
+    // Extract video ID from Vimeo URL
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+    if (vimeoMatch) {
+      const videoId = vimeoMatch[1]
+      const embedUrl = `https://player.vimeo.com/video/${videoId}`
+      editor.chain().focus().insertContent(`
+        <div class="my-8 aspect-video w-full">
+          <iframe 
+            src="${embedUrl}" 
+            frameborder="0" 
+            allow="autoplay; fullscreen; picture-in-picture" 
+            allowfullscreen
+            class="w-full h-full rounded-lg"
+          ></iframe>
+        </div>
+      `).run()
+      return
+    }
+
+    alert('Invalid YouTube or Vimeo URL')
+  }
+
+  const insertCustomHTML = () => {
+    const html = window.prompt('Enter custom HTML code:')
+    if (html && editor) {
+      editor.chain().focus().insertContent(html).run()
+    }
+  }
+
+  const insertSpacer = () => {
+    if (editor) {
+      editor.chain().focus().insertContent('<div class="my-8 h-8"></div>').run()
+    }
+  }
+
+  const insertCTA = () => {
+    const text = window.prompt('Enter CTA button text:', 'Learn More')
+    const url = window.prompt('Enter CTA button URL:', '#')
+    if (text && url && editor) {
+      editor.chain().focus().insertContent(`
+        <div class="my-8 p-6 bg-blue-600 text-white rounded-lg text-center">
+          <a href="${url}" class="inline-block px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition">
+            ${text}
+          </a>
+        </div>
+      `).run()
+    }
+  }
+
+  const insertGallery = () => {
+    const count = parseInt(window.prompt('How many images in gallery?', '3') || '3', 10)
+    if (count > 0 && editor) {
+      let galleryHTML = '<div class="my-8 grid grid-cols-1 md:grid-cols-3 gap-4">'
+      for (let i = 0; i < count; i++) {
+        galleryHTML += `
+          <div class="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+            <span class="text-gray-500">Image ${i + 1}</span>
+          </div>
+        `
+      }
+      galleryHTML += '</div>'
+      editor.chain().focus().insertContent(galleryHTML).run()
+    }
+  }
+
+  const insertLayout = () => {
+    if (!editor) return
+    const layoutType = window.prompt('Choose layout:\n1 = 1 column (full width)\n2 = 2 columns\n3 = 3 columns', '2')
+    if (!layoutType) return
+    
+    const cols = parseInt(layoutType, 10)
+    if (cols === 1) {
+      editor.chain().focus().insertContent(`
+        <div class="my-8">
+          <div class="w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Single column content area</p>
+          </div>
+        </div>
+      `).run()
+    } else if (cols === 2) {
+      editor.chain().focus().insertContent(`
+        <div class="my-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Left column content</p>
+          </div>
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Right column content</p>
+          </div>
+        </div>
+      `).run()
+    } else if (cols === 3) {
+      editor.chain().focus().insertContent(`
+        <div class="my-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Column 1</p>
+          </div>
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Column 2</p>
+          </div>
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-600">Column 3</p>
+          </div>
+        </div>
+      `).run()
+    }
+  }
+
+  const insertTable = () => {
+    if (!editor) return
+    
+    // Check if table extensions are available
+    if (!Table || !TableRow || !TableCell || !TableHeader) {
+      alert('Table extension not available. Please install: npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header')
+      return
+    }
+    
+    const rows = parseInt(window.prompt('Number of rows:', '3') || '3', 10)
+    const cols = parseInt(window.prompt('Number of columns:', '3') || '3', 10)
+    
+    if (rows > 0 && cols > 0) {
+      try {
+        // Try to use insertTable command if available
+        const chain = editor.chain().focus()
+        // @ts-ignore - insertTable may not be in types if extensions not loaded
+        if (typeof chain.insertTable === 'function') {
+          // @ts-ignore
+          chain.insertTable({ rows, cols, withHeaderRow: true }).run()
+        } else {
+          // Fallback: insert HTML table
+          let tableHTML = '<table class="border-collapse border border-gray-300 my-4"><thead><tr>'
+          for (let i = 0; i < cols; i++) {
+            tableHTML += '<th class="border border-gray-300 px-4 py-2 bg-gray-100 font-semibold">Header</th>'
+          }
+          tableHTML += '</tr></thead><tbody>'
+          for (let i = 0; i < rows - 1; i++) {
+            tableHTML += '<tr>'
+            for (let j = 0; j < cols; j++) {
+              tableHTML += '<td class="border border-gray-300 px-4 py-2">Cell</td>'
+            }
+            tableHTML += '</tr>'
+          }
+          tableHTML += '</tbody></table>'
+          editor.chain().focus().insertContent(tableHTML).run()
+        }
+      } catch (e) {
+        console.error('Failed to insert table:', e)
+        alert('Failed to insert table. Please try again.')
+      }
+    }
   }
 
   return (
@@ -444,7 +707,82 @@ export default function TiptapEditor({ content, onChange, placeholder, conferenc
           </button>
         </div>
 
-        {/* Second row - Text alignment */}
+        {/* Second row - Advanced features */}
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+          <span className="text-xs text-gray-500 self-center px-2">Insert:</span>
+          
+          {/* Table */}
+          <button
+            onClick={insertTable}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert table"
+          >
+            📊 Table
+          </button>
+
+          {/* Video */}
+          <button
+            onClick={insertVideo}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert video (YouTube/Vimeo)"
+          >
+            ▶️ Video
+          </button>
+
+          {/* Gallery */}
+          <button
+            onClick={insertGallery}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert image gallery"
+          >
+            🖼️ Gallery
+          </button>
+
+          {/* Layout */}
+          <button
+            onClick={insertLayout}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert layout (1/2/3 columns)"
+          >
+            📐 Layout
+          </button>
+
+          {/* CTA */}
+          <button
+            onClick={insertCTA}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert call-to-action"
+          >
+            🎯 CTA
+          </button>
+
+          {/* Spacer */}
+          <button
+            onClick={insertSpacer}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert spacer"
+          >
+            ⬜ Spacer
+          </button>
+
+          {/* Custom HTML */}
+          <button
+            onClick={insertCustomHTML}
+            className="px-3 py-1.5 rounded text-sm font-semibold bg-white text-gray-700 hover:bg-gray-100"
+            type="button"
+            title="Insert custom HTML"
+          >
+            &lt;/&gt; HTML
+          </button>
+        </div>
+
+        {/* Third row - Text alignment */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
           <span className="text-xs text-gray-500 self-center px-2">Align:</span>
           <button

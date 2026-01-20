@@ -118,6 +118,17 @@ export async function PATCH(
     if ('hero_subtitle' in body) update.hero_subtitle = typeof body.hero_subtitle === 'string' ? body.hero_subtitle.trim() || null : null
     if ('hero_image_url' in body) update.hero_image_url = typeof body.hero_image_url === 'string' ? body.hero_image_url.trim() || null : null
     if ('hero_background_color' in body) update.hero_background_color = typeof body.hero_background_color === 'string' ? body.hero_background_color.trim() || null : null
+    if ('hero_layout_type' in body) update.hero_layout_type = typeof body.hero_layout_type === 'string' ? body.hero_layout_type.trim() || null : null
+    if ('hero_logo_url' in body) update.hero_logo_url = typeof body.hero_logo_url === 'string' ? body.hero_logo_url.trim() || null : null
+    if ('hero_info_cards' in body) update.hero_info_cards = body.hero_info_cards || null
+    
+    // SEO fields
+    if ('meta_title' in body) update.meta_title = typeof body.meta_title === 'string' ? body.meta_title.trim() || null : null
+    if ('meta_description' in body) update.meta_description = typeof body.meta_description === 'string' ? body.meta_description.trim() || null : null
+    if ('og_image_url' in body) update.og_image_url = typeof body.og_image_url === 'string' ? body.og_image_url.trim() || null : null
+    
+    // Custom CSS
+    if ('custom_css' in body) update.custom_css = typeof body.custom_css === 'string' ? body.custom_css.trim() || null : null
 
     if (typeof body.slug === 'string') {
       const slug = body.slug
