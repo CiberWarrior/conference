@@ -16,6 +16,7 @@ import {
   calculateVATAmount,
   getEffectiveVAT,
   getPriceBreakdown,
+  getPriceBreakdownFromInput,
 } from '@/utils/pricing'
 import type { ConferencePricing } from '@/types/conference'
 
@@ -259,6 +260,29 @@ describe('Pricing Utilities', () => {
 
       it('should handle undefined VAT', () => {
         const breakdown = getPriceBreakdown(100)
+        expect(breakdown.withoutVAT).toBe(100)
+        expect(breakdown.withVAT).toBe(100)
+        expect(breakdown.vatAmount).toBe(0)
+      })
+    })
+
+    describe('getPriceBreakdownFromInput', () => {
+      it('should treat input as net by default (bez PDV-a)', () => {
+        const breakdown = getPriceBreakdownFromInput(100, 25)
+        expect(breakdown.withoutVAT).toBe(100)
+        expect(breakdown.withVAT).toBe(125)
+        expect(breakdown.vatAmount).toBe(25)
+      })
+
+      it('should treat input as gross when pricesIncludeVAT=true (sa PDV-om)', () => {
+        const breakdown = getPriceBreakdownFromInput(125, 25, true)
+        expect(breakdown.withVAT).toBe(125)
+        expect(breakdown.withoutVAT).toBe(100)
+        expect(breakdown.vatAmount).toBe(25)
+      })
+
+      it('should return same amounts when VAT is 0', () => {
+        const breakdown = getPriceBreakdownFromInput(100, 0, true)
         expect(breakdown.withoutVAT).toBe(100)
         expect(breakdown.withVAT).toBe(100)
         expect(breakdown.vatAmount).toBe(0)

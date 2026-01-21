@@ -76,6 +76,7 @@ export interface HotelOption {
 export interface ConferencePricing {
   currency: string // Default currency
   vat_percentage?: number // PDV postotak (npr. 25 za 25% PDV-a) - opcionalno, ako nije postavljen, ne prikazuje se PDV
+  prices_include_vat?: boolean // If true, entered prices are VAT-inclusive (sa PDV-om). Default: false (prices are bez PDV-a).
   currencies?: string[] // Supported currencies (e.g., ['EUR', 'USD', 'GBP'])
   
   // Standard participant pricing

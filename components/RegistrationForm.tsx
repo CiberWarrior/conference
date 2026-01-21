@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import { getPriceAmount, formatPriceWithoutZeros } from '@/utils/pricing'
+import { getPriceBreakdownFromInput, formatPriceWithoutZeros, getPriceAmount } from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
@@ -46,6 +46,27 @@ export default function RegistrationForm({
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
   
+  // ============================================
+  // PDV/VAT display logic (public form)
+  // We display ONLY the final price to the participant (sa PDV-om),
+  // while admin dashboards can still show both net/gross breakdowns.
+  // Pricing values stored in conference pricing can be either net or gross,
+  // depending on the conference pricing setting: pricing.prices_include_vat.
+  // ============================================
+  const vatPercentage: number | undefined = (() => {
+    const raw = pricing?.vat_percentage
+    if (raw === null || raw === undefined) return undefined
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+  })()
+
+  const pricesIncludeVAT = !!pricing?.prices_include_vat
+
+  const getDisplayPrice = (inputPrice: number) => {
+    // Always show the final (VAT-inclusive) price to participants
+    return getPriceBreakdownFromInput(inputPrice, vatPercentage, pricesIncludeVAT).withVAT
+  }
+
   // Determine which payment options are available based on settings
   const availablePaymentOptions = {
     card: paymentSettings?.allow_card ?? true,
@@ -288,9 +309,16 @@ export default function RegistrationForm({
                 </div>
                     <div className="mt-auto pt-4 border-t-2 border-blue-200">
                       <div className="text-2xl font-bold text-blue-700 mb-1">
-                        {formatPriceWithoutZeros(getPriceAmount(pricing.early_bird.amount, pricing.currency))}
+                        {formatPriceWithoutZeros(
+                          getDisplayPrice(getPriceAmount(pricing.early_bird.amount, pricing.currency))
+                        )}
                       </div>
                       <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-blue-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
             </div>
               </label>
                 )}
@@ -326,9 +354,16 @@ export default function RegistrationForm({
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-indigo-200">
                       <div className="text-2xl font-bold text-indigo-700 mb-1">
-                        {formatPriceWithoutZeros(getPriceAmount(pricing.regular.amount, pricing.currency))}
+                        {formatPriceWithoutZeros(
+                          getDisplayPrice(getPriceAmount(pricing.regular.amount, pricing.currency))
+                        )}
                       </div>
                       <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-indigo-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
           </div>
               </label>
                 )}
@@ -365,11 +400,19 @@ export default function RegistrationForm({
                     <div className="mt-auto pt-4 border-t-2 border-emerald-200">
                       <div className="text-2xl font-bold text-emerald-700 mb-1">
                         {formatPriceWithoutZeros(
-                          pricing.student?.regular || 
-                          (getPriceAmount(pricing.regular.amount, pricing.currency) - getPriceAmount(pricing.student_discount, pricing.currency))
+                          getDisplayPrice(
+                            pricing.student?.regular ||
+                              (getPriceAmount(pricing.regular.amount, pricing.currency) -
+                                getPriceAmount(pricing.student_discount, pricing.currency))
+                          )
                         )}
                       </div>
                       <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-emerald-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
           </div>
               </label>
                 )}
@@ -407,9 +450,16 @@ export default function RegistrationForm({
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-amber-200">
                       <div className="text-2xl font-bold text-amber-700 mb-1">
-                        {formatPriceWithoutZeros(getPriceAmount(pricing.late.amount, pricing.currency))}
+                        {formatPriceWithoutZeros(
+                          getDisplayPrice(getPriceAmount(pricing.late.amount, pricing.currency))
+                        )}
                       </div>
                       <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-amber-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
           </div>
               </label>
                 )}
@@ -439,9 +489,18 @@ export default function RegistrationForm({
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-rose-200">
                       <div className="text-2xl font-bold text-rose-700 mb-1">
-                        {formatPriceWithoutZeros(getPriceAmount(pricing.accompanying_person_price, pricing.currency))}
+                        {formatPriceWithoutZeros(
+                          getDisplayPrice(
+                            getPriceAmount(pricing.accompanying_person_price, pricing.currency)
+                          )
+                        )}
                       </div>
                       <div className="text-xs font-semibold text-rose-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-rose-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
           </div>
               </label>
                 )}
@@ -485,9 +544,14 @@ export default function RegistrationForm({
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-purple-200">
                       <div className="text-2xl font-bold text-purple-700 mb-1">
-                        {formatPriceWithoutZeros(feeType.regular)}
+                        {formatPriceWithoutZeros(getDisplayPrice(feeType.regular))}
                       </div>
                       <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-purple-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
           </div>
               </label>
                 ))}
@@ -520,13 +584,25 @@ export default function RegistrationForm({
           </div>
                     <div className="mt-auto pt-4 border-t-2 border-violet-200">
                       <div className="text-2xl font-bold text-violet-700 mb-1">
-                        {formatPriceWithoutZeros(customField.value)}
+                        {formatPriceWithoutZeros(getDisplayPrice(customField.value))}
                       </div>
                       <div className="text-xs font-semibold text-violet-600 uppercase tracking-wide">{pricing.currency}</div>
+                      {vatPercentage && (
+                        <div className="mt-1 text-[10px] font-semibold text-violet-700/80">
+                          PDV included ({vatPercentage}%)
+                        </div>
+                      )}
                     </div>
             </label>
                 ))}
           </div>
+
+          {/* VAT note (public) */}
+          {vatPercentage && (
+            <div className="mt-5 text-xs text-gray-600">
+              Prices shown are final and include PDV ({vatPercentage}%).
+            </div>
+          )}
 
           {!selectedFee && (
             <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">

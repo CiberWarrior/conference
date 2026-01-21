@@ -67,13 +67,34 @@ export async function GET(
       // Get organizer bank account status (not cached, need fresh data)
       const supabase = await createServerClient()
       let organizer_has_bank_account = false
+      let organizer_default_vat_percentage: number | null = null
       if (conference.owner_id) {
         const { data: ownerProfile } = await supabase
           .from('user_profiles')
-          .select('bank_account_number')
+          .select('bank_account_number, default_vat_percentage')
           .eq('id', conference.owner_id)
           .maybeSingle()
         organizer_has_bank_account = !!ownerProfile?.bank_account_number
+        organizer_default_vat_percentage =
+          ownerProfile?.default_vat_percentage !== null &&
+          ownerProfile?.default_vat_percentage !== undefined
+            ? Number(ownerProfile.default_vat_percentage)
+            : null
+      }
+
+      // PDV/VAT: Public endpoint needs an effective VAT value for display purposes.
+      // - Conference setting (pricing.vat_percentage) is authoritative when set (including 0).
+      // - When conference VAT is null/undefined (meaning "use organization default"), fall back to profile default.
+      // NOTE: This does NOT persist to DB; it only enriches the API response (and cache).
+      const conferenceVat = conference.pricing?.vat_percentage
+      if (
+        (conferenceVat === null || conferenceVat === undefined) &&
+        organizer_default_vat_percentage !== null
+      ) {
+        conference.pricing = {
+          ...(conference.pricing || {}),
+          vat_percentage: organizer_default_vat_percentage,
+        }
       }
 
       return NextResponse.json(
@@ -113,13 +134,19 @@ export async function GET(
 
     // Get organizer's bank account status
     let organizer_has_bank_account = false
+    let organizer_default_vat_percentage: number | null = null
     if (conference.owner_id) {
       const { data: ownerProfile } = await supabase
         .from('user_profiles')
-        .select('bank_account_number')
+        .select('bank_account_number, default_vat_percentage')
         .eq('id', conference.owner_id)
         .maybeSingle()
       organizer_has_bank_account = !!ownerProfile?.bank_account_number
+      organizer_default_vat_percentage =
+        ownerProfile?.default_vat_percentage !== null &&
+        ownerProfile?.default_vat_percentage !== undefined
+          ? Number(ownerProfile.default_vat_percentage)
+          : null
     }
 
     // Ensure JSONB fields are properly parsed (Supabase should do this automatically,
@@ -144,6 +171,21 @@ export async function GET(
         parsedConference.email_settings = JSON.parse(parsedConference.email_settings)
       } catch (err) {
         log.warn('Failed to parse email_settings JSON', { slug: params.slug, error: err })
+      }
+    }
+
+    // PDV/VAT: Public endpoint needs an effective VAT value for display purposes.
+    // - Conference setting (pricing.vat_percentage) is authoritative when set (including 0).
+    // - When conference VAT is null/undefined (meaning "use organization default"), fall back to profile default.
+    // NOTE: This does NOT persist to DB; it only enriches the API response (and cache).
+    const conferenceVat = parsedConference.pricing?.vat_percentage
+    if (
+      (conferenceVat === null || conferenceVat === undefined) &&
+      organizer_default_vat_percentage !== null
+    ) {
+      parsedConference.pricing = {
+        ...(parsedConference.pricing || {}),
+        vat_percentage: organizer_default_vat_percentage,
       }
     }
 

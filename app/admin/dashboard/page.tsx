@@ -334,6 +334,7 @@ export default function DashboardPage() {
           conference.pricing?.vat_percentage,
           profile?.default_vat_percentage
         ) ?? undefined,
+        pricesIncludeVAT: !!conference.pricing?.prices_include_vat,
         currency: conference.pricing?.currency || 'EUR',
       }
 

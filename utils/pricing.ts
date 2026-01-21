@@ -302,3 +302,49 @@ export function getPriceBreakdown(
     vatPercentage,
   }
 }
+
+/**
+ * Get price breakdown when the input price can be either net (bez PDV-a) or gross (sa PDV-om).
+ *
+ * This is useful when admins can choose how they enter prices, while the UI still needs:
+ * - a final price (sa PDV-om) for participants
+ * - both net/gross breakdown for admin reporting
+ *
+ * @param inputPrice - Entered price (net or gross depending on pricesIncludeVAT)
+ * @param vatPercentage - PDV postotak (opcionalno)
+ * @param pricesIncludeVAT - If true, inputPrice is VAT-inclusive (sa PDV-om)
+ */
+export function getPriceBreakdownFromInput(
+  inputPrice: number,
+  vatPercentage?: number,
+  pricesIncludeVAT: boolean = false
+): {
+  withoutVAT: number
+  withVAT: number
+  vatAmount: number
+  vatPercentage: number
+} {
+  if (!vatPercentage || vatPercentage === 0) {
+    return {
+      withoutVAT: inputPrice,
+      withVAT: inputPrice,
+      vatAmount: 0,
+      vatPercentage: 0,
+    }
+  }
+
+  if (pricesIncludeVAT) {
+    const withoutVAT = calculatePriceWithoutVAT(inputPrice, vatPercentage)
+    const vatAmount = inputPrice - withoutVAT
+
+    return {
+      withoutVAT,
+      withVAT: inputPrice,
+      vatAmount,
+      vatPercentage,
+    }
+  }
+
+  // Default behavior: input is net (bez PDV-a)
+  return getPriceBreakdown(inputPrice, vatPercentage)
+}
