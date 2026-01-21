@@ -12,6 +12,7 @@ import ProgressSteps from '@/components/ProgressSteps'
 import SocialProof from '@/components/SocialProof'
 import RegistrationSummary from '@/components/RegistrationSummary'
 import ParticipantAuthModal from '@/components/ParticipantAuthModal'
+import PaymentOptions from '@/components/PaymentOptions'
 import RegistrationForm from '@/components/RegistrationForm'
 
 export default function EnhancedRegisterPage() {
@@ -30,11 +31,19 @@ export default function EnhancedRegisterPage() {
     hasAccount: boolean
   } | null>(null)
   const [registrationCompleted, setRegistrationCompleted] = useState(false)
+  
+  // Registration data state (collected in Step 1)
+  const [registrationData, setRegistrationData] = useState<any>(null)
+  const [registrationId, setRegistrationId] = useState<string | null>(null)
+  
+  // Payment processing state
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
 
   const wizardSteps = [
     { id: 1, title: 'Register', description: 'Fill your details' },
     { id: 2, title: 'Account', description: 'Optional' },
-    { id: 3, title: 'Done', description: 'Success' },
+    { id: 3, title: 'Review', description: 'Check details' },
+    { id: 4, title: 'Payment', description: 'Complete order' },
   ]
 
   useEffect(() => {
@@ -298,8 +307,134 @@ export default function EnhancedRegisterPage() {
           </div>
         )}
 
-        {/* STEP 3: Success */}
+        {/* STEP 3: Review & Summary */}
         {currentStep === 3 && (
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left: Registration Summary */}
+              <div className="lg:col-span-2">
+                <RegistrationSummary
+                  conferenceName={conference.name}
+                  conferenceLocation={conference.location}
+                  conferenceStartDate={conference.start_date}
+                  conferenceEndDate={conference.end_date}
+                  selectedFeeLabel="Early Bird"
+                  selectedFeeAmount={400}
+                  currency={conference.pricing?.currency || 'EUR'}
+                  participantsCount={1}
+                  userEmail={userAccount?.email}
+                  vatPercentage={conference.pricing?.vat_percentage}
+                  pricesIncludeVAT={conference.pricing?.prices_include_vat}
+                />
+              </div>
+
+              {/* Right: Actions */}
+              <div className="space-y-6">
+                <SocialProof
+                  conferenceStats={{
+                    totalRegistrations: 150,
+                    rating: 4.9,
+                    recentRegistrations: 12,
+                  }}
+                  showTestimonial={false}
+                />
+
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setCurrentStep(4)}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    Continue to Payment
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    className="w-full text-gray-600 hover:text-gray-900 font-semibold py-3 flex items-center justify-center gap-2"
+                  >
+                    ← Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Payment */}
+        {currentStep === 4 && (
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left: Summary (što plaća) */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+                  <PaymentOptions
+                    amount={400}
+                    currency={conference.pricing?.currency || 'EUR'}
+                    registrationId={registrationId || undefined}
+                    onPaymentMethodSelected={async (method) => {
+                      setIsProcessingPayment(true)
+                      
+                      try {
+                        if (method === 'card') {
+                          // TODO: Stripe integration
+                          // For now, just simulate success
+                          await new Promise(resolve => setTimeout(resolve, 2000))
+                          alert('Stripe payment would happen here. Redirecting to Stripe Checkout...')
+                          setCurrentStep(5)
+                        } else {
+                          // Bank transfer - just show success
+                          await new Promise(resolve => setTimeout(resolve, 1000))
+                          setCurrentStep(5)
+                        }
+                      } catch (error) {
+                        alert('Payment failed. Please try again.')
+                      } finally {
+                        setIsProcessingPayment(false)
+                      }
+                    }}
+                    allowCard={true}
+                    allowBank={hasBankAccount}
+                    isProcessing={isProcessingPayment}
+                  />
+                </div>
+              </div>
+
+              {/* Right: Mini Summary */}
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border-2 border-blue-200">
+                  <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Conference</span>
+                      <span className="font-semibold text-gray-900">{conference.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Registration Fee</span>
+                      <span className="font-semibold text-gray-900">400 {conference.pricing?.currency || 'EUR'}</span>
+                    </div>
+                    <div className="pt-3 border-t-2 border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-900">Total</span>
+                        <span className="text-2xl font-bold text-blue-600">400 {conference.pricing?.currency || 'EUR'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  disabled={isProcessingPayment}
+                  className="w-full text-gray-600 hover:text-gray-900 font-semibold py-3 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  ← Back to Review
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5: Success */}
+        {currentStep === 5 && (
           <div className="max-w-3xl mx-auto">
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-12 rounded-2xl shadow-xl border-2 border-green-200">
               <div className="text-center">
