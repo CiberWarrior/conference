@@ -222,13 +222,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
+interface RefundStatusUpdateBody {
+  registrationId: string
+  status: 'approved' | 'rejected'
+  reason?: string
+}
+
 /**
  * PATCH /api/admin/refunds
  * Update refund status (approve/reject)
  */
 export async function PATCH(request: NextRequest) {
   // NOTE: Defined outside try so we can safely reference it in catch logs
-  let body: any = null
+  let body: RefundStatusUpdateBody | null = null
   try {
     body = await request.json()
     const { registrationId, status, reason } = body

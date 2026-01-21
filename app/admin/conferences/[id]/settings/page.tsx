@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical } from 'lucide-react'
-import type { CustomPricingField, HotelOption, PaymentSettings } from '@/types/conference'
+import type { CustomPricingField, CustomFeeType, HotelOption, PaymentSettings } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
@@ -41,6 +41,8 @@ export default function ConferenceSettingsPage() {
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [useDefaultVAT, setUseDefaultVAT] = useState(true) // Whether to use organization default VAT
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
+  const [customFeeTypes, setCustomFeeTypes] = useState<CustomFeeType[]>([])
+  const [expandedFeeTypeId, setExpandedFeeTypeId] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     name: '',
@@ -58,8 +60,14 @@ export default function ConferenceSettingsPage() {
     early_bird_amount: 150,
     early_bird_deadline: '',
     regular_amount: 200,
+    regular_start_date: '', // Optional - when regular pricing starts (default: early_bird_deadline + 1)
     late_amount: 250,
-    student_discount: 50,
+    late_start_date: '', // Optional - when late registration pricing starts
+    student_discount: 50, // Legacy - kept for backward compatibility
+    // Student pricing (fixed prices per tier)
+    student_early_bird: 100,
+    student_regular: 150,
+    student_late: 200,
     accompanying_person_price: 140,
     custom_pricing_fields: [] as CustomPricingField[],
     // Settings
@@ -114,8 +122,14 @@ export default function ConferenceSettingsPage() {
           early_bird_amount: conf.pricing?.early_bird?.amount || 150,
           early_bird_deadline: conf.pricing?.early_bird?.deadline || '',
           regular_amount: conf.pricing?.regular?.amount || 200,
+          regular_start_date: conf.pricing?.regular?.start_date || '',
           late_amount: conf.pricing?.late?.amount || 250,
+          late_start_date: conf.pricing?.late?.start_date || '',
           student_discount: conf.pricing?.student_discount || 50,
+          // Student pricing (use new structure if available, otherwise fallback to discount-based)
+          student_early_bird: conf.pricing?.student?.early_bird || (conf.pricing?.early_bird?.amount || 150) - (conf.pricing?.student_discount || 50),
+          student_regular: conf.pricing?.student?.regular || (conf.pricing?.regular?.amount || 200) - (conf.pricing?.student_discount || 50),
+          student_late: conf.pricing?.student?.late || (conf.pricing?.late?.amount || 250) - (conf.pricing?.student_discount || 50),
           accompanying_person_price: conf.pricing?.accompanying_person_price || 0,
           custom_pricing_fields: conf.pricing?.custom_fields || [],
           // Settings
@@ -135,9 +149,10 @@ export default function ConferenceSettingsPage() {
           active: conf.active ?? true,
         })
         
-        // Load participant settings, payment settings, and info texts
+        // Load participant settings, payment settings, custom fee types, and info texts
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
         setPaymentSettings(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS)
+        setCustomFeeTypes(conf.pricing?.custom_fee_types || [])
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
         setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
 
@@ -204,6 +219,30 @@ Important: Authors who submit abstracts for presentation are not automatically r
         f.id === id ? { ...f, ...field } : f
       ),
     }))
+  }
+
+  // Custom Fee Types Management
+  const addCustomFeeType = () => {
+    const newFeeType: CustomFeeType = {
+      id: `fee_type_${Date.now()}`,
+      name: '',
+      description: '',
+      early_bird: 0,
+      regular: 0,
+      late: 0,
+    }
+    setCustomFeeTypes([...customFeeTypes, newFeeType])
+    setExpandedFeeTypeId(newFeeType.id)
+  }
+
+  const removeCustomFeeType = (id: string) => {
+    setCustomFeeTypes(customFeeTypes.filter((ft) => ft.id !== id))
+  }
+
+  const updateCustomFeeType = (id: string, updates: Partial<CustomFeeType>) => {
+    setCustomFeeTypes(customFeeTypes.map((ft) =>
+      ft.id === id ? { ...ft, ...updates } : ft
+    ))
   }
 
   // Hotel Options Management
@@ -498,13 +537,22 @@ Important: Authors who submit abstracts for presentation are not automatically r
             },
             regular: {
               amount: formData.regular_amount,
+              start_date: formData.regular_start_date || undefined,
             },
             late: {
               amount: formData.late_amount,
+              start_date: formData.late_start_date || undefined,
             },
-            student_discount: formData.student_discount,
+            // Student pricing (new structure)
+            student: {
+              early_bird: formData.student_early_bird,
+              regular: formData.student_regular,
+              late: formData.student_late,
+            },
+            student_discount: formData.student_discount, // Keep for backward compatibility
             accompanying_person_price: formData.accompanying_person_price || undefined,
             custom_fields: formData.custom_pricing_fields.length > 0 ? formData.custom_pricing_fields : undefined,
+            custom_fee_types: customFeeTypes.length > 0 ? customFeeTypes : undefined,
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -1066,32 +1114,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       )}
                     </div>
                   </label>
-
-                  {/* Pay Later */}
-                  <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                    <input
-                      type="checkbox"
-                      checked={paymentSettings.allow_pay_later}
-                      onChange={(e) => {
-                        setPaymentSettings({
-                          ...paymentSettings,
-                          allow_pay_later: e.target.checked,
-                        })
-                      }}
-                      className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">⏰ Pay Later</p>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          Flexible
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Allow participants to register now and pay later
-                      </p>
-                    </div>
-                  </label>
                 </div>
 
                 {/* Default Preference */}
@@ -1104,7 +1126,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     onChange={(e) => {
                       setPaymentSettings({
                         ...paymentSettings,
-                        default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank' | 'pay_later',
+                        // Pay Later removed from UI; keep stored values backward-compatible
+                        default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank',
                       })
                     }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1114,9 +1137,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     )}
                     {paymentSettings.allow_bank_transfer && (
                       <option value="pay_now_bank">Bank Transfer</option>
-                    )}
-                    {paymentSettings.allow_pay_later && (
-                      <option value="pay_later">Pay Later</option>
                     )}
                   </select>
                   <p className="text-xs text-gray-500">
@@ -1533,6 +1553,15 @@ Important: Authors who submit abstracts for presentation are not automatically r
               </div>
             </div>
 
+            {/* Standard Participant Pricing */}
+            <div className="md:col-span-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-gradient-to-r from-blue-200 to-transparent"></div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Standard Participant</h3>
+                <div className="h-px flex-1 bg-gradient-to-l from-blue-200 to-transparent"></div>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="early_bird_amount" className="block text-sm font-semibold text-gray-700 mb-2">
                 Early Bird Price
@@ -1545,8 +1574,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
+                placeholder="npr. 150.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Price during the early bird period (before the deadline).
+              </p>
             </div>
 
             <div>
@@ -1578,8 +1611,29 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
+                placeholder="npr. 200.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Default price after early bird ends.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="regular_start_date" className="block text-sm font-semibold text-gray-700 mb-2">
+                Regular Start Date <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="date"
+                id="regular_start_date"
+                name="regular_start_date"
+                value={formData.regular_start_date}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                When regular pricing starts. If not set, defaults to the day after Early Bird Deadline.
+              </p>
             </div>
 
             <div>
@@ -1594,24 +1648,258 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
+                placeholder="npr. 250.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Applied when late registration is active (after regular period).
+              </p>
             </div>
 
             <div>
-              <label htmlFor="student_discount" className="block text-sm font-semibold text-gray-700 mb-2">
-                Student Discount
+              <label htmlFor="late_start_date" className="block text-sm font-semibold text-gray-700 mb-2">
+                Late Registration Start Date <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="date"
+                id="late_start_date"
+                name="late_start_date"
+                value={formData.late_start_date}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                When late registration pricing starts. If not set, late pricing applies after regular period ends.
+              </p>
+            </div>
+
+            {/* Student Pricing */}
+            <div className="md:col-span-2 mb-2 mt-6">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-gradient-to-r from-green-200 to-transparent"></div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Student Pricing</h3>
+                <div className="h-px flex-1 bg-gradient-to-l from-green-200 to-transparent"></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Set fixed prices for students across all pricing tiers
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="student_early_bird" className="block text-sm font-semibold text-gray-700 mb-2">
+                Student Early Bird
               </label>
               <input
                 type="number"
-                id="student_discount"
-                name="student_discount"
-                value={formData.student_discount}
+                id="student_early_bird"
+                name="student_early_bird"
+                value={formData.student_early_bird}
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="npr. 100.00"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Fixed student price during early bird (not a discount).
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="student_regular" className="block text-sm font-semibold text-gray-700 mb-2">
+                Student Regular
+              </label>
+              <input
+                type="number"
+                id="student_regular"
+                name="student_regular"
+                value={formData.student_regular}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                placeholder="npr. 150.00"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Fixed student price for the regular period.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="student_late" className="block text-sm font-semibold text-gray-700 mb-2">
+                Student Late Registration
+              </label>
+              <input
+                type="number"
+                id="student_late"
+                name="student_late"
+                value={formData.student_late}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                placeholder="npr. 200.00"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Fixed student price for late registration.
+              </p>
+            </div>
+
+            {/* Custom Fee Types */}
+            <div className="md:col-span-2 mb-4 mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-purple-200 to-transparent"></div>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Custom Fee Types</h3>
+                <div className="h-px flex-1 bg-gradient-to-l from-purple-200 to-transparent"></div>
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-gray-500">
+                  Add custom participant types with specific pricing (e.g., VIP Member, Senior Citizen, etc.)
+                </p>
+                <button
+                  type="button"
+                  onClick={addCustomFeeType}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Fee Type
+                </button>
+              </div>
+
+              {customFeeTypes.length === 0 ? (
+                <div className="text-center py-8 bg-purple-50 rounded-lg border-2 border-dashed border-purple-200">
+                  <p className="text-gray-500 text-sm">No custom fee types yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Click &quot;Add Fee Type&quot; to create custom pricing for specific groups</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {customFeeTypes.map((feeType, index) => {
+                    const isExpanded = expandedFeeTypeId === feeType.id
+                    return (
+                      <div
+                        key={feeType.id}
+                        className="bg-purple-50 rounded-lg border-2 border-purple-200 p-4 hover:border-purple-300 transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedFeeTypeId(isExpanded ? null : feeType.id)}
+                              className="text-left w-full"
+                            >
+                              <h4 className="text-sm font-bold text-purple-900">
+                                {feeType.name || `Custom Fee Type #${index + 1}`}
+                              </h4>
+                              {feeType.description && (
+                                <p className="text-xs text-purple-700 mt-1">{feeType.description}</p>
+                              )}
+                              {!isExpanded && feeType.name && (
+                                <p className="text-xs text-purple-600 mt-1">
+                                  Early Bird: {feeType.early_bird} {formData.currency} | Regular: {feeType.regular} {formData.currency} | Late: {feeType.late} {formData.currency}
+                                </p>
+                              )}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomFeeType(feeType.id)}
+                            className="text-red-600 hover:text-red-700 transition-colors ml-2"
+                            title="Remove fee type"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="space-y-3 pt-3 border-t border-purple-200">
+                            <div>
+                              <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                Fee Type Name *
+                              </label>
+                              <input
+                                type="text"
+                                value={feeType.name}
+                                onChange={(e) => updateCustomFeeType(feeType.id, { name: e.target.value })}
+                                placeholder="e.g., VIP Member, Senior Citizen"
+                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                Description (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={feeType.description || ''}
+                                onChange={(e) => updateCustomFeeType(feeType.id, { description: e.target.value })}
+                                placeholder="Brief description of this fee type"
+                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  Early Bird
+                                </label>
+                                <input
+                                  type="number"
+                                  value={feeType.early_bird}
+                                  onChange={(e) => updateCustomFeeType(feeType.id, { early_bird: parseFloat(e.target.value) || 0 })}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="npr. 300.00"
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                />
+                                <p className="mt-1 text-xs text-purple-600">
+                                  Price during early bird period
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  Regular
+                                </label>
+                                <input
+                                  type="number"
+                                  value={feeType.regular}
+                                  onChange={(e) => updateCustomFeeType(feeType.id, { regular: parseFloat(e.target.value) || 0 })}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="npr. 400.00"
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                />
+                                <p className="mt-1 text-xs text-purple-600">
+                                  Default price after early bird
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  Late
+                                </label>
+                                <input
+                                  type="number"
+                                  value={feeType.late}
+                                  onChange={(e) => updateCustomFeeType(feeType.id, { late: parseFloat(e.target.value) || 0 })}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="npr. 500.00"
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                />
+                                <p className="mt-1 text-xs text-purple-600">
+                                  Price for late registration
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div>

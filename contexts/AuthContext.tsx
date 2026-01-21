@@ -5,9 +5,10 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { UserProfile, UserRole } from '@/lib/auth-utils'
 import { log } from '@/lib/logger'
+import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
-  user: any | null
+  user: User | null
   profile: UserProfile | null
   role: UserRole | null
   loading: boolean
@@ -38,7 +39,7 @@ export const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [impersonatedProfile, setImpersonatedProfile] = useState<UserProfile | null>(null)

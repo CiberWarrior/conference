@@ -293,7 +293,7 @@ export async function logAdminAction(
   action: string,
   resourceType?: string,
   resourceId?: string,
-  details?: any
+  details?: Record<string, unknown>
 ): Promise<void> {
   try {
     const client = await getSupabaseClient()

@@ -2,17 +2,28 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Cookie options type for Supabase SSR
+interface CookieOptions {
+  path?: string
+  maxAge?: number
+  expires?: Date
+  httpOnly?: boolean
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  domain?: string
+}
+
 // Simple logger for Edge Runtime (middleware runs in Edge Runtime, can't use Winston)
 const log = {
-  debug: (message: string, meta?: any) => {
+  debug: (message: string, meta?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'development') {
       console.debug(`[DEBUG] ${message}`, meta)
     }
   },
-  warn: (message: string, meta?: any) => {
+  warn: (message: string, meta?: Record<string, unknown>) => {
     console.warn(`[WARN] ${message}`, meta)
   },
-  error: (message: string, meta?: any) => {
+  error: (message: string, meta?: Record<string, unknown>) => {
     console.error(`[ERROR] ${message}`, meta)
   },
 }
@@ -40,7 +51,7 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value,
@@ -57,7 +68,7 @@ export async function middleware(request: NextRequest) {
             ...options,
           })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value: '',

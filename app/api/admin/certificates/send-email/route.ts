@@ -5,12 +5,18 @@ import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
+interface SendCertificateEmailRequestBody {
+  registrationId: string
+  certificateUrl: string
+  customMessage?: string
+}
+
 /**
  * POST /api/admin/certificates/send-email
  * Send certificate via email
  */
 export async function POST(request: NextRequest) {
-  let body: any = null
+  let body: SendCertificateEmailRequestBody | null = null
   try {
     body = await request.json()
     const { registrationId, certificateUrl, customMessage } = body

@@ -112,7 +112,7 @@ export async function getCachedConference(slug: string) {
   return getCache(`conference:${slug}`)
 }
 
-export async function setCachedConference(slug: string, data: any) {
+export async function setCachedConference<T>(slug: string, data: T) {
   return setCache(`conference:${slug}`, data, 3600) // 1 hour
 }
 
@@ -127,9 +127,9 @@ export async function getCachedDashboardStats(conferenceId: string) {
   return getCache(`dashboard:stats:${conferenceId}`)
 }
 
-export async function setCachedDashboardStats(
+export async function setCachedDashboardStats<T>(
   conferenceId: string,
-  data: any
+  data: T
 ) {
   return setCache(`dashboard:stats:${conferenceId}`, data, 300) // 5 minutes
 }
@@ -145,7 +145,7 @@ export async function getCachedUserPermissions(userId: string) {
   return getCache(`user:permissions:${userId}`)
 }
 
-export async function setCachedUserPermissions(userId: string, data: any) {
+export async function setCachedUserPermissions<T>(userId: string, data: T) {
   return setCache(`user:permissions:${userId}`, data, 900) // 15 minutes
 }
 

@@ -4,9 +4,14 @@ import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
+interface CheckinRequestBody {
+  registrationId: string
+  conferenceId: string
+}
+
 export async function POST(request: NextRequest) {
   // NOTE: Defined outside try so we can safely reference it in catch logs
-  let body: any = null
+  let body: CheckinRequestBody | null = null
   try {
     body = await request.json()
     const { registrationId, conferenceId } = body

@@ -50,27 +50,27 @@ export default function RegistrationForm({
   const availablePaymentOptions = {
     card: paymentSettings?.allow_card ?? true,
     bank: (paymentSettings?.allow_bank_transfer ?? true) && hasBankAccount,
-    later: paymentSettings?.allow_pay_later ?? true,
+    // Pay Later removed from product
+    later: false,
   }
 
   // Payment preference state - default based on payment settings (and constrained by available options)
-  const defaultPaymentPreference: 'pay_now_card' | 'pay_now_bank' | 'pay_later' = (() => {
-    const configured = paymentSettings?.default_preference ?? 'pay_later'
+  const defaultPaymentPreference: 'pay_now_card' | 'pay_now_bank' = (() => {
+    const configured = paymentSettings?.default_preference ?? 'pay_now_card'
 
     const isAllowed =
       (configured === 'pay_now_card' && availablePaymentOptions.card) ||
-      (configured === 'pay_now_bank' && availablePaymentOptions.bank) ||
-      (configured === 'pay_later' && availablePaymentOptions.later)
+      (configured === 'pay_now_bank' && availablePaymentOptions.bank)
 
     if (isAllowed) return configured
 
     // Fallback to first available option
     if (availablePaymentOptions.card) return 'pay_now_card'
     if (availablePaymentOptions.bank) return 'pay_now_bank'
-    return 'pay_later'
+    return 'pay_now_card'
   })()
   
-  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | 'pay_later'>(
+  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank'>(
     defaultPaymentPreference
   )
   const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
@@ -183,7 +183,7 @@ export default function RegistrationForm({
         custom_data: {}, // No global custom data anymore, everything is per-participant
         participants: participants,
         registration_fee_type: selectedFee || null, // Include selected fee type
-        payment_preference: paymentPreference, // Payment preference: pay_now_card, pay_now_bank, pay_later
+        payment_preference: paymentPreference, // Payment preference: pay_now_card, pay_now_bank
         accommodation: arrivalDate && departureDate ? {
           arrival_date: arrivalDate,
           departure_date: departureDate,
@@ -315,7 +315,13 @@ export default function RegistrationForm({
                 />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'regular' ? 'text-indigo-900' : 'text-indigo-800'}`}>Regular</div>
-                        <div className="text-xs text-indigo-600 leading-relaxed">Standard registration</div>
+                        <div className="text-xs text-indigo-600 leading-relaxed">
+                          {pricing.regular?.start_date 
+                            ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
+                            : pricing.early_bird?.deadline 
+                              ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
+                              : 'Standard registration'}
+                        </div>
               </div>
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-indigo-200">
@@ -328,7 +334,7 @@ export default function RegistrationForm({
                 )}
 
                 {/* Student - 3rd */}
-                {getPriceAmount(pricing.student_discount, pricing.currency) > 0 && pricing.regular?.amount && (
+                {(pricing.student || (getPriceAmount(pricing.student_discount, pricing.currency) > 0 && pricing.regular?.amount)) && (
               <label
                     className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
                       selectedFee === 'student'
@@ -347,14 +353,20 @@ export default function RegistrationForm({
                 />
                           <div className="flex-1 min-w-0">
                         <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'student' ? 'text-emerald-900' : 'text-emerald-800'}`}>Student</div>
-                        <div className="text-xs text-emerald-600 leading-relaxed">Special discount for students</div>
+                        <div className="text-xs text-emerald-600 leading-relaxed">
+                          {pricing.regular?.start_date 
+                            ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
+                            : pricing.early_bird?.deadline 
+                              ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
+                              : 'Special pricing for students'}
+                        </div>
               </div>
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-emerald-200">
                       <div className="text-2xl font-bold text-emerald-700 mb-1">
                         {formatPriceWithoutZeros(
-                          getPriceAmount(pricing.regular.amount, pricing.currency) -
-                          getPriceAmount(pricing.student_discount, pricing.currency)
+                          pricing.student?.regular || 
+                          (getPriceAmount(pricing.regular.amount, pricing.currency) - getPriceAmount(pricing.student_discount, pricing.currency))
                         )}
                       </div>
                       <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{pricing.currency}</div>
@@ -382,7 +394,15 @@ export default function RegistrationForm({
                 />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'late' ? 'text-amber-900' : 'text-amber-800'}`}>Late Registration</div>
-                        <div className="text-xs text-amber-600 leading-relaxed">After deadline</div>
+                        <div className="text-xs text-amber-600 leading-relaxed">
+                          {pricing.late?.start_date 
+                            ? `From ${new Date(pricing.late.start_date).toLocaleDateString()}`
+                            : pricing.regular?.start_date 
+                              ? `After ${new Date(pricing.regular.start_date).toLocaleDateString()}`
+                              : pricing.early_bird?.deadline 
+                                ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
+                                : 'Late registration period'}
+                        </div>
               </div>
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-amber-200">
@@ -426,7 +446,53 @@ export default function RegistrationForm({
               </label>
                 )}
 
-                {/* Custom Pricing Fields (e.g., Exhibitor, VIP, etc.) */}
+                {/* Custom Fee Types (e.g., VIP Member, Senior, etc.) */}
+                {pricing.custom_fee_types && pricing.custom_fee_types.map((feeType) => (
+              <label
+                    key={feeType.id}
+                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
+                      selectedFee === `fee_type_${feeType.id}`
+                        ? 'border-purple-600 bg-purple-50 shadow-md'
+                        : 'border-purple-200 bg-purple-50/30 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 mb-4">
+                <input
+                        type="radio"
+                        name="registration_fee"
+                        value={`fee_type_${feeType.id}`}
+                        checked={selectedFee === `fee_type_${feeType.id}`}
+                        onChange={(e) => setSelectedFee(e.target.value)}
+                        className="w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
+                />
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === `fee_type_${feeType.id}` ? 'text-purple-900' : 'text-purple-800'}`}>
+                          {feeType.name}
+                        </div>
+                        {feeType.description && (
+                          <div className="text-xs text-purple-600 leading-relaxed mb-1">{feeType.description}</div>
+                        )}
+                        {pricing.regular?.start_date ? (
+                          <div className="text-xs text-purple-600 leading-relaxed">
+                            From {new Date(pricing.regular.start_date).toLocaleDateString()}{pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}
+                          </div>
+                        ) : pricing.early_bird?.deadline && (
+                          <div className="text-xs text-purple-600 leading-relaxed">
+                            After {new Date(pricing.early_bird.deadline).toLocaleDateString()}
+                          </div>
+                        )}
+              </div>
+            </div>
+                    <div className="mt-auto pt-4 border-t-2 border-purple-200">
+                      <div className="text-2xl font-bold text-purple-700 mb-1">
+                        {formatPriceWithoutZeros(feeType.regular)}
+                      </div>
+                      <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">{pricing.currency}</div>
+          </div>
+              </label>
+                ))}
+
+                {/* Custom Pricing Fields (e.g., Exhibitor, VIP, etc.) - Legacy */}
                 {pricing.custom_fields && pricing.custom_fields.map((customField) => (
               <label
                     key={customField.id}
@@ -664,39 +730,6 @@ export default function RegistrationForm({
                   </label>
                   )}
 
-                  {/* Pay Later (conditional) */}
-                  {availablePaymentOptions.later && (
-                  <label
-                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
-                      paymentPreference === 'pay_later'
-                        ? 'border-purple-500 bg-purple-50 shadow-md ring-2 ring-purple-100'
-                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_preference"
-                      value="pay_later"
-                      checked={paymentPreference === 'pay_later'}
-                      onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <div className="font-bold text-gray-900">Pay Later</div>
-                      </div>
-                      <p className="text-sm text-gray-600 ml-11">Register now, receive payment instructions via email</p>
-                    </div>
-                    <div className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
-                      Flexible
-                    </div>
-                  </label>
-                  )}
                 </div>
 
                 {/* Bank Transfer Instructions (conditional) */}
@@ -752,32 +785,6 @@ export default function RegistrationForm({
                       <p className="text-xs text-gray-600 mt-2">
                         You can upload this now or later via the confirmation email link
                       </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Pay Later Info (conditional) */}
-                {paymentPreference === 'pay_later' && availablePaymentOptions.later && (
-                  <div className="mt-6 p-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl shadow-sm">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-base font-bold text-gray-900 mb-2">Payment Instructions via Email</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                          You will receive an email with payment instructions and a payment link. 
-                          Please complete your payment before the conference to ensure your registration is confirmed.
-                        </p>
-                        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
-                          <p className="text-sm font-semibold text-amber-900">
-                            <span className="inline-block mr-2">⚠️</span>
-                            <strong>Reminder:</strong> Payment reminders will be sent automatically after 3, 7, and 14 days if payment is not received.
-                          </p>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}

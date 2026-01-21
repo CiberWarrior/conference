@@ -17,7 +17,8 @@ const registrationSchema = z.object({
   conference_id: z.string().uuid(),
   custom_data: z.record(z.any()).optional(), // Custom fields defined by admin
   registration_fee_type: z.string().optional().nullable(), // Selected registration fee type (early_bird, regular, late, student, accompanying_person, or custom_{id})
-  payment_preference: z.enum(['pay_now_card', 'pay_now_bank', 'pay_later']).optional().default('pay_later'), // Payment preference
+  // Pay Later removed from product; keep only immediate options
+  payment_preference: z.enum(['pay_now_card', 'pay_now_bank']).optional().default('pay_now_card'), // Payment preference
   participants: z
       .array(
         z.object({
@@ -164,9 +165,6 @@ export async function POST(request: NextRequest) {
     } else if (validatedData.payment_preference === 'pay_now_bank') {
       paymentMethod = 'bank_transfer'
       paymentStatus = 'pending'
-    } else if (validatedData.payment_preference === 'pay_later') {
-      paymentMethod = null // Will be selected later
-      paymentStatus = 'pending' // Still needs to pay, but later
     }
 
     // Insert registration with simplified data structure

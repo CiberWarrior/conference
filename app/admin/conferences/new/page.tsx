@@ -913,31 +913,6 @@ export default function NewConferencePage() {
                         </div>
                       </label>
 
-                      {/* Pay Later */}
-                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                        <input
-                          type="checkbox"
-                          checked={paymentSettings.allow_pay_later}
-                          onChange={(e) => {
-                            setPaymentSettings({
-                              ...paymentSettings,
-                              allow_pay_later: e.target.checked,
-                            })
-                          }}
-                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900">⏰ Pay Later</p>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              Flexible
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Allow participants to register now and pay later
-                          </p>
-                        </div>
-                      </label>
                     </div>
 
                     {/* Default Preference */}
@@ -950,7 +925,8 @@ export default function NewConferencePage() {
                         onChange={(e) => {
                           setPaymentSettings({
                             ...paymentSettings,
-                            default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank' | 'pay_later',
+                            // Pay Later removed from UI; keep stored values backward-compatible
+                            default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank',
                           })
                         }}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -960,9 +936,6 @@ export default function NewConferencePage() {
                         )}
                         {paymentSettings.allow_bank_transfer && (
                           <option value="pay_now_bank">Bank Transfer</option>
-                        )}
-                        {paymentSettings.allow_pay_later && (
-                          <option value="pay_later">Pay Later</option>
                         )}
                       </select>
                       <p className="text-xs text-gray-500">

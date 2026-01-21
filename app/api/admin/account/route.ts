@@ -96,7 +96,12 @@ export async function PATCH(request: NextRequest) {
     })
 
     // Build update object
-    const profileUpdates: any = {
+    const profileUpdates: {
+      updated_at: string
+      full_name?: string
+      phone?: string
+      organization?: string
+    } = {
       updated_at: new Date().toISOString(),
     }
 

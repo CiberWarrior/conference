@@ -14,13 +14,17 @@ interface CertificateData {
   logoUrl?: string
 }
 
+interface GenerateCertificateRequestBody extends CertificateData {
+  conferenceId?: string
+}
+
 /**
  * POST /api/admin/certificates/generate
  * Generate certificate PDF for a registration
  */
 export async function POST(request: NextRequest) {
   // NOTE: Defined outside try so we can safely reference it in catch logs
-  let body: any = null
+  let body: GenerateCertificateRequestBody | null = null
   try {
     body = await request.json()
     const {
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
       conferenceDate,
       conferenceLocation,
       logoUrl,
-    }: CertificateData & { conferenceId?: string } = body
+    } = body
 
     if (!registrationId) {
       return NextResponse.json(

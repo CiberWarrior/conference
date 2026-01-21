@@ -52,6 +52,15 @@ export interface CustomPricingField {
   description: string // Opis polja
 }
 
+export interface CustomFeeType {
+  id: string
+  name: string // Naziv fee type-a (npr. "VIP Member", "Senior Citizen")
+  description?: string // Opcioni opis
+  early_bird: number // Cijena za early bird period
+  regular: number // Cijena za regular period
+  late: number // Cijena za late registration
+}
+
 export interface HotelOption {
   id: string
   name: string // Naziv hotela i tip sobe (npr. "HOTEL VIS / KOMODOR 3 - Double SINGLE USE room standard park view")
@@ -68,17 +77,34 @@ export interface ConferencePricing {
   currency: string // Default currency
   vat_percentage?: number // PDV postotak (npr. 25 za 25% PDV-a) - opcionalno, ako nije postavljen, ne prikazuje se PDV
   currencies?: string[] // Supported currencies (e.g., ['EUR', 'USD', 'GBP'])
+  
+  // Standard participant pricing
   early_bird: {
     amount: number | Record<string, number> // Single amount or multi-currency: { EUR: 150, USD: 170 }
     deadline?: string // ISO date string
   }
   regular: {
     amount: number | Record<string, number> // Single amount or multi-currency
+    start_date?: string // ISO date string - when regular pricing starts (default: early_bird.deadline + 1 day)
   }
   late: {
     amount: number | Record<string, number> // Single amount or multi-currency
+    start_date?: string // ISO date string - when late registration pricing starts
   }
-  student_discount: number | Record<string, number> // Single discount or multi-currency
+  
+  // Student pricing (fixed prices per tier)
+  student?: {
+    early_bird: number
+    regular: number
+    late: number
+  }
+  
+  // Legacy field - kept for backward compatibility (will migrate to student pricing)
+  student_discount?: number | Record<string, number> // Single discount or multi-currency
+  
+  // Custom fee types (VIP, Senior, etc.)
+  custom_fee_types?: CustomFeeType[]
+  
   accompanying_person_price?: number | Record<string, number> // Price for accompanying persons (early bird)
   custom_fields?: CustomPricingField[] // Custom pricing polja koja korisnik definira
 }

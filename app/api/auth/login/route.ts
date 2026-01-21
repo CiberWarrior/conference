@@ -9,6 +9,17 @@ import {
   createRateLimitHeaders,
 } from '@/lib/rate-limit'
 
+// Cookie options type for Supabase SSR
+interface CookieOptions {
+  path?: string
+  maxAge?: number
+  expires?: Date
+  httpOnly?: boolean
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  domain?: string
+}
+
 export const dynamic = 'force-dynamic'
 
 /**
@@ -82,12 +93,12 @@ export async function POST(request: NextRequest) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: any) {
+          set(name: string, value: string, options: CookieOptions) {
             // Set cookie in both the request and response
             cookieStore.set({ name, value, ...options })
             response.cookies.set({ name, value, ...options })
           },
-          remove(name: string, options: any) {
+          remove(name: string, options: CookieOptions) {
             cookieStore.set({ name, value: '', ...options })
             response.cookies.set({ name, value: '', ...options })
           },

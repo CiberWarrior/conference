@@ -4,12 +4,22 @@ import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
+interface BulkCertificateRequestBody {
+  registrationIds: string[]
+  conferenceId: string
+  certificateType?: 'participation' | 'presentation' | 'organizer' | 'volunteer'
+  conferenceName?: string
+  conferenceDate?: string
+  conferenceLocation?: string
+  sendEmail?: boolean
+}
+
 /**
  * POST /api/admin/certificates/bulk
  * Generate certificates for multiple registrations
  */
 export async function POST(request: NextRequest) {
-  let body: any = null
+  let body: BulkCertificateRequestBody | null = null
   try {
     body = await request.json()
     const {
