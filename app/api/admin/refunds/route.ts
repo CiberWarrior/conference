@@ -237,6 +237,14 @@ export async function PATCH(request: NextRequest) {
   let body: RefundStatusUpdateBody | null = null
   try {
     body = await request.json()
+    
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Request body is required' },
+        { status: 400 }
+      )
+    }
+    
     const { registrationId, status, reason } = body
 
     if (!registrationId || !status) {

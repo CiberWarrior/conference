@@ -90,17 +90,16 @@ export async function POST(request: NextRequest) {
       supabaseAnonKey,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
+          // @supabase/ssr@0.8.x expects getAll/setAll in route handlers
+          getAll() {
+            return cookieStore.getAll()
           },
-          set(name: string, value: string, options: CookieOptions) {
-            // Set cookie in both the request and response
-            cookieStore.set({ name, value, ...options })
-            response.cookies.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
-            response.cookies.set({ name, value: '', ...options })
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Keep request cookieStore in sync and also set response cookies
+              cookieStore.set({ name, value, ...options })
+              response.cookies.set({ name, value, ...options })
+            })
           },
         },
       }

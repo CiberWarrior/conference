@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
   let body: GenerateCertificateRequestBody | null = null
   try {
     body = await request.json()
+    
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Request body is required' },
+        { status: 400 }
+      )
+    }
+    
     const {
       registrationId,
       conferenceId,
