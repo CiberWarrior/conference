@@ -114,6 +114,8 @@ export async function POST(request: NextRequest) {
         primary_color: '#3B82F6',
         pricing: {
           currency: 'EUR',
+          vat_percentage: 25,
+          prices_include_vat: false,
           early_bird: {
             amount: 150,
             deadline: earlyBirdDeadline,
@@ -133,8 +135,6 @@ export async function POST(request: NextRequest) {
           payment_required: true,
           max_registrations: undefined,
           timezone: 'Europe/Zagreb',
-          vat_percentage: 25,
-          prices_include_vat: false,
           custom_registration_fields: [
             {
               id: 'dietary',

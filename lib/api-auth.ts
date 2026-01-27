@@ -50,7 +50,10 @@ export async function requireAuth(): Promise<AuthContext> {
   }
 
   return {
-    user,
+    user: {
+      id: user.id,
+      email: user.email,
+    },
     profile: profile as UserProfile,
     supabase,
   }
