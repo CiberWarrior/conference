@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
         end_date: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 32 days from now
         location: 'Zagreb, Croatia',
         venue: 'Hotel Sheraton',
-        website_url: null,
-        logo_url: null,
+        website_url: undefined,
+        logo_url: undefined,
         primary_color: '#3B82F6',
         pricing: {
           currency: 'EUR',
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
           registration_enabled: true,
           abstract_submission_enabled: false,
           payment_required: true,
-          max_registrations: null,
+          max_registrations: undefined,
           timezone: 'Europe/Zagreb',
         },
         email_settings: {
-          from_email: null,
-          from_name: null,
-          reply_to: null,
+          from_email: undefined,
+          from_name: undefined,
+          reply_to: undefined,
         },
         owner_id: profile.id,
       }
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         location: 'Zagreb, Croatia',
         venue: 'Hotel Sheraton - Grand Ballroom',
         website_url: `https://demo-conference.example.com`,
-        logo_url: null,
+        logo_url: undefined,
         primary_color: '#3B82F6',
         pricing: {
           currency: 'EUR',
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           registration_enabled: true,
           abstract_submission_enabled: true,
           payment_required: true,
-          max_registrations: null,
+          max_registrations: undefined,
           timezone: 'Europe/Zagreb',
           vat_percentage: 25,
           prices_include_vat: false,
