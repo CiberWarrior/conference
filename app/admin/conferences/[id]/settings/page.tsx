@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical } from 'lucide-react'
-import type { CustomPricingField, CustomFeeType, HotelOption, PaymentSettings } from '@/types/conference'
+import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket } from 'lucide-react'
+import type { CustomPricingField, CustomFeeType, HotelOption, PaymentSettings, RoomType } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
@@ -43,7 +43,12 @@ export default function ConferenceSettingsPage() {
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
   const [customFeeTypes, setCustomFeeTypes] = useState<CustomFeeType[]>([])
   const [expandedFeeTypeId, setExpandedFeeTypeId] = useState<string | null>(null)
-  
+  const [conferenceTickets, setConferenceTickets] = useState<{ id: string; subject: string; status: string; description?: string | null }[]>([])
+  const [loadingTickets, setLoadingTickets] = useState(false)
+  const [hotelUsage, setHotelUsage] = useState<Record<string, number>>({})
+  const [loadingHotelUsage, setLoadingHotelUsage] = useState(false)
+  const [creatingTicketForHotel, setCreatingTicketForHotel] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -92,6 +97,98 @@ export default function ConferenceSettingsPage() {
     loadConference()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conferenceId])
+
+  const loadConferenceTickets = async () => {
+    if (!conferenceId) return
+    setLoadingTickets(true)
+    try {
+      const res = await fetch(`/api/admin/tickets?conference_id=${conferenceId}`)
+      const data = await res.json()
+      if (res.ok && data.tickets) {
+        setConferenceTickets(
+          data.tickets.map((t: { id: string; subject: string; status: string; description?: string | null }) => ({
+            id: t.id,
+            subject: t.subject,
+            status: t.status,
+            description: t.description ?? null,
+          }))
+        )
+      } else {
+        setConferenceTickets([])
+      }
+    } catch {
+      setConferenceTickets([])
+    } finally {
+      setLoadingTickets(false)
+    }
+  }
+
+  const loadHotelUsage = async () => {
+    if (!conferenceId) return
+    setLoadingHotelUsage(true)
+    try {
+      const res = await fetch(`/api/admin/conferences/${conferenceId}/hotel-usage`)
+      const data = await res.json()
+      if (res.ok && data.usage) {
+        setHotelUsage(data.usage)
+      } else {
+        setHotelUsage({})
+      }
+    } catch {
+      setHotelUsage({})
+    } finally {
+      setLoadingHotelUsage(false)
+    }
+  }
+
+  useEffect(() => {
+    loadConferenceTickets()
+  }, [conferenceId])
+
+  useEffect(() => {
+    loadHotelUsage()
+  }, [conferenceId])
+
+  const hasTicketForHotel = (hotelId: string) =>
+    conferenceTickets.some(
+      (t) => t.description && t.description.includes(`Hotel ID: ${hotelId}`)
+    )
+
+  const handleCreateTicketForHotel = async (hotelId: string, hotelName: string) => {
+    if (!conferenceId) return
+    setCreatingTicketForHotel(hotelId)
+    try {
+      const res = await fetch('/api/admin/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          create_for_hotel_full: true,
+          conference_id: conferenceId,
+          hotel_id: hotelId,
+          hotel_name: hotelName,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.ticket) {
+        setConferenceTickets((prev) => [
+          ...prev,
+          {
+            id: data.ticket.id,
+            subject: data.ticket.subject,
+            status: data.ticket.status,
+            description: data.ticket.description ?? null,
+          },
+        ])
+        showSuccess(data.created ? 'Ticket kreiran.' : 'Ticket već postoji.')
+      } else {
+        showError(data.error || 'Greška pri kreiranju tiketa.')
+      }
+    } catch {
+      showError('Greška pri kreiranju tiketa.')
+    } finally {
+      setCreatingTicketForHotel(null)
+    }
+  }
 
   const loadConference = async () => {
     try {
@@ -247,6 +344,15 @@ Important: Authors who submit abstracts for presentation are not automatically r
     ))
   }
 
+  // Tip sobe – oznake za UI
+  const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+    single: 'Jednokrevetna',
+    double: 'Dvokrevetna',
+    twin: 'Twin',
+    suite: 'Suite',
+    other: 'Ostalo',
+  }
+
   // Hotel Options Management
   const addHotelOption = () => {
     const newHotel: HotelOption = {
@@ -256,6 +362,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
       pricePerNight: 0,
       description: '',
       order: hotelOptions.length,
+      room_type: undefined,
     }
     setHotelOptions([...hotelOptions, newHotel])
   }
@@ -2170,10 +2277,27 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             {hotel.name || `Hotel #${index + 1}`}
                           </h4>
                           {hotel.name && (
-                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                              {hotel.room_type && (
+                                <>
+                                  <span>{ROOM_TYPE_LABELS[hotel.room_type]}</span>
+                                  <span>•</span>
+                                </>
+                              )}
                               <span>{hotel.occupancy}</span>
                               <span>•</span>
                               <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {formData.currency}/night</span>
+                              {typeof hotel.max_rooms === 'number' && hotel.max_rooms > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>
+                                    Rezervirano: {loadingHotelUsage ? '…' : (hotelUsage[hotel.id] ?? 0)} / {hotel.max_rooms} soba
+                                    {(hotelUsage[hotel.id] ?? 0) >= hotel.max_rooms && (
+                                      <span className="ml-1 font-semibold text-amber-600">Popunjeno</span>
+                                    )}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2212,7 +2336,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Hotel Name & Room Type *
+                            Naziv hotela / sobe *
                           </label>
                           <input
                             type="text"
@@ -2220,10 +2344,35 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             onChange={(e) =>
                               updateHotelOption(hotel.id, { name: e.target.value })
                             }
-                            placeholder="Hotel Name"
+                            placeholder="Npr. Hotel Vis – Standard soba"
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                             required
                           />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Tip sobe
+                          </label>
+                          <select
+                            value={hotel.room_type ?? ''}
+                            onChange={(e) =>
+                              updateHotelOption(hotel.id, {
+                                room_type: (e.target.value || undefined) as RoomType | undefined,
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            <option value="">— Nije odabrano —</option>
+                            {(Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][]).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Jednokrevetna, dvokrevetna, twin, suite – za pregled i izvještaje
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2331,34 +2480,79 @@ Important: Authors who submit abstracts for presentation are not automatically r
                           </div>
                         </div>
 
-                        {/* Max Rooms (Optional) */}
+                        {/* Max Rooms (Optional) – ručni unos kapaciteta soba */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Maximum Rooms Available (Optional)
+                            Maks. broj soba (kapacitet) *
                           </label>
                           <input
                             type="number"
-                            value={hotel.max_rooms || ''}
+                            value={hotel.max_rooms ?? ''}
                             onChange={(e) =>
                               updateHotelOption(hotel.id, {
-                                max_rooms: e.target.value ? parseInt(e.target.value) : undefined,
+                                max_rooms: e.target.value ? parseInt(e.target.value, 10) : undefined,
                               })
                             }
                             min="1"
-                            placeholder="Leave empty for unlimited"
+                            placeholder="Npr. 50 – admin ručno unosi"
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            Set maximum number of rooms available for booking (optional)
+                            Koliko soba je rezervirano za ovu konferenciju. Sustav računa rezervacije i kad se popuni, možeš kreirati ticket.
                           </p>
                         </div>
+
+                        {/* Rezervirano X / Y soba + Popunjeno + Kreiraj ticket */}
+                        {typeof hotel.max_rooms === 'number' && hotel.max_rooms > 0 && (
+                          <div className="pt-2 border-t border-gray-200">
+                            {loadingHotelUsage ? (
+                              <p className="text-sm text-gray-500">Učitavanje broja rezervacija...</p>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium text-gray-700 mb-2">
+                                  Rezervirano:{' '}
+                                  <span className="font-semibold text-gray-900">
+                                    {hotelUsage[hotel.id] ?? 0} / {hotel.max_rooms} soba
+                                  </span>
+                                </p>
+                                {(hotelUsage[hotel.id] ?? 0) >= hotel.max_rooms && (
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                      Popunjeno
+                                    </span>
+                                    {hasTicketForHotel(hotel.id) ? (
+                                      <span className="text-sm text-green-600 font-medium">
+                                        Ticket kreiran
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        disabled={creatingTicketForHotel === hotel.id}
+                                        onClick={() =>
+                                          handleCreateTicketForHotel(hotel.id, hotel.name || `Hotel #${index + 1}`)
+                                        }
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-sm font-medium disabled:opacity-50"
+                                      >
+                                        <Ticket className="w-4 h-4" />
+                                        {creatingTicketForHotel === hotel.id ? 'Kreiranje...' : 'Kreiraj ticket'}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
 
                         {/* Preview */}
                         {hotel.name && hotel.pricePerNight > 0 && (
                           <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
                             <p className="text-xs text-gray-500 mb-1">Preview:</p>
                             <p className="text-sm font-semibold text-gray-900">🏨 {hotel.name}</p>
-                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-600 flex-wrap">
+                              {hotel.room_type && (
+                                <span>🛏 {ROOM_TYPE_LABELS[hotel.room_type]}</span>
+                              )}
                               <span>👤 {hotel.occupancy}</span>
                               <span>💶 {hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
                             </div>
@@ -2482,6 +2676,60 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Tickets za ovu konferenciju – npr. kad napune sobe u hotelu */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Tickets za ovu konferenciju</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Interni zadaci vezani uz ovu konferenciju (npr. &quot;Hotel X popunjen&quot;, &quot;Dodati smještaj&quot;).
+          </p>
+          {loadingTickets ? (
+            <div className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              Učitavanje...
+            </div>
+          ) : (
+            <>
+              {conferenceTickets.length === 0 ? (
+                <p className="text-sm text-gray-500 mb-4">Nema tiketa za ovu konferenciju.</p>
+              ) : (
+                <ul className="space-y-2 mb-4">
+                  {conferenceTickets.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-sm font-medium text-gray-900 truncate pr-2">{t.subject}</span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          t.status === 'open'
+                            ? 'bg-amber-100 text-amber-800'
+                            : t.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {t.status === 'open' ? 'Otvoren' : t.status === 'in_progress' ? 'U tijeku' : t.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href={`/admin/tickets?conference_id=${conferenceId}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium text-sm transition-colors"
+              >
+                <Ticket className="w-4 h-4" />
+                Novi ticket (npr. sobe popunjene)
+              </Link>
+              {conferenceTickets.length > 0 && (
+                <Link
+                  href={`/admin/tickets?conference_id=${conferenceId}`}
+                  className="ml-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Otvori sve tikete →
+                </Link>
+              )}
+            </>
           )}
         </div>
 

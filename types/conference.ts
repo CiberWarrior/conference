@@ -61,6 +61,9 @@ export interface CustomFeeType {
   late: number // Cijena za late registration
 }
 
+/** Tip sobe za smještaj – za filtriranje i izvještaje */
+export type RoomType = 'single' | 'double' | 'twin' | 'suite' | 'other'
+
 export interface HotelOption {
   id: string
   name: string // Naziv hotela i tip sobe (npr. "HOTEL VIS / KOMODOR 3 - Double SINGLE USE room standard park view")
@@ -68,6 +71,7 @@ export interface HotelOption {
   pricePerNight: number // Cijena po noći
   description?: string // Dodatne informacije
   order: number // Redoslijed prikazivanja
+  room_type?: RoomType // Tip sobe: jednokrevetna, dvokrevetna, twin, suite, ostalo
   available_from?: string // ISO date string - od kada je hotel dostupan za rezervacije
   available_until?: string // ISO date string - do kada je hotel dostupan za rezervacije
   max_rooms?: number // Maksimalni broj soba dostupan za rezervaciju (opcionalno)

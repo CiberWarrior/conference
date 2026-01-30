@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ZodError } from 'zod'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
 import {
   registrationRateLimit,
@@ -220,6 +220,63 @@ export async function POST(request: NextRequest) {
       participantsCount: validatedData.participants?.length || 0,
       action: 'registration_success',
         })
+
+    // ============================================
+    // AUTO-CREATE TICKET WHEN HOTEL REACHES CAPACITY
+    // ============================================
+    const hotelId = validatedData.accommodation?.hotel_id
+    if (hotelId && conference.settings?.hotel_options) {
+      const hotelOptions = conference.settings.hotel_options as Array<{ id: string; name?: string; max_rooms?: number }>
+      const hotel = hotelOptions.find((h) => h.id === hotelId)
+      const maxRooms = hotel?.max_rooms
+      if (typeof maxRooms === 'number' && maxRooms > 0) {
+        const { data: allRegs } = await supabase
+          .from('registrations')
+          .select('id, accommodation')
+          .eq('conference_id', validatedData.conference_id)
+          .not('accommodation', 'is', null)
+        const count = allRegs?.filter((r) => (r.accommodation as { hotel_id?: string })?.hotel_id === hotelId).length ?? 0
+        if (count >= maxRooms) {
+          try {
+            const adminSupabase = createAdminClient()
+            const marker = `Hotel ID: ${hotelId}`
+            const { data: existing } = await adminSupabase
+              .from('support_tickets')
+              .select('id')
+              .eq('conference_id', validatedData.conference_id)
+              .eq('category', 'accommodation_full')
+              .like('description', `%${marker}%`)
+              .limit(1)
+              .maybeSingle()
+            if (!existing) {
+              await adminSupabase.from('support_tickets').insert({
+                subject: `Smještaj popunjen: ${String(hotel?.name || hotelId).slice(0, 200)}`,
+                description: `${marker}. Sve rezervirane sobe su popunjene.`,
+                status: 'open',
+                priority: 'high',
+                category: 'accommodation_full',
+                conference_id: validatedData.conference_id,
+                created_by_user_id: null,
+                created_by_email: null,
+              })
+              log.info('Auto-created support ticket for full hotel', {
+                conferenceId: validatedData.conference_id,
+                hotelId,
+                count,
+                maxRooms,
+                action: 'ticket_auto_create',
+              })
+            }
+          } catch (ticketErr) {
+            log.error('Auto-create ticket for full hotel failed', ticketErr, {
+              conferenceId: validatedData.conference_id,
+              hotelId,
+              action: 'ticket_auto_create',
+            })
+          }
+        }
+      }
+    }
 
     // ============================================
     // PARTICIPANT PROFILE SYSTEM INTEGRATION

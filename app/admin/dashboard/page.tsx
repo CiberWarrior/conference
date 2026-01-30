@@ -19,20 +19,21 @@ import {
   EngagementMetrics,
   ComparisonInsights,
 } from '@/components/admin/NewAnalytics'
+import Avatar from '@/components/admin/Avatar'
 import Link from 'next/link'
-import { 
-  AlertCircle, 
-  Plus, 
-  Download, 
-  Mail, 
-  FileText, 
-  Users as UsersIcon, 
-  CreditCard, 
-  Calendar, 
-  MapPin, 
-  Globe, 
-  Eye, 
-  CheckCircle, 
+import {
+  AlertCircle,
+  Plus,
+  Download,
+  Mail,
+  FileText,
+  Users as UsersIcon,
+  CreditCard,
+  Calendar,
+  MapPin,
+  Globe,
+  Eye,
+  CheckCircle,
   XCircle,
   Building2,
   TrendingUp,
@@ -46,6 +47,9 @@ import {
   Search,
   X,
   Filter,
+  ChevronDown,
+  ChevronUp,
+  Ticket,
 } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { ABSTRACT_APP_URL } from '@/constants/config'
@@ -149,6 +153,8 @@ export default function DashboardPage() {
   const [loadingConferenceStats, setLoadingConferenceStats] = useState(false)
   const [conferenceSearchTerm, setConferenceSearchTerm] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all')
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(true)
+  const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null)
 
   // Auto-select if only one conference
   useEffect(() => {
@@ -709,6 +715,23 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, conferences])
 
+  // Load open tickets count for Quick Actions (Support Tickets)
+  useEffect(() => {
+    if (!currentConference && !isSuperAdmin) return
+    let cancelled = false
+    fetch('/api/admin/tickets?stats_only=1')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.open === 'number') {
+          setOpenTicketsCount(data.open)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [currentConference, isSuperAdmin])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -903,13 +926,13 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Conference Admins Section - Only show when super admin and not impersonating */}
+        {/* Team (Conference Admins) – table with Avatar – Platform Overview */}
         {isSuperAdmin && !isImpersonating && (
-          <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserCog className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Conference Admins</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Team</h3>
                 <span className="text-sm text-gray-500">
                   ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
                 </span>
@@ -928,7 +951,7 @@ export default function DashboardPage() {
               {loadingAdmins ? (
                 <div className="text-center py-8">
                   <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">Loading conference admins...</p>
+                  <p className="text-sm text-gray-500">Loading team...</p>
                 </div>
               ) : conferenceAdmins.length === 0 ? (
                 <div className="text-center py-8">
@@ -946,61 +969,83 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {conferenceAdmins.slice(0, 6).map((admin) => (
-                      <div
-                        key={admin.id}
-                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">
-                              {admin.full_name || 'No name'}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">{admin.email}</p>
-                            {admin.organization && (
-                              <p className="text-xs text-gray-500 mt-1">{admin.organization}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                          <span className="flex items-center gap-1">
-                            <Building2 className="w-3 h-3" />
-                            {admin.assigned_conferences_count || 0} conference(s)
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => handleImpersonate(admin.id)}
-                          disabled={impersonatingUserId === admin.id}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {impersonatingUserId === admin.id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                              <span>Switching...</span>
-                            </>
-                          ) : (
-                            <>
-                              <LogIn className="w-4 h-4" />
-                              View as this Admin
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {conferenceAdmins.length > 6 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Member
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Organization
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Conferences
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {conferenceAdmins.slice(0, 10).map((admin) => (
+                        <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar
+                                name={admin.full_name}
+                                email={admin.email}
+                                size="md"
+                              />
+                              <span className="font-medium text-gray-900">
+                                {admin.full_name || 'No name'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{admin.email}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {admin.organization || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm text-gray-600">
+                            {admin.assigned_conferences_count || 0}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => handleImpersonate(admin.id)}
+                              disabled={impersonatingUserId === admin.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {impersonatingUserId === admin.id ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  Switching...
+                                </>
+                              ) : (
+                                <>
+                                  <LogIn className="w-3.5 h-3.5" />
+                                  View as
+                                </>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {conferenceAdmins.length > 10 && (
                     <div className="mt-4 text-center">
                       <Link
                         href="/admin/users"
                         className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       >
-                        View all {conferenceAdmins.length} conference admins →
+                        View all {conferenceAdmins.length} →
                       </Link>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -1400,57 +1445,59 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions – Toolbar (Telerik-style) */}
       {currentConference && !shouldShowOverview && (
-        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* View Registrations - navigates to registrations page */}
+        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/80">
+            <span className="text-sm font-semibold text-gray-700">Quick Actions</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 p-4">
             <Link
               href="/admin/registrations"
-              className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
             >
-              <UsersIcon className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">View Registrations</span>
+              <UsersIcon className="w-4 h-4" />
+              Registrations
             </Link>
-            {/* Manage Abstracts - navigates to abstracts page */}
             <Link
               href="/admin/abstracts"
-              className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
             >
-              <FileText className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">Manage Abstracts</span>
+              <FileText className="w-4 h-4" />
+              Abstracts
             </Link>
-            {/* View Payments - navigates to payments page */}
             <Link
               href="/admin/payments"
-              className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
             >
-              <CreditCard className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-gray-900">View Payments</span>
+              <CreditCard className="w-4 h-4" />
+              Payments
             </Link>
-            {/* Settings - navigates to conference settings */}
             <Link
               href={`/admin/conferences/${currentConference.id}/settings`}
-              className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
             >
-              <Settings className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-900">Settings</span>
+              <Settings className="w-4 h-4" />
+              Settings
+            </Link>
+            <Link
+              href="/admin/tickets"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-medium transition-colors"
+            >
+              <Ticket className="w-4 h-4" />
+              Tickets{openTicketsCount !== null && openTicketsCount > 0 ? ` (${openTicketsCount})` : ''}
             </Link>
           </div>
         </div>
       )}
 
-      {/* Conference Admins Section - Show for super admin even when conference is selected */}
-      {(() => {
-        return null
-      })()}
+      {/* Team (Conference Admins) – table with Avatar (Telerik-style) */}
       {isSuperAdmin && !isImpersonating && (
-        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <UserCog className="w-5 h-5 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Conference Admins</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Team</h3>
               <span className="text-sm text-gray-500">
                 ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
               </span>
@@ -1469,7 +1516,7 @@ export default function DashboardPage() {
             {loadingAdmins ? (
               <div className="text-center py-8">
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-gray-500">Loading conference admins...</p>
+                <p className="text-sm text-gray-500">Loading team...</p>
               </div>
             ) : conferenceAdmins.length === 0 ? (
               <div className="text-center py-8">
@@ -1487,61 +1534,83 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {conferenceAdmins.slice(0, 6).map((admin) => (
-                    <div
-                      key={admin.id}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">
-                            {admin.full_name || 'No name'}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1">{admin.email}</p>
-                          {admin.organization && (
-                            <p className="text-xs text-gray-500 mt-1">{admin.organization}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                        <span className="flex items-center gap-1">
-                          <Building2 className="w-3 h-3" />
-                          {admin.assigned_conferences_count || 0} conference(s)
-                        </span>
-                      </div>
-                        <button
-                          onClick={() => handleImpersonate(admin.id)}
-                          disabled={impersonatingUserId === admin.id}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {impersonatingUserId === admin.id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                              <span>Switching...</span>
-                            </>
-                          ) : (
-                            <>
-                              <LogIn className="w-4 h-4" />
-                              View as this Admin
-                            </>
-                          )}
-                        </button>
-                    </div>
-                  ))}
-                </div>
-                {conferenceAdmins.length > 6 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Member
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Organization
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Conferences
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {conferenceAdmins.slice(0, 10).map((admin) => (
+                      <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              name={admin.full_name}
+                              email={admin.email}
+                              size="md"
+                            />
+                            <span className="font-medium text-gray-900">
+                              {admin.full_name || 'No name'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{admin.email}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {admin.organization || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-gray-600">
+                          {admin.assigned_conferences_count || 0}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleImpersonate(admin.id)}
+                            disabled={impersonatingUserId === admin.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {impersonatingUserId === admin.id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Switching...
+                              </>
+                            ) : (
+                              <>
+                                <LogIn className="w-3.5 h-3.5" />
+                                View as
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {conferenceAdmins.length > 10 && (
                   <div className="mt-4 text-center">
                     <Link
                       href="/admin/users"
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      View all {conferenceAdmins.length} conference admins →
+                      View all {conferenceAdmins.length} →
                     </Link>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -1600,10 +1669,22 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-6">Analytics & Insights</h3>
-        
+      {/* Analytics & Insights – collapsible (ExpansionPanel-style) */}
+      <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAnalyticsExpanded(!analyticsExpanded)}
+          className="w-full px-6 py-4 flex items-center justify-between bg-gray-50/80 hover:bg-gray-100 transition-colors text-left"
+        >
+          <h3 className="text-lg font-bold text-gray-900">Analytics & Insights</h3>
+          {analyticsExpanded ? (
+            <ChevronUp className="w-5 h-5 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-500" />
+          )}
+        </button>
+        {analyticsExpanded && (
+          <div className="p-6 pt-0">
         {/* Original Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {chartData.registrationsByDay.length > 0 && (
@@ -1661,6 +1742,8 @@ export default function DashboardPage() {
             <ComparisonInsights data={newAnalyticsData.comparison} />
           </div>
         )}
+          </div>
+        )}
       </div>
 
       {/* Recent Activity */}
@@ -1685,13 +1768,20 @@ export default function DashboardPage() {
               stats.recentRegistrations.map((reg) => (
                 <div key={reg.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        {reg.first_name} {reg.last_name}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">{reg.email}</p>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar
+                        name={`${reg.first_name} ${reg.last_name}`}
+                        email={reg.email}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {reg.first_name} {reg.last_name}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate">{reg.email}</p>
+                      </div>
                     </div>
-                    <div className="ml-4">
+                    <div className="ml-4 flex-shrink-0">
                       <span
                         className={`px-2 py-1 text-xs font-semibold rounded-full ${
                           reg.payment_status === 'paid'
