@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Html5Qrcode } from 'html5-qrcode'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
@@ -20,6 +21,10 @@ interface CheckInResult {
 }
 
 export default function CheckInPage() {
+  const t = useTranslations('admin.checkin')
+  const c = useTranslations('admin.common')
+  const tDashboard = useTranslations('admin.dashboard')
+  const tConferences = useTranslations('admin.conferences')
   const { currentConference, loading: conferenceLoading } = useConference()
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<CheckInResult | null>(null)
@@ -66,7 +71,7 @@ export default function CheckInPage() {
       setScanning(true)
       setResult(null)
     } catch (error) {
-      alert('Failed to access camera. Please allow camera permissions.')
+      alert(t('cameraError'))
       console.error('Camera error:', error)
     }
   }
@@ -144,15 +149,15 @@ export default function CheckInPage() {
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{tDashboard('noConferenceSelected')}</h2>
           <p className="text-gray-600 mb-6">
-            Please select a conference from the header dropdown or create a new one.
+            {t('noConference')}
           </p>
           <Link
             href="/admin/conferences"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
           >
-            Go to My Conferences
+            {tConferences('title')}
           </Link>
         </div>
       </div>
@@ -171,10 +176,10 @@ export default function CheckInPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Back
+            {c('back')}
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Check-In System</h1>
-          <p className="mt-2 text-gray-600">Scan QR code or enter registration ID manually</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+          <p className="mt-2 text-gray-600">{t('subtitle')}</p>
         </div>
 
         {/* Success/Error Message */}
@@ -228,7 +233,7 @@ export default function CheckInPage() {
                 onClick={stopScanning}
                 className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
-                Stop Scanning
+                {t('stopScanning')}
               </button>
             </div>
             <p className="text-center text-sm text-gray-500 mt-4">
@@ -244,18 +249,18 @@ export default function CheckInPage() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
               </svg>
-              Start QR Code Scanner
+              {t('startScanning')}
             </button>
           </div>
         )}
 
         {/* Manual Entry */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Manual Check-In</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('manualCheckIn')}</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Registration ID
+                {t('registrationId')}
               </label>
               <input
                 type="text"
@@ -285,7 +290,7 @@ export default function CheckInPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Check In
+                  {t('checkIn')}
                 </>
               )}
             </button>

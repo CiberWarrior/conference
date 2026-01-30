@@ -3,12 +3,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users, X } from 'lucide-react'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const router = useRouter()
+  const t = useTranslations('admin.header')
+  const tSidebar = useTranslations('admin.sidebar')
   const [loggingOut, setLoggingOut] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -61,11 +64,11 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5" />
             <span className="font-semibold">
-              Viewing as: <span className="font-bold">{impersonatedProfile.full_name || impersonatedProfile.email}</span>
+              {t('viewingAs')} <span className="font-bold">{impersonatedProfile.full_name || impersonatedProfile.email}</span>
               {' '}({impersonatedProfile.email})
             </span>
             <span className="text-yellow-100 text-sm">
-              • Original: {originalProfile.full_name || originalProfile.email}
+              • {t('original')} {originalProfile.full_name || originalProfile.email}
             </span>
           </div>
           <button
@@ -73,7 +76,7 @@ export default function Header() {
             className="flex items-center gap-2 px-4 py-1.5 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors font-medium text-sm"
           >
             <X className="w-4 h-4" />
-            Exit Impersonation
+            {t('exitImpersonation')}
           </button>
         </div>
       )}
@@ -85,12 +88,12 @@ export default function Header() {
               {isSuperAdmin ? (
                 <>
                   <Shield className="w-4 h-4" />
-                  <span>Super Admin</span>
+                  <span>{tSidebar('superAdmin')}</span>
                 </>
               ) : (
                 <>
                   <Users className="w-4 h-4" />
-                  <span>Conference Admin</span>
+                  <span>{tSidebar('conferenceAdmin')}</span>
                 </>
               )}
             </div>
@@ -104,7 +107,7 @@ export default function Header() {
                 className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
               >
                 <span className="text-sm font-semibold text-gray-700">
-                  {currentConference ? currentConference.name : 'Select Conference'}
+                  {currentConference ? currentConference.name : t('selectConference')}
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
@@ -113,7 +116,7 @@ export default function Header() {
                 <div className="absolute top-full mt-2 left-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                   <div className="px-3 py-2 border-b border-gray-200">
                     <p className="text-xs font-semibold text-gray-500 uppercase">
-                      Your Conferences ({conferences.length})
+                      {t('yourConferences', { count: conferences.length })}
                     </p>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
@@ -145,7 +148,7 @@ export default function Header() {
                       onClick={() => setDropdownOpen(false)}
                       className="block text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
                     >
-                      Manage Conferences →
+                      {t('manageConferences')}
                     </Link>
                   </div>
                 </div>
@@ -162,7 +165,7 @@ export default function Header() {
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all font-medium border border-blue-200"
             >
               <ExternalLink className="w-4 h-4" />
-              View Conference Site
+              {t('viewConferenceSite')}
             </Link>
           )}
           <Link
@@ -172,7 +175,7 @@ export default function Header() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            Account
+            {t('account')}
           </Link>
           <button
             onClick={handleLogout}
@@ -180,7 +183,7 @@ export default function Header() {
             className="text-sm text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-4 h-4" />
-            {loggingOut ? 'Logging out...' : 'Logout'}
+            {loggingOut ? t('loggingOut') : t('logout')}
           </button>
         </div>
       </div>

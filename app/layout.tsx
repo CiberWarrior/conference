@@ -3,25 +3,31 @@ import './globals.css'
 import ConditionalNavigation from '@/components/ConditionalNavigation'
 import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages } from 'next-intl/server'
 
 export const metadata: Metadata = {
   title: 'MeetFlow | Event Management Platform',
   description: 'Professional event management platform for conferences. Registration, payment processing, and abstract management all in one place.',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body>
-        <ErrorBoundary>
-          <ConditionalNavigation />
-          {children}
-        </ErrorBoundary>
-        <Toaster
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ErrorBoundary>
+            <ConditionalNavigation />
+            {children}
+          </ErrorBoundary>
+          <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
@@ -45,6 +51,7 @@ export default function RootLayout({
             },
           }}
         />
+        </NextIntlClientProvider>
       </body>
     </html>
   )

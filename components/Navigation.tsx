@@ -2,8 +2,12 @@
 
 import Link from 'next/link'
 import { Building2, LogIn } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import LanguageSwitcher from './LanguageSwitcher'
 
 export default function Navigation() {
+  const t = useTranslations('nav')
+
   return (
     <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 border-b border-gray-200/50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,12 +30,14 @@ export default function Navigation() {
 
           {/* Navigation Links - Right */}
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+
             {/* Sign Up Link */}
             <Link
               href="/participant/auth/signup"
               className="text-gray-600 hover:text-blue-600 transition-colors font-medium"
             >
-              Sign up
+              {t('signUp')}
             </Link>
 
             {/* Login Button (Participant) */}
@@ -40,7 +46,7 @@ export default function Navigation() {
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
             >
               <LogIn className="w-5 h-5" />
-              <span className="font-medium">Login</span>
+              <span className="font-medium">{t('login')}</span>
             </Link>
           </div>
         </div>

@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 export default function ParticipantSignupPage() {
+  const t = useTranslations('auth.participantSignup')
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -30,7 +32,7 @@ export default function ParticipantSignupPage() {
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errorPasswordsMismatch'))
       setLoading(false)
       return
     }
@@ -54,7 +56,7 @@ export default function ParticipantSignupPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Signup failed')
+        throw new Error(data.error || t('errorSignupFailed'))
       }
 
       setSuccess(data.message)
@@ -62,7 +64,7 @@ export default function ParticipantSignupPage() {
         router.push('/participant/auth/login')
       }, 2000)
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred')
+      setError(err.message || t('errorGeneric'))
     } finally {
       setLoading(false)
     }
@@ -73,10 +75,10 @@ export default function ParticipantSignupPage() {
       <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Create Participant Account
+            {t('title')}
           </h1>
           <p className="text-gray-600">
-            Register to track your events and manage your profile
+            {t('subtitle')}
           </p>
         </div>
 
@@ -111,7 +113,7 @@ export default function ParticipantSignupPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Last Name *
+                {t('lastName')}
               </label>
               <input
                 type="text"
@@ -143,7 +145,7 @@ export default function ParticipantSignupPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password *
+                {t('password')}
               </label>
               <input
                 type="password"
@@ -176,7 +178,7 @@ export default function ParticipantSignupPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone
+                {t('phone')}
               </label>
               <input
                 type="tel"
@@ -190,7 +192,7 @@ export default function ParticipantSignupPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Country
+                {t('country')}
               </label>
               <input
                 type="text"
@@ -205,7 +207,7 @@ export default function ParticipantSignupPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Institution / Organization
+              {t('institution')}
             </label>
             <input
               type="text"
@@ -231,7 +233,7 @@ export default function ParticipantSignupPage() {
               className="mt-1 mr-2"
             />
             <label htmlFor="marketing" className="text-sm text-gray-700">
-              I agree to receive event updates and promotional emails
+              {t('marketingConsent')}
             </label>
           </div>
 
@@ -240,18 +242,18 @@ export default function ParticipantSignupPage() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {loading ? t('creatingAccount') : t('createAccount')}
           </button>
         </form>
 
         <div className="mt-6 pt-6 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-600">
-            Already have an account?{' '}
+            {t('alreadyHaveAccount')}{' '}
             <Link
               href="/participant/auth/login"
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
-              Login
+              {t('login')}
             </Link>
           </p>
         </div>
@@ -261,7 +263,7 @@ export default function ParticipantSignupPage() {
             href="/"
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            ← Back to home
+            {t('backToHome')}
           </Link>
         </div>
       </div>

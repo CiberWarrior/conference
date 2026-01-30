@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Plus, Calendar, MapPin, Settings, Trash2, Eye, CheckCircle, XCircle, Globe } from 'lucide-react'
@@ -11,6 +12,8 @@ import type { Conference } from '@/types/conference'
 
 export default function ConferencesPage() {
   const router = useRouter()
+  const t = useTranslations('admin.conferences')
+  const c = useTranslations('admin.common')
   const { conferences, loading, refreshConferences, setCurrentConference } = useConference()
   const { isSuperAdmin, loading: authLoading } = useAuth()
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -28,7 +31,7 @@ export default function ConferencesPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{c('loading')}</p>
         </div>
       </div>
     )
@@ -40,7 +43,7 @@ export default function ConferencesPage() {
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all registrations, abstracts, and related data.`)) {
+    if (!confirm(t('deleteConfirm', { name }))) {
       return
     }
 
@@ -55,10 +58,10 @@ export default function ConferencesPage() {
         await refreshConferences()
       } else {
         const data = await response.json()
-        alert(`Failed to delete conference: ${data.error}`)
+        alert(`${t('deleteFailed')}: ${data.error}`)
       }
     } catch (error) {
-      alert('An error occurred while deleting the conference')
+      alert(t('deleteError'))
     } finally {
       setDeleting(null)
     }
@@ -170,12 +173,12 @@ export default function ConferencesPage() {
                     {conference.published ? (
                       <span className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
                         <CheckCircle className="w-3 h-3" />
-                        Published
+                        {t('published')}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
                         <XCircle className="w-3 h-3" />
-                        Draft
+                        {t('draft')}
                       </span>
                     )}
                   </div>
@@ -210,7 +213,7 @@ export default function ConferencesPage() {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
                       >
-                        View Public Page
+                        {t('viewPublicPage')}
                       </Link>
                       <span className="text-gray-400 text-xs">({conference.slug})</span>
                     </div>
@@ -224,7 +227,7 @@ export default function ConferencesPage() {
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                   >
                     <Eye className="w-4 h-4" />
-                    Open
+                    {t('open')}
                   </button>
                   <Link
                     href={`/admin/conferences/${conference.id}/settings`}

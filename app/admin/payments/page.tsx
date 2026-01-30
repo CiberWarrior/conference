@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
@@ -37,6 +38,9 @@ interface PaymentHistory {
 }
 
 function PaymentsPageContent() {
+  const t = useTranslations('admin.payments')
+  const tDashboard = useTranslations('admin.dashboard')
+  const tConferences = useTranslations('admin.conferences')
   const searchParams = useSearchParams()
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [activeTab, setActiveTab] = useState<'reminders' | 'refunds' | 'history'>('reminders')
@@ -219,15 +223,15 @@ function PaymentsPageContent() {
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{tDashboard('noConferenceSelected')}</h2>
           <p className="text-gray-600 mb-6">
-            Please select a conference from the header dropdown or create a new one.
+            {t('noConference')}
           </p>
           <Link
             href="/admin/conferences"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
           >
-            Go to My Conferences
+            {tConferences('title')}
           </Link>
         </div>
       </div>
@@ -237,8 +241,8 @@ function PaymentsPageContent() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Payment Management</h1>
-        <p className="mt-2 text-gray-600">Manage payment reminders, refunds, and payment history</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+        <p className="mt-2 text-gray-600">{t('subtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -254,9 +258,9 @@ function PaymentsPageContent() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tab === 'reminders' && 'Payment Reminders'}
-              {tab === 'refunds' && 'Refunds'}
-              {tab === 'history' && 'Payment History'}
+              {tab === 'reminders' && t('reminders')}
+              {tab === 'refunds' && t('refunds')}
+              {tab === 'history' && t('history')}
             </button>
           ))}
         </nav>

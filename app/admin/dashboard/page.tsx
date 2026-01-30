@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -57,6 +58,8 @@ import { getEffectiveVAT } from '@/utils/pricing'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const t = useTranslations('admin.dashboard')
+  const c = useTranslations('admin.common')
   const { currentConference, conferences, loading: conferenceLoading, setCurrentConference } = useConference()
   const { isSuperAdmin, profile, isImpersonating, originalProfile, startImpersonation } = useAuth()
   const [stats, setStats] = useState({
@@ -443,7 +446,7 @@ export default function DashboardPage() {
 
   const loadStats = async () => {
     if (!currentConference) {
-      setError('No conference selected')
+      setError(t('noConferenceSelected'))
       setLoading(false)
       return
     }
@@ -753,16 +756,16 @@ export default function DashboardPage() {
           </div>
           {hasConferences ? (
             <>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('noConferenceSelectedTitle')}</h2>
               <p className="text-gray-600 mb-6">
-                Please select a conference from the dropdown menu in the header to view its dashboard and statistics.
+                {t('selectConferencePrompt')}
               </p>
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conferences Assigned</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('noConferencesAssignedTitle')}</h2>
               <p className="text-gray-600 mb-6">
-                You don't have any conferences assigned yet. Please contact your administrator to get access to a conference.
+                {t('noConferencesAssignedPrompt')}
               </p>
             </>
           )}
@@ -779,14 +782,14 @@ export default function DashboardPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-red-900 mb-2">Configuration Error</h3>
+            <h3 className="text-lg font-semibold text-red-900 mb-2">{t('configError')}</h3>
             <p className="text-red-700 mb-4">{error}</p>
             <div className="bg-white rounded p-4 border border-red-200">
-              <p className="text-sm text-gray-700 mb-2">Please check your <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code> file and ensure:</p>
+              <p className="text-sm text-gray-700 mb-2">{t('configErrorHint')} <code className="bg-gray-100 px-2 py-1 rounded">.env.local</code></p>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li><code>NEXT_PUBLIC_SUPABASE_URL</code> is set to your Supabase project URL</li>
-                <li><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> is set to your Supabase anon key</li>
-                <li>Both values are valid and not placeholders</li>
+                <li><code>NEXT_PUBLIC_SUPABASE_URL</code> — {t('envCheck1')}</li>
+                <li><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> — {t('envCheck2')}</li>
+                <li>{t('envCheck3')}</li>
               </ul>
             </div>
           </div>
@@ -801,38 +804,38 @@ export default function DashboardPage() {
     return (
       <div>
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Platform Overview</h2>
-          <p className="mt-2 text-gray-600">Welcome back, {profile?.full_name || 'Super Admin'}</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('platformOverview')}</h2>
+          <p className="mt-2 text-gray-600">{t('welcomeBack', { name: profile?.full_name || 'Super Admin' })}</p>
         </div>
 
         {/* Platform Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatsCard
-            title="Total Conferences"
+            title={t('totalConferences')}
             value={platformStats.totalConferences}
             color="blue"
             icon={<Building2 className="w-6 h-6" />}
           />
           <StatsCard
-            title="Active Conferences"
+            title={t('activeConferences')}
             value={platformStats.activeConferences}
             color="green"
             icon={<Activity className="w-6 h-6" />}
           />
           <StatsCard
-            title="Total Users"
+            title={t('totalUsers')}
             value={platformStats.totalUsers}
             color="purple"
             icon={<UsersIcon className="w-6 h-6" />}
           />
           <StatsCard
-            title="Total Registrations"
+            title={t('totalRegistrations')}
             value={platformStats.totalRegistrations}
             color="blue"
             icon={<UsersIcon className="w-6 h-6" />}
           />
           <StatsCard
-            title="Total Revenue"
+            title={t('totalRevenue')}
             value={`€${platformStats.totalRevenue.toLocaleString()}`}
             color="green"
             icon={<DollarSign className="w-6 h-6" />}
@@ -841,35 +844,35 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('quickActions')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link
               href="/admin/conferences/new"
               className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
             >
               <Plus className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">Create Conference</span>
+              <span className="font-medium text-gray-900">{t('createConference')}</span>
             </Link>
             <Link
               href="/admin/users"
               className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
             >
               <UsersIcon className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">Manage Users</span>
+              <span className="font-medium text-gray-900">{t('manageUsers')}</span>
             </Link>
             <Link
               href="/admin/inquiries"
               className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
             >
               <Mail className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-gray-900">View Inquiries</span>
+              <span className="font-medium text-gray-900">{t('viewInquiries')}</span>
             </Link>
             <Link
               href="/admin/conferences"
               className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
             >
               <BarChart3 className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-900">All Conferences</span>
+              <span className="font-medium text-gray-900">{t('allConferencesLink')}</span>
             </Link>
           </div>
         </div>
@@ -878,49 +881,49 @@ export default function DashboardPage() {
         {inquiryStats.totalInquiries > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Sales & Leads</h3>
+              <h3 className="text-xl font-bold text-gray-900">{t('salesLeads')}</h3>
               <Link
                 href="/admin/inquiries"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
               >
-                View all inquiries →
+                {t('viewAllInquiries')}
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-blue-100 text-sm font-medium">New Inquiries</span>
+                  <span className="text-blue-100 text-sm font-medium">{t('newInquiries')}</span>
                   <Mail className="w-8 h-8 text-blue-200" />
                 </div>
                 <p className="text-4xl font-bold mb-1">{inquiryStats.newInquiries}</p>
-                <p className="text-blue-100 text-sm">Awaiting response</p>
+                <p className="text-blue-100 text-sm">{t('awaitingResponse')}</p>
               </div>
 
               <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm font-medium">Total Inquiries</span>
+                  <span className="text-gray-600 text-sm font-medium">{t('totalInquiries')}</span>
                   <FileText className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-4xl font-bold text-gray-900 mb-1">{inquiryStats.totalInquiries}</p>
-                <p className="text-gray-600 text-sm">All time</p>
+                <p className="text-gray-600 text-sm">{t('allTime')}</p>
               </div>
 
               <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm font-medium">Conversion Rate</span>
+                  <span className="text-gray-600 text-sm font-medium">{t('conversionRate')}</span>
                   <TrendingUp className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-4xl font-bold text-green-600 mb-1">{inquiryStats.conversionRate.toFixed(1)}%</p>
-                <p className="text-gray-600 text-sm">Lead to customer</p>
+                <p className="text-gray-600 text-sm">{t('leadToCustomer')}</p>
               </div>
 
               <div className="bg-white rounded-lg p-6 border-2 border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm font-medium">Last 7 Days</span>
+                  <span className="text-gray-600 text-sm font-medium">{t('last7Days')}</span>
                   <Calendar className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-4xl font-bold text-purple-600 mb-1">{inquiryStats.inquiriesLast7Days}</p>
-                <p className="text-gray-600 text-sm">Recent leads</p>
+                <p className="text-gray-600 text-sm">{t('recentLeads')}</p>
               </div>
             </div>
           </div>
@@ -932,40 +935,40 @@ export default function DashboardPage() {
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserCog className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Team</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('team')}</h3>
                 <span className="text-sm text-gray-500">
-                  ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
+                  ({loadingAdmins ? t('loadingTeam') : conferenceAdmins.length})
                 </span>
               </div>
               <Link
                 href="/admin/users"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                Manage all →
+                {t('manageAll')}
               </Link>
             </div>
             <div className="p-6">
               <p className="text-sm text-gray-600 mb-4">
-                View dashboard as a conference admin to see what they see
+                {t('viewDashboardAsAdmin')}
               </p>
               {loadingAdmins ? (
                 <div className="text-center py-8">
                   <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">Loading team...</p>
+                  <p className="text-sm text-gray-500">{t('loadingTeam')}</p>
                 </div>
               ) : conferenceAdmins.length === 0 ? (
                 <div className="text-center py-8">
                   <UserCog className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-2">No conference admin users found</p>
+                  <p className="text-gray-600 mb-2">{t('noConferenceAdminsFound')}</p>
                   <p className="text-sm text-gray-500 mb-4">
-                    Create conference admin users to use impersonation feature
+                    {t('createConferenceAdminsHint')}
                   </p>
                   <Link
                     href="/admin/users/new"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    Create Conference Admin
+                    {t('createConferenceAdmin')}
                   </Link>
                 </div>
               ) : (
@@ -974,19 +977,19 @@ export default function DashboardPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Member
+                          {t('member')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Email
+                          {t('email')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Organization
+                          {t('organization')}
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Conferences
+                          {t('conferences')}
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Action
+                          {t('action')}
                         </th>
                       </tr>
                     </thead>
@@ -1001,13 +1004,13 @@ export default function DashboardPage() {
                                 size="md"
                               />
                               <span className="font-medium text-gray-900">
-                                {admin.full_name || 'No name'}
+                                {admin.full_name || t('noName')}
                               </span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">{admin.email}</td>
                           <td className="px-4 py-3 text-sm text-gray-500">
-                            {admin.organization || '—'}
+                            {admin.organization || c('none')}
                           </td>
                           <td className="px-4 py-3 text-center text-sm text-gray-600">
                             {admin.assigned_conferences_count || 0}
@@ -1021,12 +1024,12 @@ export default function DashboardPage() {
                               {impersonatingUserId === admin.id ? (
                                 <>
                                   <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                  Switching...
+                                  {t('switching')}
                                 </>
                               ) : (
                                 <>
                                   <LogIn className="w-3.5 h-3.5" />
-                                  View as
+                                  {t('viewAs')}
                                 </>
                               )}
                             </button>
@@ -1041,7 +1044,7 @@ export default function DashboardPage() {
                         href="/admin/users"
                         className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       >
-                        View all {conferenceAdmins.length} →
+                        {t('viewAllCount', { count: conferenceAdmins.length })}
                       </Link>
                     </div>
                   )}
@@ -1054,25 +1057,25 @@ export default function DashboardPage() {
         {/* All Conferences List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">All Conferences</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('allConferences')}</h3>
             <Link
               href="/admin/conferences"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              View all →
+              {t('manageAll')}
             </Link>
           </div>
           <div className="p-6">
             {conferences.length === 0 ? (
               <div className="text-center py-12">
                 <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">No conferences yet</p>
+                <p className="text-gray-500 mb-4">{t('noConferencesYet')}</p>
                 <Link
                   href="/admin/conferences/new"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
-                  Create Your First Conference
+                  {t('createFirstConference')}
                 </Link>
               </div>
             ) : (
@@ -1086,17 +1089,17 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">{conf.name}</h4>
                       <p className="text-sm text-gray-500 mt-1">
-                        {conf.location || 'No location set'}
+                        {conf.location || t('noLocationSet')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       {conf.published ? (
                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          Published
+                          {t('published')}
                         </span>
                       ) : (
                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                          Draft
+                          {t('draft')}
                         </span>
                       )}
                       <Eye className="w-4 h-4 text-gray-400" />
@@ -1139,15 +1142,15 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
               {shouldShowOverview
-                ? 'All Conferences Overview'
+                ? t('allConferencesOverview')
                 : currentConference
-                  ? `${currentConference.name} Dashboard`
-                  : 'Dashboard Overview'}
+                  ? `${currentConference.name} – ${t('title')}`
+                  : t('dashboardOverview')}
             </h2>
             <p className="mt-2 text-gray-600">
               {shouldShowOverview
-                ? `Manage and monitor ${conferences.length} conference${conferences.length !== 1 ? 's' : ''}`
-                : 'Welcome to your conference management dashboard'}
+                ? t('manageConferencesCount', { count: conferences.length })
+                : t('welcomeDashboard')}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -1166,7 +1169,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   <BarChart3 className="w-4 h-4 inline mr-2" />
-                  All Conferences
+                  {t('allConferences')}
                 </button>
                 <button
                   onClick={() => {
@@ -1182,7 +1185,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   <Building2 className="w-4 h-4 inline mr-2" />
-                  This Conference
+                  {t('thisConference')}
                 </button>
               </div>
             )}
@@ -1205,7 +1208,7 @@ export default function DashboardPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Settings className="w-4 h-4" />
-                  Settings
+                  {t('settings')}
                 </Link>
               </>
             )}
@@ -1224,7 +1227,7 @@ export default function DashboardPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by name, location, or slug..."
+                  placeholder={t('searchConferencesPlaceholder')}
                   value={conferenceSearchTerm}
                   onChange={(e) => setConferenceSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
@@ -1248,13 +1251,13 @@ export default function DashboardPage() {
                   onChange={(e) => setEventTypeFilter(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer outline-none"
                 >
-                  <option value="all">All Event Types</option>
-                  <option value="conference">Conferences</option>
-                  <option value="workshop">Workshops</option>
-                  <option value="seminar">Seminars</option>
-                  <option value="webinar">Webinars</option>
-                  <option value="training">Training Courses</option>
-                  <option value="other">Other</option>
+                  <option value="all">{t('eventTypeAll')}</option>
+                  <option value="conference">{t('eventTypeConference')}</option>
+                  <option value="workshop">{t('eventTypeWorkshop')}</option>
+                  <option value="seminar">{t('eventTypeSeminar')}</option>
+                  <option value="webinar">{t('eventTypeWebinar')}</option>
+                  <option value="training">{t('eventTypeTraining')}</option>
+                  <option value="other">{t('eventTypeOther')}</option>
                 </select>
               </div>
             </div>
@@ -1264,10 +1267,10 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
-                All Events ({filteredConferences.length})
+                {t('allEventsCount', { count: filteredConferences.length })}
                 {eventTypeFilter !== 'all' && (
                   <span className="ml-2 text-sm font-normal text-gray-500">
-                    - Filtered by {eventTypeFilter}
+                    — {t('filteredBy', { type: eventTypeFilter })}
                   </span>
                 )}
               </h3>
@@ -1275,7 +1278,7 @@ export default function DashboardPage() {
                 href="/admin/conferences"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                Manage all →
+                {t('manageAll')}
               </Link>
             </div>
             {loadingConferenceStats ? (
@@ -1298,28 +1301,28 @@ export default function DashboardPage() {
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Event
+                        {t('eventHeader')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Type
+                        {t('typeHeader')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Status
+                        {c('status')}
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Registrations
+                        {t('registrationsHeader')}
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Paid
+                        {t('paid')}
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Pending
+                        {t('pendingPayments')}
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Checked In
+                        {t('checkedIn')}
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Actions
+                        {t('actionsHeader')}
                       </th>
                     </tr>
                   </thead>
@@ -1347,12 +1350,10 @@ export default function DashboardPage() {
                                 <div className="text-sm font-medium text-gray-900 truncate">
                                   {conf.name}
                                 </div>
-                                {conf.location && (
-                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {conf.location}
-                                  </div>
-                                )}
+                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {conf.location || t('noLocationSet')}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1371,27 +1372,27 @@ export default function DashboardPage() {
                                 : 'bg-gray-100 text-gray-800'
                             }`}>
                               {conf.event_type === 'conference'
-                                ? 'Conference'
+                                ? t('eventTypeConference')
                                 : conf.event_type === 'workshop'
-                                ? 'Workshop'
+                                ? t('eventTypeWorkshop')
                                 : conf.event_type === 'seminar'
-                                ? 'Seminar'
+                                ? t('eventTypeSeminar')
                                 : conf.event_type === 'webinar'
-                                ? 'Webinar'
+                                ? t('eventTypeWebinar')
                                 : conf.event_type === 'training'
-                                ? 'Training'
-                                : 'Other'}
+                                ? t('eventTypeTraining')
+                                : t('eventTypeOther')}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {conf.published ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 <CheckCircle className="w-3 h-3 mr-1" />
-                                Published
+                                {t('published')}
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Draft
+                                {t('draft')}
                               </span>
                             )}
                           </td>
@@ -1449,7 +1450,7 @@ export default function DashboardPage() {
       {currentConference && !shouldShowOverview && (
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/80">
-            <span className="text-sm font-semibold text-gray-700">Quick Actions</span>
+            <span className="text-sm font-semibold text-gray-700">{t('quickActions')}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 p-4">
             <Link
@@ -1457,35 +1458,35 @@ export default function DashboardPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
             >
               <UsersIcon className="w-4 h-4" />
-              Registrations
+              {t('registrationsLabel')}
             </Link>
             <Link
               href="/admin/abstracts"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
             >
               <FileText className="w-4 h-4" />
-              Abstracts
+              {t('abstractsLabel')}
             </Link>
             <Link
               href="/admin/payments"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
             >
               <CreditCard className="w-4 h-4" />
-              Payments
+              {t('paymentsLabel')}
             </Link>
             <Link
               href={`/admin/conferences/${currentConference.id}/settings`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
             >
               <Settings className="w-4 h-4" />
-              Settings
+              {t('settings')}
             </Link>
             <Link
               href="/admin/tickets"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-medium transition-colors"
             >
               <Ticket className="w-4 h-4" />
-              Tickets{openTicketsCount !== null && openTicketsCount > 0 ? ` (${openTicketsCount})` : ''}
+              {t('ticketsLabel')}{openTicketsCount !== null && openTicketsCount > 0 ? ` (${openTicketsCount})` : ''}
             </Link>
           </div>
         </div>
@@ -1497,40 +1498,40 @@ export default function DashboardPage() {
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <UserCog className="w-5 h-5 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Team</h3>
-              <span className="text-sm text-gray-500">
-                ({loadingAdmins ? 'Loading...' : conferenceAdmins.length})
+              <h3 className="text-lg font-semibold text-gray-900">{t('team')}</h3>
+                <span className="text-sm text-gray-500">
+                  ({loadingAdmins ? t('loadingTeam') : conferenceAdmins.length})
               </span>
             </div>
             <Link
               href="/admin/users"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              Manage all →
+              {t('manageAll')}
             </Link>
           </div>
           <div className="p-6">
             <p className="text-sm text-gray-600 mb-4">
-              View dashboard as a conference admin to see what they see
+              {t('viewDashboardAsAdmin')}
             </p>
             {loadingAdmins ? (
               <div className="text-center py-8">
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-gray-500">Loading team...</p>
+                <p className="text-sm text-gray-500">{t('loadingTeam')}</p>
               </div>
             ) : conferenceAdmins.length === 0 ? (
               <div className="text-center py-8">
                 <UserCog className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 mb-2">No conference admin users found</p>
+                <p className="text-gray-600 mb-2">{t('noConferenceAdminsFound')}</p>
                 <p className="text-sm text-gray-500 mb-4">
-                  Create conference admin users to use impersonation feature
+                  {t('createConferenceAdminsHint')}
                 </p>
                 <Link
                   href="/admin/users/new"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  Create Conference Admin
+                  {t('createConferenceAdmin')}
                 </Link>
               </div>
             ) : (
@@ -1539,19 +1540,19 @@ export default function DashboardPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Member
+                        {t('member')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Email
+                        {t('email')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Organization
+                        {t('organization')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Conferences
+                        {t('conferences')}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Action
+                        {t('action')}
                       </th>
                     </tr>
                   </thead>
@@ -1566,13 +1567,13 @@ export default function DashboardPage() {
                               size="md"
                             />
                             <span className="font-medium text-gray-900">
-                              {admin.full_name || 'No name'}
+                              {admin.full_name || t('noName')}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{admin.email}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">
-                          {admin.organization || '—'}
+                          {admin.organization || c('none')}
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-gray-600">
                           {admin.assigned_conferences_count || 0}
@@ -1586,12 +1587,12 @@ export default function DashboardPage() {
                             {impersonatingUserId === admin.id ? (
                               <>
                                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Switching...
+                                {t('switching')}
                               </>
                             ) : (
                               <>
                                 <LogIn className="w-3.5 h-3.5" />
-                                View as
+                                {t('viewAs')}
                               </>
                             )}
                           </button>
@@ -1606,7 +1607,7 @@ export default function DashboardPage() {
                       href="/admin/users"
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      View all {conferenceAdmins.length} →
+                      {t('viewAllCount', { count: conferenceAdmins.length })}
                     </Link>
                   </div>
                 )}
@@ -1628,7 +1629,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
-          title="Total Registrations"
+          title={t('totalRegistrations')}
           value={stats.totalRegistrations}
           color="blue"
           icon={
@@ -1638,7 +1639,7 @@ export default function DashboardPage() {
           }
         />
         <StatsCard
-          title="Paid Registrations"
+          title={t('paid')}
           value={stats.paidRegistrations}
           color="green"
           icon={
@@ -1648,7 +1649,7 @@ export default function DashboardPage() {
           }
         />
         <StatsCard
-          title="Pending Payments"
+          title={t('pendingPayments')}
           value={stats.pendingPayments}
           color="yellow"
           icon={
@@ -1658,7 +1659,7 @@ export default function DashboardPage() {
           }
         />
         <StatsCard
-          title="Checked In"
+          title={t('checkedIn')}
           value={stats.checkedIn || 0}
           color="blue"
           icon={
@@ -1676,7 +1677,7 @@ export default function DashboardPage() {
           onClick={() => setAnalyticsExpanded(!analyticsExpanded)}
           className="w-full px-6 py-4 flex items-center justify-between bg-gray-50/80 hover:bg-gray-100 transition-colors text-left"
         >
-          <h3 className="text-lg font-bold text-gray-900">Analytics & Insights</h3>
+          <h3 className="text-lg font-bold text-gray-900">{t('analyticsInsights')}</h3>
           {analyticsExpanded ? (
             <ChevronUp className="w-5 h-5 text-gray-500" />
           ) : (
@@ -1751,18 +1752,18 @@ export default function DashboardPage() {
         {/* Recent Registrations */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Registrations</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('recentRegistrations')}</h3>
             <Link
               href="/admin/registrations"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              View all →
+              {t('viewAllLink')}
             </Link>
           </div>
           <div className="divide-y divide-gray-200">
             {stats.recentRegistrations.length === 0 ? (
               <div className="px-6 py-8 text-center text-gray-500">
-                No registrations yet
+                {t('noRegistrationsYet')}
               </div>
             ) : (
               stats.recentRegistrations.map((reg) => (
@@ -1791,7 +1792,11 @@ export default function DashboardPage() {
                               : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {reg.payment_status}
+                        {reg.payment_status === 'paid'
+                          ? t('paid')
+                          : reg.payment_status === 'pending'
+                            ? t('pendingPayments')
+                            : reg.payment_status}
                       </span>
                     </div>
                   </div>

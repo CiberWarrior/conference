@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import Footer from '@/components/Footer'
 import { showSuccess, showError } from '@/utils/toast'
 import {
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react'
 
 function ContactForm() {
+  const t = useTranslations('home.contact')
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -67,11 +69,11 @@ function ContactForm() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit inquiry')
+        throw new Error(data.error || t('error'))
       }
 
       setSubmitStatus('success')
-      showSuccess('Thank you! Your inquiry has been sent successfully. We will contact you within 24 hours.')
+      showSuccess(t('success'))
       setFormData({ 
         name: '', 
         email: '', 
@@ -84,7 +86,7 @@ function ContactForm() {
       })
     } catch (error) {
       console.error('Contact form error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.'
+      const errorMessage = error instanceof Error ? error.message : t('errorOccurred')
       setSubmitStatus('error')
       showError(errorMessage)
     } finally {
@@ -95,8 +97,8 @@ function ContactForm() {
   return (
     <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 md:p-10 shadow-2xl border-2 border-gray-200">
       <div className="mb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Request a Quote</h3>
-        <p className="text-gray-600">Fill in the form and we will contact you within 24 hours.</p>
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('requestQuote')}</h3>
+        <p className="text-gray-600">{t('fillForm')}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid md:grid-cols-2 gap-6">
@@ -105,7 +107,7 @@ function ContactForm() {
               htmlFor="name"
               className="block text-sm font-semibold text-gray-700 mb-2"
             >
-              Full Name *
+              {t('fullName')}
             </label>
             <input
               type="text"
@@ -115,7 +117,7 @@ function ContactForm() {
               value={formData.name}
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-              placeholder="Your full name"
+              placeholder={t('placeholderName')}
             />
           </div>
 
@@ -124,7 +126,7 @@ function ContactForm() {
               htmlFor="email"
               className="block text-sm font-semibold text-gray-700 mb-2"
             >
-              Email *
+              {t('email')}
             </label>
             <input
               type="email"
@@ -134,28 +136,28 @@ function ContactForm() {
               value={formData.email}
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-              placeholder="your@email.com"
+              placeholder={t('placeholderEmail')}
             />
           </div>
         </div>
 
         <div>
-          <label
-            htmlFor="organization"
-            className="block text-sm font-semibold text-gray-700 mb-2"
-          >
-            Organization *
-          </label>
-          <input
-            type="text"
-            id="organization"
-            name="organization"
-            required
-            value={formData.organization}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-            placeholder="Your organization name"
-          />
+            <label
+              htmlFor="organization"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              {t('organization')}
+            </label>
+            <input
+              type="text"
+              id="organization"
+              name="organization"
+              required
+              value={formData.organization}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+              placeholder={t('placeholderOrg')}
+            />
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -164,7 +166,7 @@ function ContactForm() {
               htmlFor="phone"
               className="block text-sm font-semibold text-gray-700 mb-2"
             >
-              Phone
+              {t('phone')}
             </label>
             <input
               type="tel"
@@ -173,7 +175,7 @@ function ContactForm() {
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-              placeholder="+1 (555) 123-4567"
+              placeholder={t('placeholderPhone')}
             />
           </div>
 
@@ -182,7 +184,7 @@ function ContactForm() {
               htmlFor="conferenceType"
               className="block text-sm font-semibold text-gray-700 mb-2"
             >
-              Conference Type
+              {t('conferenceType')}
             </label>
             <select
               id="conferenceType"
@@ -191,30 +193,30 @@ function ContactForm() {
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             >
-              <option value="">Select type...</option>
-              <option value="virtual">Virtual</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">On-site</option>
+              <option value="">{t('selectType')}</option>
+              <option value="virtual">{t('typeVirtual')}</option>
+              <option value="hybrid">{t('typeHybrid')}</option>
+              <option value="onsite">{t('typeOnsite')}</option>
             </select>
           </div>
         </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label
-                htmlFor="expectedAttendees"
-                className="block text-sm font-semibold text-gray-700 mb-2"
-              >
-                Expected Attendees
-              </label>
-              <select
-                id="expectedAttendees"
-                name="expectedAttendees"
-                value={formData.expectedAttendees}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-              >
-                <option value="">Select range...</option>
+            <label
+              htmlFor="expectedAttendees"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              {t('expectedAttendees')}
+            </label>
+            <select
+              id="expectedAttendees"
+              name="expectedAttendees"
+              value={formData.expectedAttendees}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+            >
+              <option value="">{t('selectRange')}</option>
                 <option value="1-50">1-50</option>
                 <option value="51-100">51-100</option>
                 <option value="101-250">101-250</option>
@@ -229,7 +231,7 @@ function ContactForm() {
                 htmlFor="serviceType"
                 className="block text-sm font-semibold text-gray-700 mb-2"
               >
-                Service Needed
+                {t('serviceNeeded')}
               </label>
               <select
                 id="serviceType"
@@ -238,11 +240,11 @@ function ContactForm() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
               >
-                <option value="">Select service...</option>
-                <option value="platform">Conference Management Platform</option>
-                <option value="website">Conference Website Development</option>
-                <option value="both">Platform + Website</option>
-                <option value="other">Other</option>
+                <option value="">{t('selectService')}</option>
+                <option value="platform">{t('serviceOptionPlatform')}</option>
+                <option value="website">{t('serviceOptionWebsite')}</option>
+                <option value="both">{t('serviceOptionBoth')}</option>
+                <option value="other">{t('serviceOptionOther')}</option>
               </select>
             </div>
           </div>
@@ -252,7 +254,7 @@ function ContactForm() {
             htmlFor="message"
             className="block text-sm font-semibold text-gray-700 mb-2"
           >
-            Message *
+            {t('message')}
           </label>
           <textarea
             id="message"
@@ -262,7 +264,7 @@ function ContactForm() {
             value={formData.message}
             onChange={handleChange}
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
-            placeholder="Describe your needs and how we can help..."
+            placeholder={t('placeholderMessage')}
           />
         </div>
 
@@ -271,10 +273,10 @@ function ContactForm() {
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-green-800 font-medium">
-                Thank you! Your inquiry has been sent successfully.
+                {t('successTitle')}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                We'll contact you within 24 hours.
+                {t('successSub')}
               </p>
             </div>
           </div>
@@ -284,7 +286,7 @@ function ContactForm() {
           <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg flex items-center gap-3">
             <Info className="w-5 h-5 text-red-600 flex-shrink-0" />
             <p className="text-red-800 font-medium">
-              An error occurred. Please try again.
+              {t('errorOccurred')}
             </p>
           </div>
         )}
@@ -297,12 +299,12 @@ function ContactForm() {
           {isSubmitting ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <span>Sending...</span>
+              <span>{t('sending')}</span>
             </>
           ) : (
             <>
               <Send className="w-5 h-5" />
-              <span>Send</span>
+              <span>{t('send')}</span>
             </>
           )}
         </button>
@@ -312,6 +314,13 @@ function ContactForm() {
 }
 
 export default function Home() {
+  const tHero = useTranslations('home.hero')
+  const tFeatures = useTranslations('home.features')
+  const tFormats = useTranslations('home.formats')
+  const tContact = useTranslations('home.contact')
+  const tFaq = useTranslations('home.faq')
+  const tCta = useTranslations('home.cta')
+
   return (
     <main className="min-h-screen bg-white overflow-x-hidden">
       {/* Hero Section */}
@@ -355,22 +364,22 @@ export default function Home() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-blue-500/10 backdrop-blur-sm rounded-full border border-blue-400/20">
                 <Sparkles className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-semibold text-blue-200">Professional Event Platform</span>
+                <span className="text-sm font-semibold text-blue-200">{tHero('badge')}</span>
               </div>
 
               {/* Main Heading */}
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.1]">
                 <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-violet-400 bg-clip-text text-transparent">
-                  Conference
+                  {tHero('titleLine1')}
                 </span>
                 <span className="block text-white">
-                  Management
+                  {tHero('titleLine2')}
                 </span>
               </h1>
 
               {/* Subheading */}
               <p className="text-lg md:text-xl mb-12 text-slate-300 leading-relaxed max-w-2xl mx-auto">
-                Register as an attendee, submit your research, and manage your abstracts with ease. A streamlined workflow for scientific events — from registration to payment and submission.
+                {tHero('subtitle')}
               </p>
 
               {/* Features list - 5 columns on larger screens */}
@@ -379,31 +388,31 @@ export default function Home() {
                   <div className="w-12 h-12 rounded-full bg-green-500/30 flex items-center justify-center border-2 border-green-400/50">
                     <CheckCircle className="w-6 h-6 text-green-400" />
                   </div>
-                  <span className="text-white font-semibold text-base text-center">Easy Registration</span>
+                  <span className="text-white font-semibold text-base text-center">{tHero('easyRegistration')}</span>
                 </div>
                 <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-800/40 border-2 border-white/20 shadow-lg">
                   <div className="w-12 h-12 rounded-full bg-blue-500/30 flex items-center justify-center border-2 border-blue-400/50">
                     <Zap className="w-6 h-6 text-blue-400" />
                   </div>
-                  <span className="text-white font-semibold text-base text-center">Secure Payments</span>
+                  <span className="text-white font-semibold text-base text-center">{tHero('securePayments')}</span>
                 </div>
                 <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-800/40 border-2 border-white/20 shadow-lg">
                   <div className="w-12 h-12 rounded-full bg-violet-500/30 flex items-center justify-center border-2 border-violet-400/50">
                     <FileText className="w-6 h-6 text-violet-400" />
                   </div>
-                  <span className="text-white font-semibold text-base text-center">Abstract Hub</span>
+                  <span className="text-white font-semibold text-base text-center">{tHero('abstractHub')}</span>
                 </div>
                 <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-800/40 border-2 border-white/20 shadow-lg">
                   <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center border-2 border-purple-400/50">
                     <BarChart3 className="w-6 h-6 text-purple-400" />
                   </div>
-                  <span className="text-white font-semibold text-base text-center">Real-time Analytics</span>
+                  <span className="text-white font-semibold text-base text-center">{tHero('realTimeAnalytics')}</span>
                 </div>
                 <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-800/40 border-2 border-white/20 shadow-lg">
                   <div className="w-12 h-12 rounded-full bg-indigo-500/30 flex items-center justify-center border-2 border-indigo-400/50">
                     <Monitor className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <span className="text-white font-semibold text-base text-center">Custom Websites</span>
+                  <span className="text-white font-semibold text-base text-center">{tHero('customWebsites')}</span>
                 </div>
               </div>
             </div>
@@ -418,18 +427,18 @@ export default function Home() {
           <div className="text-center mb-20">
             <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
               <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                POWERFUL FEATURES
+                {tFeatures('powerfulFeatures')}
               </span>
             </div>
             <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6">
-              Everything you need,
+              {tFeatures('everythingYouNeed')}
               <br />
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                all in one place
+                {tFeatures('allInOnePlace')}
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Streamline your conference management with our comprehensive suite of tools
+              {tFeatures('streamlineDesc')}
             </p>
           </div>
 
@@ -441,12 +450,12 @@ export default function Home() {
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <Users className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Smart Registration</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFeatures('smartRegistration')}</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Seamless registration with integrated payment processing. Customizable forms that capture exactly what you need.
+                  {tFeatures('smartRegistrationDesc')}
                 </p>
                 <Link href="/features#smart-registration" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 transition-all text-sm">
-                  Learn More
+                  {tFeatures('learnMore')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -459,12 +468,12 @@ export default function Home() {
                 <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <FileText className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Abstract Hub</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFeatures('abstractHub')}</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Streamlined submission and review process. Organize, evaluate, and manage research abstracts effortlessly.
+                  {tFeatures('abstractHubDesc')}
                 </p>
                 <Link href="/features#abstract-hub" className="inline-flex items-center gap-2 text-purple-600 font-bold hover:text-purple-700 transition-all text-sm">
-                  Learn More
+                  {tFeatures('learnMore')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -477,12 +486,12 @@ export default function Home() {
                 <div className="w-20 h-20 bg-gradient-to-br from-green-500 via-green-600 to-teal-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <BarChart3 className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Organizer Dashboard</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFeatures('organizerDashboard')}</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Your conference, all in one place. Follow new registrations, payments, and abstract submissions the moment they come in — clearly, simply, and in real time.
+                  {tFeatures('organizerDashboardDesc')}
                 </p>
                 <Link href="/features#organizer-dashboard" className="inline-flex items-center gap-2 text-green-600 font-bold hover:text-green-700 transition-all text-sm">
-                  Learn More
+                  {tFeatures('learnMore')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -495,12 +504,12 @@ export default function Home() {
                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                   <Monitor className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Conference Websites</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFeatures('conferenceWebsites')}</h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Professional, custom-designed websites for your conference. Beautiful, responsive, and fully integrated with our platform for seamless registration and management.
+                  {tFeatures('conferenceWebsitesDesc')}
                 </p>
                 <Link href="/features#conference-websites" className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-all text-sm">
-                  Learn More
+                  {tFeatures('learnMore')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -521,10 +530,10 @@ export default function Home() {
             
             <div className="relative text-center mb-8">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                We'd love to talk about your project
+                {tContact('talkAboutProject')}
               </h2>
               <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                Our experts and developers would love to contribute their expertise and insights to your potential projects.
+                {tContact('talkAboutProjectIntro')}
               </p>
             </div>
           </div>
@@ -536,16 +545,16 @@ export default function Home() {
               <div>
                 <h1 className="text-4xl md:text-5xl font-black mb-6">
                   <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-violet-600 bg-clip-text text-transparent">
-                    Contact Us
+                    {tContact('contactUs')}
                   </span>
                 </h1>
                 <p className="text-lg text-gray-700 leading-relaxed mb-6">
-                  Anything you ask, no matter how small, will make a big difference in helping us. Give us a call or send an email, we answer all inquiries within 24 hours.
+                  {tContact('contactIntro')}
                 </p>
                 <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-100">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Get a Quote</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{tContact('getQuote')}</h2>
                   <p className="text-gray-700">
-                    Fill in the form and we will contact you within 24 hours with a personalized offer.
+                    {tContact('getQuoteIntro')}
                   </p>
                 </div>
               </div>
@@ -565,18 +574,18 @@ export default function Home() {
           <div className="text-center mb-16">
             <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
               <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                FLEXIBLE FORMATS
+                {tFormats('flexibleFormats')}
               </span>
             </div>
             <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6">
-              Support any
+              {tFormats('supportAnyPrefix')}
               <br />
               <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                conference format
+                {tFormats('supportAnyFormat')}
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              From virtual to in-person, our platform adapts to your needs
+              {tFormats('fromVirtualToInPerson')}
             </p>
           </div>
 
@@ -588,9 +597,9 @@ export default function Home() {
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <Globe className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Virtual Conference</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFormats('virtualConference')}</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Connect attendees worldwide through an interactive platform. No travel required—participants join from anywhere.
+                  {tFormats('virtualDesc')}
                 </p>
               </div>
             </div>
@@ -602,9 +611,9 @@ export default function Home() {
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <GitMerge className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">Hybrid Conference</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFormats('hybridConference')}</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Best of both worlds. Engage in-person and virtual audiences simultaneously with seamless integration.
+                  {tFormats('hybridDesc')}
                 </p>
               </div>
             </div>
@@ -616,9 +625,9 @@ export default function Home() {
                 <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <MapPin className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-4">On-site Conference</h3>
+                <h3 className="text-2xl font-black text-gray-900 mb-4">{tFormats('onsiteConference')}</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Traditional in-person events with modern digital tools. Create memorable face-to-face experiences.
+                  {tFormats('onsiteDesc')}
                 </p>
               </div>
             </div>
@@ -632,54 +641,36 @@ export default function Home() {
           <div className="text-center mb-16">
             <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
               <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                FREQUENTLY ASKED QUESTIONS
+                {tFaq('faqTitle')}
               </span>
             </div>
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6">
-              Got questions?
+              {tFaq('gotQuestions')}
               <br />
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                We've got answers
+                {tFaq('weGotAnswers')}
               </span>
             </h2>
           </div>
 
           <div className="space-y-4">
             {[
-              {
-                question: 'How does the registration process work?',
-                answer: 'Our platform provides a seamless registration experience. Attendees can register online, choose ticket types, and complete payment all in one place. You can customize registration forms to collect exactly the information you need.',
-              },
-              {
-                question: 'Can I manage multiple conferences?',
-                answer: 'Yes! Our platform supports multiple conferences. As a Conference Admin, you can manage all your events from a single dashboard, each with its own registrations, payments, and abstracts.',
-              },
-              {
-                question: 'What payment methods do you support?',
-                answer: 'We integrate with Stripe for secure credit card payments. We also support bank transfer tracking, allowing you to monitor all payment methods in one place.',
-              },
-              {
-                question: 'How does abstract submission work?',
-                answer: 'Authors can submit their abstracts through our platform. The system supports file uploads, tracks submission status, and provides a review workflow for conference organizers.',
-              },
-              {
-                question: 'Do you provide conference websites?',
-                answer: 'Yes! We offer professional, custom-designed websites for your conference. These are fully integrated with our platform for seamless registration and management.',
-              },
-              {
-                question: 'What kind of support do you offer?',
-                answer: 'We provide comprehensive support including setup assistance, training, and ongoing maintenance. Our team is available to help you make the most of the platform.',
-              },
+              { q: 'q1', a: 'a1' },
+              { q: 'q2', a: 'a2' },
+              { q: 'q3', a: 'a3' },
+              { q: 'q4', a: 'a4' },
+              { q: 'q5', a: 'a5' },
+              { q: 'q6', a: 'a6' },
             ].map((faq, index) => (
               <details
                 key={index}
                 className="group bg-white border-2 border-gray-100 rounded-xl p-6 hover:border-blue-300 transition-all duration-300"
               >
                 <summary className="cursor-pointer font-bold text-gray-900 text-lg flex items-center justify-between">
-                  <span>{faq.question}</span>
+                  <span>{tFaq(faq.q)}</span>
                   <span className="text-blue-600 group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="mt-4 text-gray-600 leading-relaxed">{faq.answer}</p>
+                <p className="mt-4 text-gray-600 leading-relaxed">{tFaq(faq.a)}</p>
               </details>
             ))}
           </div>
@@ -697,26 +688,26 @@ export default function Home() {
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-block mb-6 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-            <span className="text-sm font-semibold text-blue-200">Ready to get started?</span>
+            <span className="text-sm font-semibold text-blue-200">{tCta('readyToGetStarted')}</span>
           </div>
           
           <h2 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
-            Start managing your
+            {tCta('startManaging')}
             <br />
             <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              conference today
+              {tCta('conferenceToday')}
             </span>
           </h2>
           
           <p className="text-xl text-slate-300 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Join organizers worldwide who trust our platform for seamless event management
+            {tCta('joinOrganizers')}
           </p>
 
           <a
             href="#contact"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
           >
-            Welcome
+            {tCta('welcome')}
             <ArrowRight className="w-5 h-5" />
           </a>
         </div>

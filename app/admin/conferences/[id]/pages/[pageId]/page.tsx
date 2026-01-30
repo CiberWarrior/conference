@@ -282,7 +282,7 @@ export default function ConferencePageEditor() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Hero Section (Optional)</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Hero sekcija će koristiti <strong>Page Title</strong> kao naslov. Odaberi layout tip i konfiguriraj stil.
+                  The hero section will use <strong>Page Title</strong> as the heading. Choose layout type and configure style.
                 </p>
                 
                 <div className="mb-4">
@@ -348,7 +348,7 @@ export default function ConferencePageEditor() {
                     placeholder="https://example.com/logo.png"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Logo ili ilustracija koja će se prikazati na desnoj strani hero sekcije (u bijelom boxu)
+                    Logo or illustration displayed on the right side of the hero section (in a white box)
                   </p>
                 </div>
                 <div className="md:col-span-2">
@@ -361,7 +361,7 @@ export default function ConferencePageEditor() {
                     placeholder='[{"label":"START DATE","value":"Jul 10, 2027","icon":"calendar"},{"label":"LOCATION","value":"Zagreb, Croatia","icon":"map-pin"}]'
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    JSON array info kartica koje će se prikazati ispod naslova. Icons: calendar, map-pin, building, users, clock
+                    JSON array of info cards displayed below the title. Icons: calendar, map-pin, building, users, clock
                   </p>
                 </div>
                 </>

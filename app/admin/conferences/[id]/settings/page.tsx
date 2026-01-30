@@ -5,7 +5,14 @@ import { useRouter, useParams } from 'next/navigation'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket } from 'lucide-react'
-import type { CustomPricingField, CustomFeeType, HotelOption, PaymentSettings, RoomType } from '@/types/conference'
+import type {
+  CustomPricingField,
+  CustomFeeType,
+  HotelOption,
+  PaymentSettings,
+  RoomType,
+  StandardFeeTypeKey,
+} from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
@@ -76,6 +83,14 @@ export default function ConferenceSettingsPage() {
     student_late: 200,
     accompanying_person_price: 140,
     custom_pricing_fields: [] as CustomPricingField[],
+    // Prikazni nazivi tipova kotizacija po konferenciji (opcionalno)
+    fee_type_labels: {
+      early_bird: '',
+      regular: '',
+      late: '',
+      student: '',
+      accompanying_person: '',
+    } as Record<StandardFeeTypeKey, string>,
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
@@ -179,12 +194,12 @@ export default function ConferenceSettingsPage() {
             description: data.ticket.description ?? null,
           },
         ])
-        showSuccess(data.created ? 'Ticket kreiran.' : 'Ticket već postoji.')
+        showSuccess(data.created ? 'Ticket created.' : 'Ticket already exists.')
       } else {
-        showError(data.error || 'Greška pri kreiranju tiketa.')
+        showError(data.error || 'Error creating ticket.')
       }
     } catch {
-      showError('Greška pri kreiranju tiketa.')
+      showError('Error creating ticket.')
     } finally {
       setCreatingTicketForHotel(null)
     }
@@ -231,6 +246,13 @@ export default function ConferenceSettingsPage() {
           student_late: conf.pricing?.student?.late || (conf.pricing?.late?.amount || 250) - (conf.pricing?.student_discount || 50),
           accompanying_person_price: conf.pricing?.accompanying_person_price || 0,
           custom_pricing_fields: conf.pricing?.custom_fields || [],
+          fee_type_labels: {
+            early_bird: conf.pricing?.fee_type_labels?.early_bird ?? '',
+            regular: conf.pricing?.fee_type_labels?.regular ?? '',
+            late: conf.pricing?.fee_type_labels?.late ?? '',
+            student: conf.pricing?.fee_type_labels?.student ?? '',
+            accompanying_person: conf.pricing?.fee_type_labels?.accompanying_person ?? '',
+          },
           // Settings
           registration_enabled: conf.settings?.registration_enabled ?? true,
           abstract_submission_enabled: conf.settings?.abstract_submission_enabled ?? true,
@@ -344,13 +366,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
     ))
   }
 
-  // Tip sobe – oznake za UI
+  // Room type – oznake za UI
   const ROOM_TYPE_LABELS: Record<RoomType, string> = {
-    single: 'Jednokrevetna',
-    double: 'Dvokrevetna',
+    single: 'Single',
+    double: 'Double',
     twin: 'Twin',
     suite: 'Suite',
-    other: 'Ostalo',
+    other: 'Other',
   }
 
   // Hotel Options Management
@@ -663,6 +685,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
             accompanying_person_price: formData.accompanying_person_price || undefined,
             custom_fields: formData.custom_pricing_fields.length > 0 ? formData.custom_pricing_fields : undefined,
             custom_fee_types: customFeeTypes.length > 0 ? customFeeTypes : undefined,
+            fee_type_labels:
+              Object.values(formData.fee_type_labels).some((v) => v.trim() !== '')
+                ? formData.fee_type_labels
+                : undefined,
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -1648,7 +1674,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       min="0"
                       max="100"
                       step="0.01"
-                      placeholder="npr. 19 za 19% (Germany)"
+                      placeholder="e.g. 19 for 19% (Germany)"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
@@ -1657,8 +1683,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-900">
-                  <strong>Tip:</strong> PDV će se prikazivati u admin dashboardu kao "bez PDV-a" i "sa PDV-om". 
-                  Na registracijskoj formi korisnici će vidjeti samo krajnju cijenu sa PDV-om.
+<strong>Tip:</strong> VAT will be shown in the admin dashboard as "excluding VAT" and "including VAT". 
+                On the registration form users will only see the final price including VAT.
                 </p>
               </div>
 
@@ -1719,18 +1745,65 @@ Important: Authors who submit abstracts for presentation are not automatically r
               </div>
             </div>
 
-            {/* Standard Participant Pricing */}
-            <div className="md:col-span-2 mb-2">
-              <div className="flex items-center gap-2">
-                <div className="h-px flex-1 bg-gradient-to-r from-blue-200 to-transparent"></div>
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Standard Participant</h3>
-                <div className="h-px flex-1 bg-gradient-to-l from-blue-200 to-transparent"></div>
+            {/* Display names for fee types (optional) */}
+            <div className="md:col-span-2">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+                Display names for fee types (optional)
+              </h3>
+              <p className="text-xs text-gray-500 mb-3">
+                If left empty, default names (Early Bird, Regular, etc.) will be used. Enter the label you want participants to see on the form for this conference.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(['early_bird', 'regular', 'late', 'student', 'accompanying_person'] as const).map((key) => (
+                  <div key={key}>
+                    <label htmlFor={`fee_label_${key}`} className="block text-xs font-medium text-gray-600 mb-1">
+                      {key === 'early_bird' && 'Early Bird'}
+                      {key === 'regular' && 'Regular'}
+                      {key === 'late' && 'Late Registration'}
+                      {key === 'student' && 'Student'}
+                      {key === 'accompanying_person' && 'Accompanying Person'}
+                    </label>
+                    <input
+                      id={`fee_label_${key}`}
+                      type="text"
+                      value={formData.fee_type_labels[key]}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          fee_type_labels: { ...prev.fee_type_labels, [key]: e.target.value },
+                        }))
+                      }
+                      placeholder={
+                        key === 'early_bird'
+                          ? 'e.g. Early rate'
+                          : key === 'regular'
+                            ? 'e.g. Regular fee'
+                            : key === 'late'
+                              ? 'e.g. Late registration'
+                              : key === 'student'
+                                ? 'e.g. Student'
+                                : 'e.g. Accompanying person'
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                ))}
               </div>
+            </div>
+
+            {/* Cijene po periodu (Early Bird / Regular / Late) */}
+            <div className="md:col-span-2 mb-1">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                Prices by period (Early Bird → Regular → Late)
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                One set of prices for all participant types; student and custom types have their own prices below.
+              </p>
             </div>
 
             <div>
               <label htmlFor="early_bird_amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                Early Bird Price
+                Early Bird (price)
               </label>
               <input
                 type="number"
@@ -1740,7 +1813,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 150.00"
+                placeholder="e.g. 150.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1777,7 +1850,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 200.00"
+                placeholder="e.g. 200.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1814,7 +1887,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 250.00"
+                placeholder="e.g. 250.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1839,15 +1912,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
               </p>
             </div>
 
-            {/* Student Pricing */}
+            {/* Student pricing (same periods: Early Bird / Regular / Late) */}
             <div className="md:col-span-2 mb-2 mt-6">
-              <div className="flex items-center gap-2">
-                <div className="h-px flex-1 bg-gradient-to-r from-green-200 to-transparent"></div>
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Student Pricing</h3>
-                <div className="h-px flex-1 bg-gradient-to-l from-green-200 to-transparent"></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Set fixed prices for students across all pricing tiers
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                Student pricing
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Fixed prices for students by period (Early Bird, Regular, Late).
               </p>
             </div>
 
@@ -1863,7 +1934,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 100.00"
+                placeholder="e.g. 100.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1883,7 +1954,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 150.00"
+                placeholder="e.g. 150.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1903,7 +1974,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                placeholder="npr. 200.00"
+                placeholder="e.g. 200.00"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -1915,12 +1986,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <div className="md:col-span-2 mb-4 mt-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="h-px flex-1 bg-gradient-to-r from-purple-200 to-transparent"></div>
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Custom Fee Types</h3>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Custom fee types</h3>
                 <div className="h-px flex-1 bg-gradient-to-l from-purple-200 to-transparent"></div>
               </div>
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs text-gray-500">
-                  Add custom participant types with specific pricing (e.g., VIP Member, Senior Citizen, etc.)
+                  Add fee types specific to this conference (e.g. VIP, Senior, speaker). Each type has Early Bird / Regular / Late prices.
                 </p>
                 <button
                   type="button"
@@ -1980,17 +2051,37 @@ Important: Authors who submit abstracts for presentation are not automatically r
                           <div className="space-y-3 pt-3 border-t border-purple-200">
                             <div>
                               <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                Fee Type Name *
+                                Display name *
                               </label>
                               <input
                                 type="text"
                                 value={feeType.name}
                                 onChange={(e) => updateCustomFeeType(feeType.id, { name: e.target.value })}
-                                placeholder="e.g., VIP Member, Senior Citizen"
+                                placeholder="e.g. VIP member, Senior, Speaker"
                                 className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                               />
+                              <p className="mt-1 text-xs text-purple-600">What participants see on the form</p>
                             </div>
-                            
+                            <div>
+                              <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                Internal key (slug, optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={feeType.slug ?? ''}
+                                onChange={(e) =>
+                                  updateCustomFeeType(feeType.id, {
+                                    slug: e.target.value
+                                      .toLowerCase()
+                                      .replace(/\s+/g, '_')
+                                      .replace(/[^a-z0-9_]/g, '') || undefined,
+                                  })
+                                }
+                                placeholder="e.g. vip_member (lowercase, underscores)"
+                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                              />
+                              <p className="mt-1 text-xs text-purple-600">For export/API; if empty, ID is used</p>
+                            </div>
                             <div>
                               <label className="block text-xs font-semibold text-purple-900 mb-1">
                                 Description (optional)
@@ -2015,7 +2106,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   onChange={(e) => updateCustomFeeType(feeType.id, { early_bird: parseFloat(e.target.value) || 0 })}
                                   min="0"
                                   step="0.01"
-                                  placeholder="npr. 300.00"
+                                  placeholder="e.g. 300.00"
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
@@ -2033,7 +2124,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   onChange={(e) => updateCustomFeeType(feeType.id, { regular: parseFloat(e.target.value) || 0 })}
                                   min="0"
                                   step="0.01"
-                                  placeholder="npr. 400.00"
+                                  placeholder="e.g. 400.00"
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
@@ -2051,7 +2142,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   onChange={(e) => updateCustomFeeType(feeType.id, { late: parseFloat(e.target.value) || 0 })}
                                   min="0"
                                   step="0.01"
-                                  placeholder="npr. 500.00"
+                                  placeholder="e.g. 500.00"
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
@@ -2291,9 +2382,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 <>
                                   <span>•</span>
                                   <span>
-                                    Rezervirano: {loadingHotelUsage ? '…' : (hotelUsage[hotel.id] ?? 0)} / {hotel.max_rooms} soba
+                                    Reserved: {loadingHotelUsage ? '…' : (hotelUsage[hotel.id] ?? 0)} / {hotel.max_rooms} rooms
                                     {(hotelUsage[hotel.id] ?? 0) >= hotel.max_rooms && (
-                                      <span className="ml-1 font-semibold text-amber-600">Popunjeno</span>
+                                      <span className="ml-1 font-semibold text-amber-600">Full</span>
                                     )}
                                   </span>
                                 </>
@@ -2336,7 +2427,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Naziv hotela / sobe *
+                            Hotel / room name *
                           </label>
                           <input
                             type="text"
@@ -2344,7 +2435,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             onChange={(e) =>
                               updateHotelOption(hotel.id, { name: e.target.value })
                             }
-                            placeholder="Npr. Hotel Vis – Standard soba"
+                            placeholder="e.g. Hotel Vis – Standard room"
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                             required
                           />
@@ -2352,7 +2443,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Tip sobe
+                            Room type
                           </label>
                           <select
                             value={hotel.room_type ?? ''}
@@ -2363,7 +2454,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             }
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           >
-                            <option value="">— Nije odabrano —</option>
+                            <option value="">— Not selected —</option>
                             {(Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][]).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
@@ -2371,7 +2462,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             ))}
                           </select>
                           <p className="text-xs text-gray-500 mt-1">
-                            Jednokrevetna, dvokrevetna, twin, suite – za pregled i izvještaje
+                            Single, double, twin, suite – for overview and reports
                           </p>
                         </div>
 
@@ -2480,10 +2571,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
                           </div>
                         </div>
 
-                        {/* Max Rooms (Optional) – ručni unos kapaciteta soba */}
+                        {/* Max Rooms (Optional) – manual room capacity */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Maks. broj soba (kapacitet) *
+                            Max. number of rooms (capacity) *
                           </label>
                           <input
                             type="number"
@@ -2494,35 +2585,35 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               })
                             }
                             min="1"
-                            placeholder="Npr. 50 – admin ručno unosi"
+                            placeholder="e.g. 50 – admin enters manually"
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            Koliko soba je rezervirano za ovu konferenciju. Sustav računa rezervacije i kad se popuni, možeš kreirati ticket.
+                            How many rooms are reserved for this conference. The system counts reservations and when full, you can create a ticket.
                           </p>
                         </div>
 
-                        {/* Rezervirano X / Y soba + Popunjeno + Kreiraj ticket */}
+                        {/* Reserved X / Y rooms + Full + Create ticket */}
                         {typeof hotel.max_rooms === 'number' && hotel.max_rooms > 0 && (
                           <div className="pt-2 border-t border-gray-200">
                             {loadingHotelUsage ? (
-                              <p className="text-sm text-gray-500">Učitavanje broja rezervacija...</p>
+                              <p className="text-sm text-gray-500">Loading reservation count...</p>
                             ) : (
                               <>
                                 <p className="text-sm font-medium text-gray-700 mb-2">
-                                  Rezervirano:{' '}
+                                  Reserved:{' '}
                                   <span className="font-semibold text-gray-900">
-                                    {hotelUsage[hotel.id] ?? 0} / {hotel.max_rooms} soba
+                                    {hotelUsage[hotel.id] ?? 0} / {hotel.max_rooms} rooms
                                   </span>
                                 </p>
                                 {(hotelUsage[hotel.id] ?? 0) >= hotel.max_rooms && (
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-                                      Popunjeno
+                                      Full
                                     </span>
                                     {hasTicketForHotel(hotel.id) ? (
                                       <span className="text-sm text-green-600 font-medium">
-                                        Ticket kreiran
+                                        Ticket created
                                       </span>
                                     ) : (
                                       <button
@@ -2534,7 +2625,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-sm font-medium disabled:opacity-50"
                                       >
                                         <Ticket className="w-4 h-4" />
-                                        {creatingTicketForHotel === hotel.id ? 'Kreiranje...' : 'Kreiraj ticket'}
+                                        {creatingTicketForHotel === hotel.id ? 'Creating...' : 'Create ticket'}
                                       </button>
                                     )}
                                   </div>
@@ -2679,21 +2770,21 @@ Important: Authors who submit abstracts for presentation are not automatically r
           )}
         </div>
 
-        {/* Tickets za ovu konferenciju – npr. kad napune sobe u hotelu */}
+        {/* Tickets for this conference – e.g. when hotel rooms are full */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Tickets za ovu konferenciju</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Tickets for this conference</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Interni zadaci vezani uz ovu konferenciju (npr. &quot;Hotel X popunjen&quot;, &quot;Dodati smještaj&quot;).
+            Internal tasks for this conference (e.g. &quot;Hotel X full&quot;, &quot;Add accommodation&quot;).
           </p>
           {loadingTickets ? (
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              Učitavanje...
+              Loading...
             </div>
           ) : (
             <>
               {conferenceTickets.length === 0 ? (
-                <p className="text-sm text-gray-500 mb-4">Nema tiketa za ovu konferenciju.</p>
+                <p className="text-sm text-gray-500 mb-4">No tickets for this conference.</p>
               ) : (
                 <ul className="space-y-2 mb-4">
                   {conferenceTickets.map((t) => (
@@ -2708,7 +2799,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {t.status === 'open' ? 'Otvoren' : t.status === 'in_progress' ? 'U tijeku' : t.status}
+                        {t.status === 'open' ? 'Open' : t.status === 'in_progress' ? 'In progress' : t.status}
                       </span>
                     </li>
                   ))}
@@ -2719,14 +2810,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium text-sm transition-colors"
               >
                 <Ticket className="w-4 h-4" />
-                Novi ticket (npr. sobe popunjene)
+                New ticket (e.g. rooms full)
               </Link>
               {conferenceTickets.length > 0 && (
                 <Link
                   href={`/admin/tickets?conference_id=${conferenceId}`}
                   className="ml-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Otvori sve tikete →
+                  Open all tickets →
                 </Link>
               )}
             </>

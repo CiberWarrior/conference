@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Ticket, Plus, Filter, ChevronDown, ChevronUp } from 'lucide-react'
 import type { SupportTicket } from '@/types/support-ticket'
 import { useConference } from '@/contexts/ConferenceContext'
@@ -15,6 +16,8 @@ function TicketsPageContent() {
   const searchParams = useSearchParams()
   const conferenceIdFromUrl = searchParams.get('conference_id') || ''
   const { conferences } = useConference()
+  const t = useTranslations('admin.tickets')
+  const c = useTranslations('admin.common')
   const [tickets, setTickets] = useState<TicketWithConference[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -99,10 +102,10 @@ function TicketsPageContent() {
   }
 
   const statusLabel: Record<string, string> = {
-    open: 'Open',
-    in_progress: 'In progress',
-    resolved: 'Resolved',
-    closed: 'Closed',
+    open: c('open'),
+    in_progress: c('inProgress'),
+    resolved: c('resolved'),
+    closed: c('closed'),
   }
   const statusColor: Record<string, string> = {
     open: 'bg-amber-100 text-amber-800',
@@ -121,9 +124,9 @@ function TicketsPageContent() {
     <div>
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Support Tickets</h2>
+          <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
           <p className="mt-2 text-gray-600">
-            Internal support requests and issues
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -132,14 +135,14 @@ function TicketsPageContent() {
               href={`/admin/conferences/${conferenceIdFromUrl}/settings`}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Natrag na postavke konferencije
+              {c('backToConferenceSettings')}
             </Link>
           ) : (
             <Link
               href="/admin/dashboard"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Dashboard
+              {c('backToDashboard')}
             </Link>
           )}
           <button
@@ -148,7 +151,7 @@ function TicketsPageContent() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
           >
             <Plus className="w-4 h-4" />
-            {conferenceIdFromUrl ? 'New ticket for this conference' : 'New ticket'}
+            {conferenceIdFromUrl ? t('newTicketForConference') : t('newTicket')}
           </button>
         </div>
       </div>
@@ -156,38 +159,38 @@ function TicketsPageContent() {
       {/* Create ticket form (collapsible) */}
       {createOpen && (
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Create ticket</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('createTicket')}</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject
+                {c('subject')}
               </label>
               <input
                 type="text"
                 value={form.subject}
                 onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Brief summary"
+                placeholder={t('briefSummary')}
                 maxLength={500}
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
+                {c('description')}
               </label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
-                placeholder="Details of the issue or request"
+                placeholder={t('detailsOfIssue')}
                 required
               />
             </div>
             <div className="flex flex-wrap gap-4 items-end">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority
+                  {c('priority')}
                 </label>
                 <select
                   value={form.priority}
@@ -199,16 +202,16 @@ function TicketsPageContent() {
                   }
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="low">{c('low')}</option>
+                  <option value="medium">{c('medium')}</option>
+                  <option value="high">{c('high')}</option>
+                  <option value="urgent">{c('urgent')}</option>
                 </select>
               </div>
               {conferences.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Conference (optional)
+                    {t('conferenceOptional')}
                   </label>
                   <select
                     value={form.conference_id}
@@ -217,10 +220,10 @@ function TicketsPageContent() {
                     }
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-[200px]"
                   >
-                    <option value="">— None —</option>
-                    {conferences.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                    <option value="">{c('none')}</option>
+                    {conferences.map((conf) => (
+                      <option key={conf.id} value={conf.id}>
+                        {conf.name}
                       </option>
                     ))}
                   </select>
@@ -231,14 +234,14 @@ function TicketsPageContent() {
                 disabled={submitting}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
               >
-                {submitting ? 'Creating...' : 'Create ticket'}
+                {submitting ? t('creating') : t('createTicket')}
               </button>
               <button
                 type="button"
                 onClick={() => setCreateOpen(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {c('cancel')}
               </button>
             </div>
           </form>
@@ -253,11 +256,11 @@ function TicketsPageContent() {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
         >
-          <option value="all">All statuses</option>
-          <option value="open">Open</option>
-          <option value="in_progress">In progress</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
+          <option value="all">{c('allStatuses')}</option>
+          <option value="open">{c('open')}</option>
+          <option value="in_progress">{c('inProgress')}</option>
+          <option value="resolved">{c('resolved')}</option>
+          <option value="closed">{c('closed')}</option>
         </select>
       </div>
 
@@ -327,7 +330,7 @@ function TicketsPageContent() {
                       {t.description}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-gray-500">Change status:</span>
+                      <span className="text-xs text-gray-500">{c('changeStatus')}</span>
                       {(['open', 'in_progress', 'resolved', 'closed'] as const).map(
                         (s) => (
                           <button
@@ -357,18 +360,21 @@ function TicketsPageContent() {
   )
 }
 
+function TicketsLoadingFallback() {
+  const c = useTranslations('admin.common')
+  return (
+    <div className="flex items-center justify-center min-h-[200px]">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-gray-600 mt-2">{c('loading')}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function TicketsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-[200px]">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-gray-600 mt-2">Učitavanje...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<TicketsLoadingFallback />}>
       <TicketsPageContent />
     </Suspense>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
@@ -25,6 +26,9 @@ interface Certificate {
 }
 
 export default function CertificatesPage() {
+  const t = useTranslations('admin.certificates')
+  const tDashboard = useTranslations('admin.dashboard')
+  const c = useTranslations('admin.common')
   const { currentConference, loading: conferenceLoading } = useConference()
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
@@ -240,8 +244,8 @@ export default function CertificatesPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Certificate Management</h1>
-        <p className="mt-2 text-gray-600">Generate and manage certificates for participants</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+        <p className="mt-2 text-gray-600">{t('subtitle')}</p>
       </div>
 
       {/* Settings */}

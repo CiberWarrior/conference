@@ -3,7 +3,7 @@
  * Handles dynamic pricing calculation based on dates and tiers
  */
 
-import type { ConferencePricing } from '@/types/conference'
+import type { ConferencePricing, StandardFeeTypeKey } from '@/types/conference'
 
 export type PricingTier = 'early_bird' | 'regular' | 'late'
 
@@ -182,17 +182,33 @@ export function getPriceAmount(
   return values.length > 0 ? values[0] : 0
 }
 
+const DEFAULT_TIER_LABELS: Record<PricingTier, string> = {
+  early_bird: 'Early Bird',
+  regular: 'Regular',
+  late: 'Late Registration',
+}
+
 /**
- * Get tier display name
+ * Get tier display name. Ako su prosleđeni fee_type_labels, koristi prikazni naziv po konferenciji.
  */
-export function getTierDisplayName(tier: PricingTier): string {
+export function getTierDisplayName(
+  tier: PricingTier | StandardFeeTypeKey,
+  feeTypeLabels?: Partial<Record<StandardFeeTypeKey, string>>
+): string {
+  if (feeTypeLabels && tier in feeTypeLabels && feeTypeLabels[tier as StandardFeeTypeKey]) {
+    return feeTypeLabels[tier as StandardFeeTypeKey]!
+  }
   switch (tier) {
     case 'early_bird':
-      return 'Early Bird'
+      return DEFAULT_TIER_LABELS.early_bird
     case 'regular':
-      return 'Regular'
+      return DEFAULT_TIER_LABELS.regular
     case 'late':
-      return 'Late Registration'
+      return DEFAULT_TIER_LABELS.late
+    case 'student':
+      return 'Student'
+    case 'accompanying_person':
+      return 'Accompanying Person'
     default:
       return 'Standard'
   }

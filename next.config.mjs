@@ -1,3 +1,8 @@
+import createNextIntlPlugin from 'next-intl/plugin'
+
+// next-intl: uses default i18n/request.ts (project root) when called with no args
+const withNextIntl = createNextIntlPlugin()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -29,5 +34,5 @@ const nextConfig = {
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
 }
 
-export default nextConfig
+export default withNextIntl(nextConfig)
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import type { Registration } from '@/types/registration'
@@ -14,6 +15,9 @@ export const dynamic = 'force-dynamic'
 
 function RegistrationsPageContent() {
   const searchParams = useSearchParams()
+  const t = useTranslations('admin.registrations')
+  const c = useTranslations('admin.common')
+  const tDashboard = useTranslations('admin.dashboard')
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
@@ -528,8 +532,8 @@ function RegistrationsPageContent() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Registrations</h2>
-          <p className="mt-2 text-gray-600">Manage conference registrations</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
+          <p className="mt-2 text-gray-600">{t('subtitle')}</p>
         </div>
         <div className="flex gap-2">
           {/* Export Dropdown Menu */}
@@ -541,7 +545,7 @@ function RegistrationsPageContent() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Export
+              {t('export')}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>

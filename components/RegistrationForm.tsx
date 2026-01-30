@@ -1,9 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import { getPriceBreakdownFromInput, formatPriceWithoutZeros, getPriceAmount } from '@/utils/pricing'
+import {
+  getPriceBreakdownFromInput,
+  formatPriceWithoutZeros,
+  getPriceAmount,
+  getTierDisplayName,
+} from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
 import type { Participant } from '@/types/participant'
 import ParticipantManager from '@/components/admin/ParticipantManager'
@@ -41,6 +47,7 @@ export default function RegistrationForm({
   paymentSettings,
   hasBankAccount = false,
 }: RegistrationFormProps) {
+  const t = useTranslations('registrationForm')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
@@ -276,8 +283,8 @@ export default function RegistrationForm({
                 <Euro className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">Select Registration Fee</h2>
-                <p className="text-sm text-gray-600">Choose your registration category</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">{t('selectFee')}</h2>
+                <p className="text-sm text-gray-600">{t('selectFeeCategory')}</p>
               </div>
             </div>
 
@@ -301,7 +308,9 @@ export default function RegistrationForm({
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                       />
                     <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'early_bird' ? 'text-blue-900' : 'text-blue-800'}`}>Early Bird</div>
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'early_bird' ? 'text-blue-900' : 'text-blue-800'}`}>
+                          {getTierDisplayName('early_bird', pricing.fee_type_labels)}
+                        </div>
                         <div className="text-xs text-blue-600 leading-relaxed">
                           {pricing.early_bird.deadline && `Until ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`}
                     </div>
@@ -342,7 +351,9 @@ export default function RegistrationForm({
                         className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'regular' ? 'text-indigo-900' : 'text-indigo-800'}`}>Regular</div>
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'regular' ? 'text-indigo-900' : 'text-indigo-800'}`}>
+                          {getTierDisplayName('regular', pricing.fee_type_labels)}
+                        </div>
                         <div className="text-xs text-indigo-600 leading-relaxed">
                           {pricing.regular?.start_date 
                             ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
@@ -387,7 +398,9 @@ export default function RegistrationForm({
                         className="w-5 h-5 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
                           <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'student' ? 'text-emerald-900' : 'text-emerald-800'}`}>Student</div>
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'student' ? 'text-emerald-900' : 'text-emerald-800'}`}>
+                          {getTierDisplayName('student', pricing.fee_type_labels)}
+                        </div>
                         <div className="text-xs text-emerald-600 leading-relaxed">
                           {pricing.regular?.start_date 
                             ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
@@ -436,7 +449,9 @@ export default function RegistrationForm({
                         className="w-5 h-5 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'late' ? 'text-amber-900' : 'text-amber-800'}`}>Late Registration</div>
+                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'late' ? 'text-amber-900' : 'text-amber-800'}`}>
+                          {getTierDisplayName('late', pricing.fee_type_labels)}
+                        </div>
                         <div className="text-xs text-amber-600 leading-relaxed">
                           {pricing.late?.start_date 
                             ? `From ${new Date(pricing.late.start_date).toLocaleDateString()}`
@@ -483,7 +498,9 @@ export default function RegistrationForm({
                         className="w-4 h-4 text-rose-600 focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
                 />
                       <div className="flex-1 min-w-0">
-                        <div className={`text-xs font-bold mb-1 leading-tight ${selectedFee === 'accompanying_person' ? 'text-rose-900' : 'text-rose-800'}`}>Accompanying Person</div>
+                        <div className={`text-xs font-bold mb-1 leading-tight ${selectedFee === 'accompanying_person' ? 'text-rose-900' : 'text-rose-800'}`}>
+                          {getTierDisplayName('accompanying_person', pricing.fee_type_labels)}
+                        </div>
                         <div className="text-xs text-rose-600 leading-snug">For guests and companions</div>
               </div>
             </div>
@@ -600,14 +617,14 @@ export default function RegistrationForm({
           {/* VAT note (public) */}
           {vatPercentage && (
             <div className="mt-5 text-xs text-gray-600">
-              Prices shown are final and include PDV ({vatPercentage}%).
+              {t('pricesFinal', { vat: vatPercentage })}
             </div>
           )}
 
           {!selectedFee && (
             <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-              <p className="text-sm font-medium text-amber-800">Please select a registration fee option to continue</p>
+              <p className="text-sm font-medium text-amber-800">{t('pleaseSelectFee')}</p>
             </div>
           )}
             </div>
@@ -821,7 +838,7 @@ export default function RegistrationForm({
                         <h4 className="text-base font-bold text-gray-900 mb-2">Bank Transfer Instructions</h4>
                         <p className="text-sm text-gray-700 mb-4 leading-relaxed">
                           After submitting your registration, you will receive bank account details and a unique payment reference number via email.
-                          Please complete the transfer within <strong className="text-gray-900">7 days</strong> to secure your spot.
+                          Molimo izvršite uplatu u roku od <strong className="text-gray-900">7 dana</strong> kako biste rezervirali mjesto.
                         </p>
                         <div className="bg-white border border-green-200 rounded-lg p-5">
                           <p className="font-bold text-gray-900 mb-3">What happens next:</p>
@@ -878,14 +895,14 @@ export default function RegistrationForm({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    <span>Submitting...</span>
+                    <span>{t('submitting')}</span>
                   </>
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Submit Registration</span>
+                    <span>{t('submitRegistration')}</span>
                   </>
                 )}
               </button>
@@ -1108,7 +1125,7 @@ export default function RegistrationForm({
                   {isSubmitting ? (
                     <>
                       <LoadingSpinner size="sm" />
-                      <span>Submitting...</span>
+                      <span>{t('submitting')}</span>
                     </>
                   ) : (
                     <>

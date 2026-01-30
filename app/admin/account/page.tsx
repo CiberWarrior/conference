@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConference } from '@/contexts/ConferenceContext'
 import { supabase } from '@/lib/supabase'
@@ -28,6 +29,8 @@ import Link from 'next/link'
 export default function AccountPage() {
   const { user, profile, refreshProfile } = useAuth()
   const { conferences } = useConference()
+  const t = useTranslations('admin.account')
+  const c = useTranslations('admin.common')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
@@ -115,10 +118,10 @@ export default function AccountPage() {
 
       await refreshProfile()
       setIsEditing(false)
-      showSuccess('Profile updated successfully!')
+      showSuccess(t('profileUpdated'))
     } catch (error) {
       console.error('Error updating profile:', error)
-      showError('Failed to update profile')
+      showError(t('failedToUpdateProfile'))
     } finally {
       setSaving(false)
     }
@@ -144,10 +147,10 @@ export default function AccountPage() {
 
       await refreshProfile()
       setIsEditingVAT(false)
-      showSuccess('VAT settings updated successfully!')
+      showSuccess(t('vatUpdated'))
     } catch (error) {
       console.error('Error updating VAT settings:', error)
-      showError('Failed to update VAT settings')
+      showError(t('failedToUpdateVat'))
     } finally {
       setSavingVAT(false)
     }
@@ -188,12 +191,12 @@ export default function AccountPage() {
     if (!user?.id) return
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showError('New passwords do not match')
+      showError(t('passwordsDoNotMatch'))
       return
     }
 
     if (passwordData.newPassword.length < 8) {
-      showError('Password must be at least 8 characters long')
+      showError(t('passwordMinLength'))
       return
     }
 
@@ -213,10 +216,10 @@ export default function AccountPage() {
         confirmPassword: '',
       })
       setShowPasswordForm(false)
-      showSuccess('Password changed successfully!')
+      showSuccess(t('passwordChanged'))
     } catch (error: any) {
       console.error('Error changing password:', error)
-      showError(error.message || 'Failed to change password')
+      showError(error.message || t('failedToChangePassword'))
     } finally {
       setChangingPassword(false)
     }
@@ -265,8 +268,8 @@ export default function AccountPage() {
                     <User className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
-                    <p className="text-sm text-gray-600">Your personal details</p>
+                    <h2 className="text-xl font-bold text-gray-900">{t('profileInformation')}</h2>
+                    <p className="text-sm text-gray-600">{t('yourPersonalDetails')}</p>
                   </div>
                 </div>
                 {!isEditing && (
@@ -275,7 +278,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <Edit className="w-4 h-4" />
-                    Edit
+                    {c('edit')}
                   </button>
                 )}
               </div>
@@ -286,7 +289,7 @@ export default function AccountPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Mail className="w-4 h-4 inline mr-2" />
-                  Email Address
+                  {t('emailAddress')}
                 </label>
                 <input
                   type="email"
@@ -294,13 +297,13 @@ export default function AccountPage() {
                   disabled
                   className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">{t('emailCannotBeChanged')}</p>
               </div>
 
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name
+                  {t('fullName')}
                 </label>
                 {isEditing ? (
                   <input
@@ -308,11 +311,11 @@ export default function AccountPage() {
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    placeholder="Your full name"
+                    placeholder={t('yourFullName')}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.full_name || 'Not set'}
+                    {profile.full_name || t('notSet')}
                   </p>
                 )}
               </div>
@@ -321,7 +324,7 @@ export default function AccountPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Building2 className="w-4 h-4 inline mr-2" />
-                  Organization
+                  {t('organization')}
                 </label>
                 {isEditing ? (
                   <input
@@ -329,11 +332,11 @@ export default function AccountPage() {
                     value={formData.organization}
                     onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    placeholder="Your organization"
+                    placeholder={t('yourOrganization')}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.organization || 'Not set'}
+                    {profile.organization || t('notSet')}
                   </p>
                 )}
               </div>
@@ -342,7 +345,7 @@ export default function AccountPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Phone className="w-4 h-4 inline mr-2" />
-                  Phone Number
+                  {t('phoneNumber')}
                 </label>
                 {isEditing ? (
                   <input
@@ -350,11 +353,11 @@ export default function AccountPage() {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+385 1 234 5678"
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.phone || 'Not set'}
+                    {profile.phone || t('notSet')}
                   </p>
                 )}
               </div>
@@ -362,18 +365,18 @@ export default function AccountPage() {
               {/* Status */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Account Status
+                  {t('accountStatus')}
                 </label>
                 <div className="flex items-center gap-2">
                   {profile.active ? (
                     <>
                       <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-green-700 font-medium">Active</span>
+                      <span className="text-green-700 font-medium">{t('active')}</span>
                     </>
                   ) : (
                     <>
                       <AlertCircle className="w-5 h-5 text-red-600" />
-                      <span className="text-red-700 font-medium">Inactive</span>
+                      <span className="text-red-700 font-medium">{t('inactive')}</span>
                     </>
                   )}
                 </div>
@@ -390,12 +393,12 @@ export default function AccountPage() {
                     {saving ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Saving...
+                        {t('saving')}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Save Changes
+                        {t('saveChanges')}
                       </>
                     )}
                   </button>
@@ -411,7 +414,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <X className="w-4 h-4" />
-                    Cancel
+                    {c('cancel')}
                   </button>
                 </div>
               )}
@@ -547,7 +550,7 @@ export default function AccountPage() {
                       className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <X className="w-4 h-4" />
-                      Cancel
+                      {c('cancel')}
                     </button>
                   </div>
                 </div>
@@ -603,7 +606,7 @@ export default function AccountPage() {
                       min="0"
                       max="100"
                       step="0.01"
-                      placeholder="npr. 25 za 25%"
+                      placeholder="e.g. 25 for 25%"
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -675,7 +678,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <X className="w-4 h-4" />
-                    Cancel
+                    {c('cancel')}
                   </button>
                 </div>
               )}
@@ -857,7 +860,7 @@ export default function AccountPage() {
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Save Bank Settings
+                        {t('saveBankSettings')}
                       </>
                     )}
                   </button>
@@ -876,7 +879,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <X className="w-4 h-4" />
-                    Cancel
+                    {c('cancel')}
                   </button>
                 </div>
               )}

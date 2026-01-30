@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function AdminParticipantsPage() {
+  const t = useTranslations('admin.participants')
   const { user, profile, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [participants, setParticipants] = useState<any[]>([])
@@ -76,10 +78,10 @@ export default function AdminParticipantsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Participant Management
+            {t('title')}
           </h1>
           <p className="text-gray-600 mt-2">
-            View and manage all participants across events
+            {t('subtitle')}
           </p>
         </div>
       </div>
@@ -89,7 +91,7 @@ export default function AdminParticipantsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Participants</p>
+              <p className="text-sm text-gray-600">{t('totalParticipants')}</p>
               <p className="text-2xl font-bold text-gray-900">
                 {pagination.total}
               </p>

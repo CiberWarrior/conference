@@ -52,9 +52,22 @@ export interface CustomPricingField {
   description: string // Opis polja
 }
 
+/** Standardni tipovi kotizacija – fiksni ključevi u sistemu */
+export type StandardFeeTypeKey =
+  | 'early_bird'
+  | 'regular'
+  | 'late'
+  | 'student'
+  | 'accompanying_person'
+
+/**
+ * Custom tip kotizacije – admin definiše po konferenciji (npr. VIP, Senior, Prateća osoba).
+ * slug: interni identifikator (lowercase, underscores); name: prikazni naziv u formi.
+ */
 export interface CustomFeeType {
   id: string
-  name: string // Naziv fee type-a (npr. "VIP Member", "Senior Citizen")
+  slug?: string // Interni ključ (npr. "vip_member") – opcionalno; ako nije set, koristi se id
+  name: string // Prikazni naziv (npr. "VIP Member", "Senior Citizen")
   description?: string // Opcioni opis
   early_bird: number // Cijena za early bird period
   regular: number // Cijena za regular period
@@ -107,9 +120,12 @@ export interface ConferencePricing {
   // Legacy field - kept for backward compatibility (will migrate to student pricing)
   student_discount?: number | Record<string, number> // Single discount or multi-currency
   
-  // Custom fee types (VIP, Senior, etc.)
+  // Custom fee types (VIP, Senior, etc.) – admin unosi vrste kotizacija po konferenciji
   custom_fee_types?: CustomFeeType[]
-  
+
+  /** Prikazni nazivi za standardne tipove – po konferenciji (npr. "Prva rata" umesto "Early Bird") */
+  fee_type_labels?: Partial<Record<StandardFeeTypeKey, string>>
+
   accompanying_person_price?: number | Record<string, number> // Price for accompanying persons (early bird)
   custom_fields?: CustomPricingField[] // Custom pricing polja koja korisnik definira
 }

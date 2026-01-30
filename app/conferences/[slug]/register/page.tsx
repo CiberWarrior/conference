@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 import RegistrationForm from '@/components/RegistrationForm'
 import { ArrowLeft, Users, CheckCircle } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 
 export default function ConferenceRegisterPage() {
+  const t = useTranslations('register')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
   const params = useParams()
   const slug = params?.slug as string
   const [conference, setConference] = useState<Conference | null>(null)
@@ -26,7 +30,7 @@ export default function ConferenceRegisterPage() {
         const data = await response.json()
 
         if (!response.ok) {
-          setError(data.error || 'Conference not found')
+          setError(data.error || t('notFound'))
           return
         }
 
@@ -36,14 +40,14 @@ export default function ConferenceRegisterPage() {
         // Check if registration is enabled
         const settings = conf.settings || {}
         if (settings.registration_enabled === false) {
-          setError('Registration is not available for this conference')
+          setError(t('notAvailable'))
           return
         }
 
         // Set bank account status from API response
         setHasBankAccount(data.organizer_has_bank_account || false)
       } catch (err) {
-        setError('Failed to load conference')
+        setError(t('loadFailed'))
         console.error('Error loading conference:', err)
       } finally {
         setLoading(false)
@@ -59,7 +63,7 @@ export default function ConferenceRegisterPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600">{t('loading')}</p>
           </div>
         </div>
       </main>
@@ -72,14 +76,14 @@ export default function ConferenceRegisterPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {error || 'Conference not found'}
+              {error || t('notFound')}
             </h1>
             <Link
               href={slug ? `/conferences/${slug}` : '/'}
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mt-4"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              {tCommon('back')}
             </Link>
           </div>
         </div>
@@ -97,7 +101,7 @@ export default function ConferenceRegisterPage() {
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Conference
+            {t('backToConference')}
           </Link>
         </div>
       </div>
@@ -111,11 +115,10 @@ export default function ConferenceRegisterPage() {
               <Users className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Register for {conference.name}
+              {t('title', { name: conference.name })}
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Complete the registration form below to secure your spot at the
-              conference. You'll receive instant confirmation via email.
+              {t('description')}
             </p>
           </div>
 
@@ -127,11 +130,11 @@ export default function ConferenceRegisterPage() {
                   <div className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
                     <div>
-                      <div className="font-semibold text-gray-900">Date</div>
+                      <div className="font-semibold text-gray-900">{tCommon('date')}</div>
                       <div className="text-gray-600">
                         {new Date(
                           conference.start_date
-                        ).toLocaleDateString('en-US', {
+                        ).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
@@ -139,7 +142,7 @@ export default function ConferenceRegisterPage() {
                         {conference.end_date &&
                           ` - ${new Date(
                             conference.end_date
-                          ).toLocaleDateString('en-US', {
+                          ).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric',
@@ -152,7 +155,7 @@ export default function ConferenceRegisterPage() {
                   <div className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
                     <div>
-                      <div className="font-semibold text-gray-900">Location</div>
+                      <div className="font-semibold text-gray-900">{tCommon('location')}</div>
                       <div className="text-gray-600">
                         {conference.location}
                         {conference.venue && `, ${conference.venue}`}
@@ -169,19 +172,19 @@ export default function ConferenceRegisterPage() {
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700">
-                Secure Online Payment
+                {t('securePayment')}
               </span>
             </div>
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700">
-                Instant Email Confirmation
+                {t('instantConfirmation')}
               </span>
             </div>
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700">
-                Early Bird Discounts Available
+                {t('earlyBirdAvailable')}
               </span>
             </div>
           </div>

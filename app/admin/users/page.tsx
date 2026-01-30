@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { 
@@ -37,6 +38,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const t = useTranslations('admin.users')
   const router = useRouter()
   const { isSuperAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
@@ -129,7 +131,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading users...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -163,7 +165,7 @@ export default function UsersPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Total Users</span>
+            <span className="text-sm font-medium text-gray-600">{t('totalUsers')}</span>
             <Users className="w-5 h-5 text-gray-400" />
           </div>
           <p className="text-3xl font-bold text-gray-900">{users.length}</p>
@@ -181,7 +183,7 @@ export default function UsersPage() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Conference Admins</span>
+            <span className="text-sm font-medium text-gray-600">{t('conferenceAdmins')}</span>
             <Shield className="w-5 h-5 text-purple-500" />
           </div>
           <p className="text-3xl font-bold text-purple-600">
@@ -191,7 +193,7 @@ export default function UsersPage() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Active Users</span>
+            <span className="text-sm font-medium text-gray-600">{t('activeUsers')}</span>
             <CheckCircle className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-3xl font-bold text-green-600">
@@ -206,7 +208,7 @@ export default function UsersPage() {
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
+              {t('search')}
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />

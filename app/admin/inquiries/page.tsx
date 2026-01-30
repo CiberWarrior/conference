@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { showSuccess, showError } from '@/utils/toast'
@@ -486,8 +487,8 @@ export default function InquiriesPage() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Contact Inquiries</h2>
-        <p className="mt-2 text-gray-600">Track and manage sales leads from your website</p>
+        <h2 className="text-3xl font-bold text-gray-900">{t('title')}</h2>
+        <p className="mt-2 text-gray-600">{t('subtitle')}</p>
       </div>
 
       {/* Stats Grid */}

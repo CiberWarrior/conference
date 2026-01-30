@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
@@ -184,7 +185,7 @@ function AbstractsPageContent() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading abstracts...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -196,10 +197,10 @@ function AbstractsPageContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Abstract Submission
+            {t('title')}
           </h1>
           <p className="text-gray-600 mt-2">
-            View and manage submitted abstracts for your conferences
+            {t('subtitle')}
           </p>
         </div>
       </div>
@@ -310,12 +311,12 @@ function AbstractsPageContent() {
             <FileText className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No abstracts found
+            {t('noAbstracts')}
           </h3>
           <p className="text-gray-600 max-w-md mx-auto">
             {searchTerm || selectedConferenceId !== 'all'
-              ? 'Try adjusting your search or filter criteria to find abstracts.'
-              : 'No abstracts have been submitted yet. They will appear here once participants start submitting.'}
+              ? c('noResults')
+              : t('noAbstracts')}
           </p>
         </div>
       ) : (
@@ -443,7 +444,7 @@ function AbstractsPageContent() {
                         ) : (
                           <>
                             <Download className="w-4 h-4" />
-                            <span>Download</span>
+                            <span>{t('download')}</span>
                           </>
                         )}
                       </button>

@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
 export default function ParticipantLoginPage() {
+  const t = useTranslations('auth.participantLogin')
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -46,13 +48,13 @@ export default function ParticipantLoginPage() {
       if (useMagicLink) {
         setSuccess(data.message)
       } else {
-        setSuccess('Login successful! Redirecting...')
+        setSuccess(t('loginSuccess'))
         setTimeout(() => {
           router.push('/participant/dashboard')
         }, 1000)
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred')
+      setError(err.message || t('errorGeneric'))
     } finally {
       setLoading(false)
     }
@@ -85,7 +87,7 @@ export default function ParticipantLoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+              {t('email')}
             </label>
             <input
               type="email"
@@ -95,14 +97,14 @@ export default function ParticipantLoginPage() {
                 setFormData({ ...formData, email: e.target.value })
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="your@email.com"
+              placeholder={t('placeholderEmail')}
             />
           </div>
 
           {!useMagicLink && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <input
                 type="password"
@@ -112,7 +114,7 @@ export default function ParticipantLoginPage() {
                   setFormData({ ...formData, password: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
+                placeholder={t('placeholderPassword')}
               />
             </div>
           )}
@@ -123,10 +125,10 @@ export default function ParticipantLoginPage() {
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
           >
             {loading
-              ? 'Processing...'
+              ? t('processing')
               : useMagicLink
-                ? 'Send Magic Link'
-                : 'Login'}
+                ? t('sendMagicLink')
+                : t('login')}
           </button>
         </form>
 
@@ -136,18 +138,18 @@ export default function ParticipantLoginPage() {
             onClick={() => setUseMagicLink(!useMagicLink)}
             className="text-blue-600 hover:text-blue-700 text-sm font-medium"
           >
-            {useMagicLink ? 'Use password instead' : 'Use magic link instead'}
+            {useMagicLink ? t('usePasswordInstead') : t('useMagicLinkInstead')}
           </button>
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+            {t('noAccount')}{' '}
             <Link
               href="/participant/auth/signup"
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
-              Sign up
+              {t('signUp')}
             </Link>
           </p>
         </div>
@@ -157,7 +159,7 @@ export default function ParticipantLoginPage() {
             href="/"
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            ← Back to home
+            {t('backToHome')}
           </Link>
         </div>
       </div>

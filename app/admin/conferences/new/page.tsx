@@ -136,11 +136,11 @@ export default function NewConferencePage() {
   }
 
   const ROOM_TYPE_LABELS: Record<RoomType, string> = {
-    single: 'Jednokrevetna',
-    double: 'Dvokrevetna',
+    single: 'Single',
+    double: 'Double',
     twin: 'Twin',
     suite: 'Suite',
-    other: 'Ostalo',
+    other: 'Other',
   }
 
   // Hotel Options Management
@@ -1305,7 +1305,7 @@ export default function NewConferencePage() {
                           min="0"
                           max="100"
                           step="0.01"
-                          placeholder="npr. 19 za 19%"
+                          placeholder="e.g. 19 for 19%"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         />
                       </div>
@@ -1672,7 +1672,7 @@ export default function NewConferencePage() {
                           <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
                             <div>
                               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Naziv hotela / sobe *
+                                Hotel / room name *
                               </label>
                               <input
                                 type="text"
@@ -1680,7 +1680,7 @@ export default function NewConferencePage() {
                                 onChange={(e) =>
                                   updateHotelOption(hotel.id, { name: e.target.value })
                                 }
-                                placeholder="Npr. Hotel Vis – Standard soba"
+                                placeholder="e.g. Hotel Vis – Standard room"
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                                 required
                               />
@@ -1688,7 +1688,7 @@ export default function NewConferencePage() {
 
                             <div>
                               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Tip sobe
+                                Room type
                               </label>
                               <select
                                 value={hotel.room_type ?? ''}
@@ -1699,7 +1699,7 @@ export default function NewConferencePage() {
                                 }
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                               >
-                                <option value="">— Nije odabrano —</option>
+                                <option value="">— Not selected —</option>
                                 {(Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][]).map(([value, label]) => (
                                   <option key={value} value={value}>
                                     {label}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import {
   LineChart,
   Line,
@@ -59,8 +60,9 @@ function ChartCard({ title, children }: ChartCardProps) {
 
 // Registrations by Day Chart
 export function RegistrationsByDayChart({ data }: { data: RegistrationsByDayData[] }) {
+  const t = useTranslations('admin.analytics')
   return (
-    <ChartCard title="Registrations by Day">
+    <ChartCard title={t('registrationsByDay')}>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -85,7 +87,7 @@ export function RegistrationsByDayChart({ data }: { data: RegistrationsByDayData
             dataKey="count"
             stroke={COLORS.primary}
             strokeWidth={2}
-            name="Registrations"
+            name={t('registrations')}
             dot={{ fill: COLORS.primary, r: 4 }}
           />
         </LineChart>
@@ -94,14 +96,21 @@ export function RegistrationsByDayChart({ data }: { data: RegistrationsByDayData
   )
 }
 
-// Payment Status Pie Chart
+// Payment Status Pie Chart — status names (Paid, Pending, Not Required) translated via t()
 export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
+  const t = useTranslations('admin.analytics')
+  const statusKey = (name: string) =>
+    name === 'Paid' ? 'paymentPaid' : name === 'Pending' ? 'paymentPending' : 'paymentNotRequired'
+  const displayData = data.map((d) => ({
+    ...d,
+    name: t(statusKey(d.name as string)),
+  }))
   return (
-    <ChartCard title="Payment Status Distribution">
+    <ChartCard title={t('paymentStatusDistribution')}>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
-            data={data}
+            data={displayData}
             cx="50%"
             cy="50%"
             labelLine={false}
@@ -110,7 +119,7 @@ export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
             fill="#8884d8"
             dataKey="value"
           >
-            {data.map((entry, index) => (
+            {displayData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
             ))}
           </Pie>
@@ -129,11 +138,11 @@ export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
 
 // Registrations by Country Chart
 export function RegistrationsByCountryChart({ data }: { data: CountryData[] }) {
-  // Show top 10 countries
+  const t = useTranslations('admin.analytics')
   const topCountries = data.slice(0, 10)
 
   return (
-    <ChartCard title="Registrations by Country (Top 10)">
+    <ChartCard title={t('registrationsByCountryTop10')}>
       <ResponsiveContainer width="100%" height={400}>
         <BarChart data={topCountries} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" />
@@ -152,7 +161,7 @@ export function RegistrationsByCountryChart({ data }: { data: CountryData[] }) {
             }}
           />
           <Legend />
-          <Bar dataKey="count" fill={COLORS.primary} name="Registrations" />
+          <Bar dataKey="count" fill={COLORS.primary} name={t('registrations')} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -165,8 +174,9 @@ export function RevenueByPeriodChart({
 }: {
   data: { period: string; revenue: number }[]
 }) {
+  const t = useTranslations('admin.analytics')
   return (
-    <ChartCard title="Revenue by Period">
+    <ChartCard title={t('revenueByPeriod')}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -187,10 +197,10 @@ export function RevenueByPeriodChart({
               border: '1px solid #e5e7eb',
               borderRadius: '6px',
             }}
-            formatter={(value: number) => [`€${value.toFixed(2)}`, 'Revenue']}
+            formatter={(value: number) => [`€${value.toFixed(2)}`, t('revenue')]}
           />
           <Legend />
-          <Bar dataKey="revenue" fill={COLORS.success} name="Revenue" />
+          <Bar dataKey="revenue" fill={COLORS.success} name={t('revenue')} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

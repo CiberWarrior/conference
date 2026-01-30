@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import {
   BarChart,
   Bar,
@@ -48,8 +49,9 @@ interface RegistrationTypeData {
 }
 
 export function RegistrationsByTypeChart({ data }: { data: RegistrationTypeData[] }) {
+  const t = useTranslations('admin.analytics')
   return (
-    <ChartCard title="Registrations by Type">
+    <ChartCard title={t('registrationsByType')}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -78,36 +80,36 @@ interface AbstractStatsData {
 }
 
 export function AbstractSubmissionStats({ data }: { data: AbstractStatsData }) {
+  const t = useTranslations('admin.analytics')
   const pieData = [
-    { name: 'Accepted', value: data.accepted, color: COLORS.success },
-    { name: 'Pending', value: data.pending, color: COLORS.warning },
-    { name: 'Rejected', value: data.rejected, color: COLORS.danger },
-  ].filter(item => item.value > 0)
+    { name: t('accepted'), value: data.accepted, color: COLORS.success },
+    { name: t('pending'), value: data.pending, color: COLORS.warning },
+    { name: t('rejected'), value: data.rejected, color: COLORS.danger },
+  ].filter((item) => item.value > 0)
 
-  const acceptanceRate = data.submitted > 0 
-    ? ((data.accepted / data.submitted) * 100).toFixed(1) 
-    : '0.0'
+  const acceptanceRate =
+    data.submitted > 0 ? ((data.accepted / data.submitted) * 100).toFixed(1) : '0.0'
 
   return (
-    <ChartCard title="Abstract Submission Overview">
+    <ChartCard title={t('abstractSubmissionOverview')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Total Submitted</p>
+            <p className="text-sm text-gray-600 mb-1">{t('totalSubmitted')}</p>
             <p className="text-3xl font-bold text-gray-900">{data.submitted}</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Accepted</p>
+              <p className="text-sm text-gray-600 mb-1">{t('accepted')}</p>
               <p className="text-2xl font-semibold text-green-600">{data.accepted}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Pending</p>
+              <p className="text-sm text-gray-600 mb-1">{t('pending')}</p>
               <p className="text-2xl font-semibold text-yellow-600">{data.pending}</p>
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-600 mb-1">Acceptance Rate</p>
+            <p className="text-sm text-gray-600 mb-1">{t('acceptanceRate')}</p>
             <p className="text-2xl font-semibold text-blue-600">{acceptanceRate}%</p>
           </div>
         </div>
@@ -147,37 +149,38 @@ interface CheckInData {
 }
 
 export function CheckInAnalytics({ data }: { data: CheckInData }) {
+  const t = useTranslations('admin.analytics')
   const pieData = [
-    { name: 'Checked In', value: data.checkedIn, color: COLORS.success },
-    { name: 'Not Checked In', value: data.notCheckedIn, color: COLORS.warning },
-  ].filter(item => item.value > 0)
+    { name: t('checkedIn'), value: data.checkedIn, color: COLORS.success },
+    { name: t('pending'), value: data.notCheckedIn, color: COLORS.warning },
+  ].filter((item) => item.value > 0)
 
   return (
-    <ChartCard title="Check-in Status">
+    <ChartCard title={t('checkInStatus')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Check-in Rate</p>
+            <p className="text-sm text-gray-600 mb-1">{t('checkInRate')}</p>
             <p className="text-4xl font-bold text-green-600">{data.checkInRate.toFixed(1)}%</p>
             <div className="mt-2 bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full transition-all" 
+              <div
+                className="bg-green-600 h-2 rounded-full transition-all"
                 style={{ width: `${data.checkInRate}%` }}
               ></div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Checked In</p>
+              <p className="text-sm text-gray-600 mb-1">{t('checkedIn')}</p>
               <p className="text-2xl font-bold text-green-700">{data.checkedIn}</p>
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Pending</p>
+              <p className="text-sm text-gray-600 mb-1">{t('pending')}</p>
               <p className="text-2xl font-bold text-yellow-700">{data.notCheckedIn}</p>
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-600 mb-1">No-Show Rate</p>
+            <p className="text-sm text-gray-600 mb-1">{t('noShowRate')}</p>
             <p className="text-xl font-semibold text-red-600">{data.noShowRate.toFixed(1)}%</p>
           </div>
         </div>
@@ -222,10 +225,12 @@ interface RevenueBreakdownData {
 }
 
 export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
+  const t = useTranslations('admin.analytics')
   const currency = data.currency || 'EUR'
   const vatPercentage = data.vatPercentage
   const showVAT = vatPercentage && vatPercentage > 0
   const pricesIncludeVAT = !!data.pricesIncludeVAT
+  const withoutVatLabel = t('withoutVat')
 
   // Helper function to format revenue with VAT info
   const formatRevenue = (amount: number) => {
@@ -237,26 +242,26 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
       <div className="space-y-0.5">
         <div className="text-lg font-bold">{formatPrice(breakdown.withVAT, currency)}</div>
         <div className="text-xs text-gray-500">
-          {formatPrice(breakdown.withoutVAT, currency)} bez PDV-a
+          {formatPrice(breakdown.withoutVAT, currency)} {withoutVatLabel}
         </div>
       </div>
     )
   }
 
   return (
-    <ChartCard title="Revenue Breakdown">
+    <ChartCard title={t('revenueBreakdown')}>
       <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Today</p>
+            <p className="text-xs text-gray-600 mb-1">{t('today')}</p>
             {showVAT ? (
               <div className="space-y-0.5">
                 <p className="text-lg font-bold text-blue-700">
                   {formatPrice(getPriceBreakdownFromInput(data.todayRevenue, vatPercentage, pricesIncludeVAT).withVAT, currency)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {formatPrice(getPriceBreakdownFromInput(data.todayRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} bez PDV-a
+                  {formatPrice(getPriceBreakdownFromInput(data.todayRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} {withoutVatLabel}
                 </p>
               </div>
             ) : (
@@ -264,14 +269,14 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
             )}
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">This Week</p>
+            <p className="text-xs text-gray-600 mb-1">{t('thisWeek')}</p>
             {showVAT ? (
               <div className="space-y-0.5">
                 <p className="text-lg font-bold text-green-700">
                   {formatPrice(getPriceBreakdownFromInput(data.weekRevenue, vatPercentage, pricesIncludeVAT).withVAT, currency)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {formatPrice(getPriceBreakdownFromInput(data.weekRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} bez PDV-a
+                  {formatPrice(getPriceBreakdownFromInput(data.weekRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} {withoutVatLabel}
                 </p>
               </div>
             ) : (
@@ -279,14 +284,14 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
             )}
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">This Month</p>
+            <p className="text-xs text-gray-600 mb-1">{t('thisMonth')}</p>
             {showVAT ? (
               <div className="space-y-0.5">
                 <p className="text-lg font-bold text-purple-700">
                   {formatPrice(getPriceBreakdownFromInput(data.monthRevenue, vatPercentage, pricesIncludeVAT).withVAT, currency)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {formatPrice(getPriceBreakdownFromInput(data.monthRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} bez PDV-a
+                  {formatPrice(getPriceBreakdownFromInput(data.monthRevenue, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} {withoutVatLabel}
                 </p>
               </div>
             ) : (
@@ -294,14 +299,14 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
             )}
           </div>
           <div className="bg-indigo-50 p-4 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Avg Transaction</p>
+            <p className="text-xs text-gray-600 mb-1">{t('avgTransaction')}</p>
             {showVAT ? (
               <div className="space-y-0.5">
                 <p className="text-lg font-bold text-indigo-700">
                   {formatPrice(getPriceBreakdownFromInput(data.averageTransaction, vatPercentage, pricesIncludeVAT).withVAT, currency)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {formatPrice(getPriceBreakdownFromInput(data.averageTransaction, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} bez PDV-a
+                  {formatPrice(getPriceBreakdownFromInput(data.averageTransaction, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} {withoutVatLabel}
                 </p>
               </div>
             ) : (
@@ -315,12 +320,12 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-700 mb-1">Ukupan Revenue</p>
+                <p className="text-sm font-semibold text-gray-700 mb-1">{t('totalRevenue')}</p>
                 <p className="text-2xl font-bold text-blue-700">
                   {formatPrice(getPriceBreakdownFromInput(data.total, vatPercentage, pricesIncludeVAT).withVAT, currency)}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  {formatPrice(getPriceBreakdownFromInput(data.total, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} bez PDV-a
+                  {formatPrice(getPriceBreakdownFromInput(data.total, vatPercentage, pricesIncludeVAT).withoutVAT, currency)} {withoutVatLabel}
                   {' • '}
                   PDV ({vatPercentage}%): {formatPrice(getPriceBreakdownFromInput(data.total, vatPercentage, pricesIncludeVAT).vatAmount, currency)}
                 </p>
@@ -334,7 +339,7 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
           {/* By Ticket Type */}
           {data.byTicketType.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">By Ticket Type</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('byTicketType')}</h4>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={data.byTicketType} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -350,7 +355,7 @@ export function RevenueBreakdown({ data }: { data: RevenueBreakdownData }) {
           {/* By Payment Method */}
           {data.byPaymentMethod.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">By Payment Method</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('byPaymentMethod')}</h4>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
@@ -383,13 +388,14 @@ interface EngagementData {
 }
 
 export function EngagementMetrics({ data }: { data: EngagementData }) {
+  const t = useTranslations('admin.analytics')
   return (
-    <ChartCard title="Engagement Metrics">
+    <ChartCard title={t('engagementMetrics')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Popular Accommodations */}
         {data.popularAccommodations.length > 0 && (
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Popular Accommodations</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('popularAccommodations')}</h4>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.popularAccommodations} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -410,7 +416,7 @@ export function EngagementMetrics({ data }: { data: EngagementData }) {
         {/* Custom Fields Usage */}
         {data.customFieldsUsage.length > 0 && (
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Custom Fields Usage</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('customFieldsUsage')}</h4>
             <div className="space-y-3">
               {data.customFieldsUsage.map((field, index) => (
                 <div key={index}>
@@ -459,22 +465,23 @@ interface ComparisonData {
 }
 
 export function ComparisonInsights({ data }: { data: ComparisonData }) {
+  const t = useTranslations('admin.analytics')
   const hasComparison = data.previousConference !== undefined
   const hasProjection = data.projectedTarget !== undefined
 
   return (
-    <ChartCard title="Comparison & Insights">
+    <ChartCard title={t('comparisonInsights')}>
       <div className="space-y-6">
         {/* Current vs Previous */}
         {hasComparison && data.previousConference && (
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">vs Previous Conference</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('vsPreviousConference')}</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-xs text-gray-600 mb-2">Registrations</p>
+                <p className="text-xs text-gray-600 mb-2">{t('registrationsLabel')}</p>
                 <p className="text-2xl font-bold text-gray-900">{data.currentConference.registrations}</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Previous: {data.previousConference.registrations}
+                  {t('previous')}: {data.previousConference.registrations}
                   <span className={`ml-2 font-semibold ${
                     data.currentConference.registrations >= data.previousConference.registrations 
                       ? 'text-green-600' 
@@ -487,10 +494,10 @@ export function ComparisonInsights({ data }: { data: ComparisonData }) {
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-xs text-gray-600 mb-2">Revenue</p>
+                <p className="text-xs text-gray-600 mb-2">{t('revenueLabel')}</p>
                 <p className="text-2xl font-bold text-gray-900">€{data.currentConference.revenue.toFixed(0)}</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Previous: €{data.previousConference.revenue.toFixed(0)}
+                  {t('previous')}: €{data.previousConference.revenue.toFixed(0)}
                   <span className={`ml-2 font-semibold ${
                     data.currentConference.revenue >= data.previousConference.revenue 
                       ? 'text-green-600' 
@@ -503,10 +510,10 @@ export function ComparisonInsights({ data }: { data: ComparisonData }) {
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-xs text-gray-600 mb-2">Avg Ticket Price</p>
+                <p className="text-xs text-gray-600 mb-2">{t('avgTicketPrice')}</p>
                 <p className="text-2xl font-bold text-gray-900">€{data.currentConference.avgTicketPrice.toFixed(0)}</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Previous: €{data.previousConference.avgTicketPrice.toFixed(0)}
+                  {t('previous')}: €{data.previousConference.avgTicketPrice.toFixed(0)}
                   <span className={`ml-2 font-semibold ${
                     data.currentConference.avgTicketPrice >= data.previousConference.avgTicketPrice 
                       ? 'text-green-600' 
@@ -524,11 +531,11 @@ export function ComparisonInsights({ data }: { data: ComparisonData }) {
         {/* Progress vs Target */}
         {hasProjection && data.projectedTarget && data.progress && (
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Progress vs Target</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('progressVsTarget')}</h4>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-700">Registrations</span>
+                  <span className="text-gray-700">{t('registrationsLabel')}</span>
                   <span className="font-semibold">
                     {data.currentConference.registrations} / {data.projectedTarget.registrations} 
                     <span className="ml-2 text-blue-600">({data.progress.registrations.toFixed(1)}%)</span>
@@ -544,7 +551,7 @@ export function ComparisonInsights({ data }: { data: ComparisonData }) {
 
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-700">Revenue</span>
+                  <span className="text-gray-700">{t('revenueLabel')}</span>
                   <span className="font-semibold">
                     €{data.currentConference.revenue.toFixed(0)} / €{data.projectedTarget.revenue.toFixed(0)}
                     <span className="ml-2 text-green-600">({data.progress.revenue.toFixed(1)}%)</span>

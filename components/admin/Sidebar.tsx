@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { useAuth } from '@/contexts/AuthContext'
 import { useConference } from '@/contexts/ConferenceContext'
 
 interface NavItem {
   name: string
+  sidebarKey: string
   href: string
   icon: React.ReactNode
   superAdminOnly?: boolean
@@ -16,6 +19,7 @@ interface NavItem {
 
 interface NavSection {
   title?: string
+  titleKey?: string
   items: NavItem[]
   superAdminOnly?: boolean
 }
@@ -25,6 +29,7 @@ const navigationSections: NavSection[] = [
     items: [
       {
         name: 'Dashboard',
+        sidebarKey: 'dashboard',
         href: '/admin/dashboard',
         superAdminOnly: true,
         icon: (
@@ -35,6 +40,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'My Account',
+        sidebarKey: 'myAccount',
         href: '/admin/account',
         superAdminOnly: true,
         icon: (
@@ -47,9 +53,11 @@ const navigationSections: NavSection[] = [
   },
   {
     title: 'Conference Management',
+    titleKey: 'conferenceManagement',
     items: [
       {
         name: 'My Conferences',
+        sidebarKey: 'myConferences',
         href: '/admin/conferences', // Will be overridden for Conference Admin in render
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,10 +69,12 @@ const navigationSections: NavSection[] = [
   },
   {
     title: 'System',
+    titleKey: 'system',
     superAdminOnly: true,
     items: [
       {
         name: 'Users',
+        sidebarKey: 'users',
         href: '/admin/users',
         superAdminOnly: true,
         icon: (
@@ -75,6 +85,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'Participants',
+        sidebarKey: 'participants',
         href: '/admin/participants',
         superAdminOnly: true,
         icon: (
@@ -87,10 +98,12 @@ const navigationSections: NavSection[] = [
   },
   {
     title: 'Sales & Leads',
+    titleKey: 'salesLeads',
     superAdminOnly: true,
     items: [
       {
         name: 'Inquiries',
+        sidebarKey: 'inquiries',
         href: '/admin/inquiries',
         superAdminOnly: true,
         icon: (
@@ -105,6 +118,7 @@ const navigationSections: NavSection[] = [
     items: [
       {
         name: 'Registrations',
+        sidebarKey: 'registrations',
         href: '/admin/registrations',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,6 +128,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'Abstract Submission',
+        sidebarKey: 'abstractSubmission',
         href: '/admin/abstracts',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,6 +138,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'Payments',
+        sidebarKey: 'payments',
         href: '/admin/payments',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -134,9 +150,11 @@ const navigationSections: NavSection[] = [
   },
   {
     title: 'Tools',
+    titleKey: 'tools',
     items: [
       {
         name: 'Check-In',
+        sidebarKey: 'checkIn',
         href: '/admin/checkin',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,6 +164,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'Certificates',
+        sidebarKey: 'certificates',
         href: '/admin/certificates',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,6 +174,7 @@ const navigationSections: NavSection[] = [
       },
       {
         name: 'Tickets',
+        sidebarKey: 'tickets',
         href: '/admin/tickets',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,6 +188,7 @@ const navigationSections: NavSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const t = useTranslations('admin.sidebar')
   const [mounted, setMounted] = useState(false)
   const { isSuperAdmin, role, loading: authLoading, profile } = useAuth()
   const { currentConference } = useConference()
@@ -194,10 +215,10 @@ export default function Sidebar() {
     : 'border-slate-700'
 
   // Prevent hydration mismatch by not rendering active state until mounted
-  const getIsActive = (href: string, itemName?: string) => {
+  const getIsActive = (href: string, sidebarKey?: string) => {
     if (!mounted || !pathname) return false
     // For "My Conferences" when Conference Admin is on Dashboard
-    if (itemName === 'My Conferences' && !isSuperAdmin && pathname === '/admin/dashboard') {
+    if (sidebarKey === 'myConferences' && !isSuperAdmin && pathname === '/admin/dashboard') {
       return true
     }
     return pathname === href || (href !== '/admin' && href !== '/admin/dashboard' && pathname.startsWith(href))
@@ -234,7 +255,7 @@ export default function Sidebar() {
   return (
     <div className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">
-        <div className={`flex flex-col flex-grow pt-5 pb-4 overflow-y-auto ${sidebarBgColor} border-r ${sidebarBorderColor}`}>
+        <div className={`dark-sidebar flex flex-col flex-grow pt-5 pb-4 overflow-y-auto ${sidebarBgColor} border-r ${sidebarBorderColor}`}>
           <div className="flex items-center flex-shrink-0 px-4 mb-8">
             <Link href="/admin/dashboard" className="flex items-center">
               <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gradient-to-br from-slate-600 to-slate-700'} rounded-lg flex items-center justify-center mr-3 shadow-lg`}>
@@ -254,10 +275,10 @@ export default function Sidebar() {
             <nav className="flex-1 px-2 space-y-3">
               {getFilteredSections().map((section, sectionIdx) => (
                 <div key={sectionIdx}>
-                  {section.title && (
+                  {section.titleKey && (
                     <div className="px-3 mb-2">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {section.title}
+                        {t(section.titleKey)}
                       </p>
                     </div>
                   )}
@@ -265,22 +286,19 @@ export default function Sidebar() {
                     {section.items.map((item) => {
                       // For Conference Admin, "My Conferences" should link to Dashboard
                       let href = item.href
-                      
-                      if (!isSuperAdmin && item.name === 'My Conferences') {
+                      if (!isSuperAdmin && item.sidebarKey === 'myConferences') {
                         href = '/admin/dashboard'
                       }
-                      
-                      const isActive = getIsActive(href, item.name)
+                      const isActive = getIsActive(href, item.sidebarKey)
                       const activeBgColor = isSuperAdmin
                         ? 'bg-gradient-to-r from-yellow-600 to-yellow-500'
                         : 'bg-gradient-to-r from-slate-700 to-slate-600'
                       const hoverBgColor = isSuperAdmin
                         ? 'hover:bg-gray-800'
                         : 'hover:bg-slate-800'
-                      
                       return (
                         <Link
-                          key={item.name}
+                          key={item.sidebarKey}
                           href={href}
                           className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
                             isActive
@@ -291,7 +309,7 @@ export default function Sidebar() {
                           <span className={`mr-3 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}>
                             {item.icon}
                           </span>
-                          {item.name}
+                          {t(item.sidebarKey)}
                         </Link>
                       )
                     })}
@@ -315,13 +333,16 @@ export default function Sidebar() {
                   <span className={`text-xs font-bold ${
                     role === 'super_admin' ? 'text-yellow-300' : 'text-slate-300'
                   }`}>
-                    {role === 'super_admin' ? 'Super Admin' : 'Conference Admin'}
+                    {role === 'super_admin' ? t('superAdmin') : t('conferenceAdmin')}
                   </span>
                 </div>
               </div>
             )}
           </div>
-          <div className="flex-shrink-0 flex border-t border-gray-800 p-4">
+          <div className="flex-shrink-0 flex flex-col gap-3 border-t border-gray-800 p-4">
+            <div className="flex justify-center">
+              <LanguageSwitcher />
+            </div>
             <Link
               href="/"
               target="_blank"
@@ -330,7 +351,7 @@ export default function Sidebar() {
               <div className="flex items-center">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
-                    Homepage
+                    {t('homepage')}
                   </p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

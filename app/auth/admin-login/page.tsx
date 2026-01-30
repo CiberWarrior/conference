@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Building2, LogIn, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function AdminLoginPage() {
+  const t = useTranslations('auth.adminLogin')
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -28,9 +30,9 @@ export default function AdminLoginPage() {
       }, 5000)
     }
     if (params.get('error') === 'access_denied') {
-      setError('Access denied. You do not have admin privileges.')
+      setError(t('errorAccessDenied'))
     }
-  }, [router])
+  }, [router, t])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,9 +55,9 @@ export default function AdminLoginPage() {
       if (!response.ok) {
         // Show specific error message for service unavailable
         if (response.status === 503) {
-          setError('Authentication service is currently unavailable. Please check if Supabase project is active.')
+          setError(t('errorServiceUnavailable'))
         } else {
-          setError(data.error || 'Invalid email or password')
+          setError(data.error || t('errorInvalidCredentials'))
         }
         setLoading(false)
         return
@@ -87,7 +89,7 @@ export default function AdminLoginPage() {
       window.location.href = '/admin/dashboard'
     } catch (error) {
       console.error('Login error:', error)
-      setError('An error occurred. Please try again.')
+      setError(t('errorGeneric'))
       setLoading(false)
     }
   }
@@ -138,16 +140,15 @@ export default function AdminLoginPage() {
                 <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-green-400">Login successful! Redirecting to dashboard...</p>
+                <p className="text-sm text-green-400">{t('loginSuccess')}</p>
               </div>
               <button
                 onClick={() => {
-                  console.log('🔘 Manual redirect button clicked')
                   window.location.href = '/admin/dashboard'
                 }}
                 className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
               >
-                Click here if not redirected automatically →
+                {t('clickToRedirect')}
               </button>
             </div>
           )}
@@ -155,7 +156,7 @@ export default function AdminLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-slate-300 mb-2">
-                Email
+                {t('email')}
               </label>
               <input
                 id="email"
@@ -164,14 +165,14 @@ export default function AdminLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Enter your email"
+                placeholder={t('placeholderEmail')}
                 disabled={loading}
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-semibold text-slate-300 mb-2">
-                Password
+                {t('password')}
               </label>
               <input
                 id="password"
@@ -180,7 +181,7 @@ export default function AdminLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Enter your password"
+                placeholder={t('placeholderPassword')}
                 disabled={loading}
               />
             </div>
@@ -193,12 +194,12 @@ export default function AdminLoginPage() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Signing in...</span>
+                  <span>{t('signingIn')}</span>
                 </>
               ) : (
                 <>
                   <LogIn className="w-5 h-5" />
-                  <span>Sign In</span>
+                  <span>{t('signIn')}</span>
                 </>
               )}
             </button>
@@ -208,7 +209,7 @@ export default function AdminLoginPage() {
             <button
               onClick={async () => {
                 if (!email) {
-                  setError('Please enter your email address first')
+                  setError(t('pleaseEnterEmail'))
                   return
                 }
                 try {
@@ -220,18 +221,18 @@ export default function AdminLoginPage() {
                   if (error) throw error
                   setResetEmailSent(true)
                 } catch (error: any) {
-                  setError(error.message || 'Failed to send reset email')
+                  setError(error.message || t('resetEmailFailed'))
                   setResetEmailSent(false)
                 }
               }}
               className="w-full text-sm text-slate-400 hover:text-white transition-colors"
             >
-              Forgot password?
+              {t('forgotPassword')}
             </button>
             {resetEmailSent && (
               <div className="p-3 bg-green-500/10 border border-green-500/50 rounded-lg">
                 <p className="text-sm text-green-400 text-center">
-                  ✓ Password reset email sent! Check your inbox.
+                  {t('resetEmailSent')}
                 </p>
               </div>
             )}
@@ -239,7 +240,7 @@ export default function AdminLoginPage() {
               href="/"
               className="block text-sm text-slate-400 hover:text-white transition-colors text-center"
             >
-              ← Back to homepage
+              {t('backToHomepage')}
             </Link>
           </div>
         </div>
@@ -247,7 +248,7 @@ export default function AdminLoginPage() {
         {/* Beta Note */}
         <div className="mt-6 text-center">
           <p className="text-xs text-slate-500">
-            Beta Version • Admin Access Only
+            {t('betaNote')}
           </p>
         </div>
       </div>

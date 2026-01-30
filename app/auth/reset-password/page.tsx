@@ -2,11 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Building2, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 function ResetPasswordContent() {
+  const t = useTranslations('auth.resetPassword')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [password, setPassword] = useState('')
@@ -47,12 +49,12 @@ function ResetPasswordContent() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errorPasswordsMismatch'))
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long')
+      setError(t('errorPasswordTooShort'))
       return
     }
 
@@ -94,7 +96,7 @@ function ResetPasswordContent() {
       }, 2000)
     } catch (error: any) {
       console.error('Password reset error:', error)
-      setError(error.message || 'Failed to reset password. The link may have expired.')
+      setError(error.message || t('errorResetFailed'))
       setLoading(false)
     }
   }
@@ -104,7 +106,7 @@ function ResetPasswordContent() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Verifying reset link...</p>
+          <p className="text-slate-400">{t('verifyingLink')}</p>
         </div>
       </div>
     )
@@ -177,7 +179,7 @@ function ResetPasswordContent() {
               MeetFlow
             </span>
           </Link>
-          <p className="text-slate-400">Reset Password</p>
+          <p className="text-slate-400">{t('title')}</p>
         </div>
 
         {/* Reset Password Card */}
@@ -187,9 +189,9 @@ function ResetPasswordContent() {
               <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
-              <h2 className="text-2xl font-black text-white mb-2">Password Reset Successful!</h2>
+              <h2 className="text-2xl font-black text-white mb-2">{t('successTitle')}</h2>
               <p className="text-slate-400 mb-6">
-                Your password has been updated. Redirecting to login...
+                {t('successMessage')}
               </p>
             </div>
           ) : (
@@ -198,8 +200,8 @@ function ResetPasswordContent() {
                 <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Lock className="w-8 h-8 text-blue-500" />
                 </div>
-                <h1 className="text-3xl font-black text-white mb-2 text-center">Reset Password</h1>
-                <p className="text-slate-400 text-center">Enter your new password below</p>
+                <h1 className="text-3xl font-black text-white mb-2 text-center">{t('title')}</h1>
+                <p className="text-slate-400 text-center">{t('enterNewPassword')}</p>
               </div>
 
               {error && (
@@ -279,16 +281,21 @@ function ResetPasswordContent() {
   )
 }
 
+function ResetPasswordFallback() {
+  const t = useTranslations('auth.resetPassword')
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-slate-400">{t('loadingFallback')}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<ResetPasswordFallback />}>
       <ResetPasswordContent />
     </Suspense>
   )

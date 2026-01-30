@@ -29,9 +29,11 @@ const log = {
 }
 
 export async function middleware(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers)
+  // Admin dashboard respects locale (EN/HR) — no longer forced to EN
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
 
@@ -127,10 +129,10 @@ export async function middleware(request: NextRequest) {
   return response
 }
 
-// Configure which routes use this middleware
+// Configure which routes use this middleware (all except static/api)
 export const config = {
   matcher: [
-    '/admin/:path*',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }
 
