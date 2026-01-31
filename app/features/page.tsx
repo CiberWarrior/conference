@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import Footer from '@/components/Footer'
 import {
   Users,
@@ -9,263 +12,98 @@ import {
   ArrowRight,
 } from 'lucide-react'
 
+function sectionKeys(
+  t: (key: string) => string,
+  base: string,
+  sectionIds: string[]
+): { title: string; description: string; features: string[] }[] {
+  return sectionIds.map((sid) => ({
+    title: t(`${base}.${sid}.title`),
+    description: t(`${base}.${sid}.description`),
+    features: [0, 1, 2, 3, 4, 5].map((i) => t(`${base}.${sid}.f${i}`)),
+  }))
+}
+
 export default function FeaturesPage() {
+  const t = useTranslations('featuresPage')
+  const tFeatures = useTranslations('home.features')
+
   const features = [
-      {
-        id: 'smart-registration',
-        title: 'Smart Registration',
-        subtitle: 'Seamless registration with integrated payment processing',
-        description: 'Create custom registration forms that capture exactly what you need. Our powerful system handles everything from attendee information to payment processing.',
-        icon: Users,
-        color: 'blue',
-        gradientFrom: 'from-blue-500',
-        gradientVia: 'via-blue-600',
-        gradientTo: 'to-purple-600',
-        borderColor: 'border-blue-300',
-        textColor: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-      sections: [
-        {
-          title: 'Custom Registration Forms',
-          description: 'Build fully customizable registration forms with our drag-and-drop builder. Choose from various field types and apply conditional logic for advanced options.',
-          features: [
-            'Drag-and-drop form builder',
-            'Multiple field types (text, dropdown, checkbox, file upload)',
-            'Conditional logic and field dependencies',
-            'Multi-step forms for better UX',
-            'Custom validation rules',
-            'Mobile-responsive design',
-          ],
-        },
-        {
-          title: 'Ticketing System',
-          description: 'Create, manage, and sell different types of tickets for your event with ease.',
-          features: [
-            'Multiple ticket types (Early Bird, Regular, VIP)',
-            'Hidden tickets for special offers',
-            'Accommodation booking integration',
-            'Transportation options',
-            'Gala dinners and special events',
-            'Automatic capacity management',
-          ],
-        },
-        {
-          title: 'Payment Processing',
-          description: 'Offer your attendees various payment methods and currencies with secure processing.',
-          features: [
-            'Credit card payments (Stripe integration)',
-            'Bank transfer tracking',
-            'Multiple currency support',
-            'Automatic payment confirmation',
-            'Payment reminders',
-            'Refund management',
-          ],
-        },
-        {
-          title: 'Invoice Management',
-          description: 'Automated invoice creation and management for seamless financial tracking.',
-          features: [
-            'Automatic invoice generation',
-            'Proforma invoice tracking',
-            'Payment status monitoring',
-            'Email delivery to attendees',
-            'PDF export',
-            'Multi-language invoices',
-          ],
-        },
-      ],
+    {
+      id: 'smart-registration',
+      title: tFeatures('smartRegistration'),
+      subtitle: t('smartRegistration.subtitle'),
+      description: t('smartRegistration.description'),
+      icon: Users,
+      gradientFrom: 'from-blue-500',
+      gradientVia: 'via-blue-600',
+      gradientTo: 'to-purple-600',
+      borderColor: 'border-blue-300',
+      textColor: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      sections: sectionKeys(t, 'smartRegistration', [
+        'customForms',
+        'ticketing',
+        'payment',
+        'invoice',
+      ]),
     },
-      {
-        id: 'abstract-hub',
-        title: 'Abstract Hub',
-        subtitle: 'Streamlined submission and review process',
-        description: 'Organize, evaluate, and manage research abstracts effortlessly. From submission to review to acceptance, everything is handled in one place.',
-        icon: FileText,
-        color: 'purple',
-        gradientFrom: 'from-purple-500',
-        gradientVia: 'via-purple-600',
-        gradientTo: 'to-pink-600',
-        borderColor: 'border-purple-300',
-        textColor: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-      sections: [
-        {
-          title: 'Abstract Submission',
-          description: 'Easy-to-use submission system that guides authors through the process.',
-          features: [
-            'User-friendly submission form',
-            'File upload support (PDF, DOCX)',
-            'Template-based submissions',
-            'Draft saving functionality',
-            'Submission confirmation emails',
-            'Real-time validation',
-          ],
-        },
-        {
-          title: 'Review Management',
-          description: 'Comprehensive review system for evaluating abstracts efficiently.',
-          features: [
-            'Blind peer review system',
-            'Multiple reviewer assignments',
-            'Scoring and rating system',
-            'Reviewer comments and feedback',
-            'Review deadline tracking',
-            'Automated reminders',
-          ],
-        },
-        {
-          title: 'Abstract Organization',
-          description: 'Organize abstracts by topic, track, or category for easy management.',
-          features: [
-            'Category and topic classification',
-            'Track assignment',
-            'Status tracking (submitted, under review, accepted, rejected)',
-            'Search and filter functionality',
-            'Bulk operations',
-            'Export capabilities',
-          ],
-        },
-        {
-          title: 'Program Building',
-          description: 'Build your conference program from accepted abstracts.',
-          features: [
-            'Session scheduling',
-            'Time slot assignment',
-            'Room allocation',
-            'Speaker management',
-            'Program export (PDF, Excel)',
-            'Online program display',
-          ],
-        },
-      ],
+    {
+      id: 'abstract-hub',
+      title: tFeatures('abstractHub'),
+      subtitle: t('abstractHub.subtitle'),
+      description: t('abstractHub.description'),
+      icon: FileText,
+      gradientFrom: 'from-purple-500',
+      gradientVia: 'via-purple-600',
+      gradientTo: 'to-pink-600',
+      borderColor: 'border-purple-300',
+      textColor: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      sections: sectionKeys(t, 'abstractHub', [
+        'submission',
+        'review',
+        'organization',
+        'program',
+      ]),
     },
-      {
-        id: 'organizer-dashboard',
-        title: 'Organizer Dashboard',
-        subtitle: 'Your conference, all in one place',
-        description: 'Follow new registrations, payments, and abstract submissions the moment they come in — clearly, simply, and in real time.',
-        icon: BarChart3,
-        color: 'green',
-        gradientFrom: 'from-green-500',
-        gradientVia: 'via-green-600',
-        gradientTo: 'to-teal-600',
-        borderColor: 'border-green-300',
-        textColor: 'text-green-600',
-        bgColor: 'bg-green-50',
-      sections: [
-        {
-          title: 'Real-Time Analytics',
-          description: 'Get instant insights into your conference performance with comprehensive analytics.',
-          features: [
-            'Registration statistics',
-            'Payment tracking',
-            'Abstract submission metrics',
-            'Attendee demographics',
-            'Revenue reports',
-            'Custom date range analysis',
-          ],
-        },
-        {
-          title: 'Registration Management',
-          description: 'Manage all registrations from a single, powerful dashboard.',
-          features: [
-            'View all registrations',
-            'Filter and search functionality',
-            'Bulk actions',
-            'Check-in management',
-            'Badge printing',
-            'Export to Excel/CSV',
-          ],
-        },
-        {
-          title: 'Payment Tracking',
-          description: 'Monitor all payments and financial transactions in real time.',
-          features: [
-            'Payment status overview',
-            'Pending payments tracking',
-            'Payment history',
-            'Refund management',
-            'Financial reports',
-            'Invoice management',
-          ],
-        },
-        {
-          title: 'Communication Tools',
-          description: 'Stay connected with your attendees through integrated communication tools.',
-          features: [
-            'Email campaigns',
-            'Bulk messaging',
-            'Personalized emails',
-            'Email templates',
-            'Delivery tracking',
-            'Automated notifications',
-          ],
-        },
-      ],
+    {
+      id: 'organizer-dashboard',
+      title: tFeatures('organizerDashboard'),
+      subtitle: t('organizerDashboard.subtitle'),
+      description: t('organizerDashboard.description'),
+      icon: BarChart3,
+      gradientFrom: 'from-green-500',
+      gradientVia: 'via-green-600',
+      gradientTo: 'to-teal-600',
+      borderColor: 'border-green-300',
+      textColor: 'text-green-600',
+      bgColor: 'bg-green-50',
+      sections: sectionKeys(t, 'organizerDashboard', [
+        'analytics',
+        'registration',
+        'paymentTracking',
+        'communication',
+      ]),
     },
-      {
-        id: 'conference-websites',
-        title: 'Conference Websites',
-        subtitle: 'Professional, custom-designed websites for your conference',
-        description: 'Beautiful, responsive, and fully integrated with our platform for seamless registration and management.',
-        icon: Monitor,
-        color: 'indigo',
-        gradientFrom: 'from-indigo-500',
-        gradientVia: 'via-indigo-600',
-        gradientTo: 'to-violet-600',
-        borderColor: 'border-indigo-300',
-        textColor: 'text-indigo-600',
-        bgColor: 'bg-indigo-50',
-      sections: [
-        {
-          title: 'Custom Design',
-          description: 'Get a professional website tailored to your conference brand and style.',
-          features: [
-            'Custom color schemes',
-            'Logo and branding integration',
-            'Responsive design (mobile, tablet, desktop)',
-            'Modern, clean layouts',
-            'Custom pages and sections',
-            'SEO optimization',
-          ],
-        },
-        {
-          title: 'Integrated Features',
-          description: 'Seamless integration with our platform for a unified experience.',
-          features: [
-            'Direct registration integration',
-            'Abstract submission portal',
-            'Program and schedule display',
-            'Speaker profiles',
-            'Sponsor showcase',
-            'News and updates section',
-          ],
-        },
-        {
-          title: 'Content Management',
-          description: 'Easy-to-use content management system for updating your website.',
-          features: [
-            'WYSIWYG editor',
-            'Image and media management',
-            'Page builder',
-            'Menu management',
-            'Multi-language support',
-            'Version control',
-          ],
-        },
-        {
-          title: 'Performance & Security',
-          description: 'Fast, secure, and reliable hosting for your conference website.',
-          features: [
-            'Fast loading times',
-            'SSL certificate included',
-            'Regular backups',
-            '99.9% uptime guarantee',
-            'CDN integration',
-            'Security monitoring',
-          ],
-        },
-      ],
+    {
+      id: 'conference-websites',
+      title: tFeatures('conferenceWebsites'),
+      subtitle: t('conferenceWebsites.subtitle'),
+      description: t('conferenceWebsites.description'),
+      icon: Monitor,
+      gradientFrom: 'from-indigo-500',
+      gradientVia: 'via-indigo-600',
+      gradientTo: 'to-violet-600',
+      borderColor: 'border-indigo-300',
+      textColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      sections: sectionKeys(t, 'conferenceWebsites', [
+        'customDesign',
+        'integrated',
+        'contentMgmt',
+        'performance',
+      ]),
     },
   ]
 
@@ -280,13 +118,13 @@ export default function FeaturesPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight">
-              <span className="block text-white">Powerful Features</span>
+              <span className="block text-white">{t('hero.title')}</span>
               <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-violet-400 bg-clip-text text-transparent">
-                For Your Conference
+                {t('hero.subtitle')}
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-slate-300 leading-relaxed">
-              Everything you need to manage your conference successfully, all in one comprehensive platform.
+              {t('hero.description')}
             </p>
           </div>
         </div>
@@ -370,7 +208,7 @@ export default function FeaturesPage() {
                   href="/#contact"
                   className={`inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-br ${feature.gradientFrom} ${feature.gradientVia} ${feature.gradientTo} text-white rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all`}
                 >
-                  Welcome
+                  {t('cta.welcome')}
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </div>
@@ -383,16 +221,16 @@ export default function FeaturesPage() {
       <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-violet-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
-            Ready to Welcome You?
+            {t('cta.readyTitle')}
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Contact us today to discuss how we can help make your conference a success.
+            {t('cta.readyDesc')}
           </p>
           <Link
             href="/#contact"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-lg font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
           >
-            Contact Us
+            {t('cta.contactUs')}
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

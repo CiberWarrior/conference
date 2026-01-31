@@ -70,6 +70,7 @@ interface InquiryStats {
 }
 
 export default function InquiriesPage() {
+  const t = useTranslations('admin.inquiries')
   const [inquiries, setInquiries] = useState<ContactInquiry[]>([])
   const [stats, setStats] = useState<InquiryStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -199,7 +200,7 @@ export default function InquiriesPage() {
 
   const handleSendOffer = async () => {
     if (!selectedInquiry || !offerData.planId) {
-      showError('Please select a subscription plan')
+      showError(t('selectSubscriptionPlan'))
       return
     }
 
@@ -221,17 +222,17 @@ export default function InquiriesPage() {
       const data = await response.json()
 
       if (response.ok) {
-        showSuccess('Payment offer sent successfully!')
+        showSuccess(t('paymentOfferSentSuccess'))
         setOfferModalOpen(false)
         await loadInquiries()
-        
+
         // Copy payment link to clipboard
         if (data.paymentLinkUrl) {
           navigator.clipboard.writeText(data.paymentLinkUrl)
-          showSuccess('Payment link copied to clipboard!')
+          showSuccess(t('paymentLinkCopied'))
         }
       } else {
-        const errorMsg = data.error || 'Failed to send payment offer'
+        const errorMsg = data.error || t('failedToSendOffer')
         showError(errorMsg)
         
         // If Stripe is not configured, update state
@@ -294,7 +295,7 @@ export default function InquiriesPage() {
       setSelectedInquiry(null)
     } catch (error) {
       console.error('Error updating inquiry:', error)
-        showSuccess('Failed to update inquiry')
+      showError(t('failedToUpdateInquiry'))
     } finally {
       setProcessing(false)
     }
@@ -476,6 +477,17 @@ export default function InquiriesPage() {
     }
   }
 
+  const getStatusLabel = (status: string) => {
+    const key = status === 'proposal_sent' ? 'proposalSent' : status === 'negotiating' ? 'negotiating' : status
+    const keys = ['new', 'contacted', 'qualified', 'proposalSent', 'negotiating', 'converted', 'rejected']
+    return keys.includes(key) ? t(key as 'new' | 'contacted' | 'qualified' | 'proposalSent' | 'negotiating' | 'converted' | 'rejected') : status
+  }
+
+  const getPriorityLabel = (priority: string) => {
+    const keys = ['urgent', 'high', 'medium', 'low']
+    return keys.includes(priority) ? t(priority as 'urgent' | 'high' | 'medium' | 'low') : priority
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -565,7 +577,7 @@ export default function InquiriesPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by name, email, or organization..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -579,14 +591,14 @@ export default function InquiriesPage() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">All Status</option>
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="qualified">Qualified</option>
-            <option value="proposal_sent">Proposal Sent</option>
-            <option value="negotiating">Negotiating</option>
-            <option value="converted">Converted</option>
-            <option value="rejected">Rejected</option>
+            <option value="all">{t('allStatus')}</option>
+            <option value="new">{t('new')}</option>
+            <option value="contacted">{t('contacted')}</option>
+            <option value="qualified">{t('qualified')}</option>
+            <option value="proposal_sent">{t('proposalSent')}</option>
+            <option value="negotiating">{t('negotiating')}</option>
+            <option value="converted">{t('converted')}</option>
+            <option value="rejected">{t('rejected')}</option>
           </select>
 
           {/* Priority Filter */}
@@ -595,11 +607,11 @@ export default function InquiriesPage() {
             onChange={(e) => setFilterPriority(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">All Priority</option>
-            <option value="urgent">Urgent</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="all">{t('allPriority')}</option>
+            <option value="urgent">{t('urgent')}</option>
+            <option value="high">{t('high')}</option>
+            <option value="medium">{t('medium')}</option>
+            <option value="low">{t('low')}</option>
           </select>
 
           {/* Export Dropdown */}
@@ -609,7 +621,7 @@ export default function InquiriesPage() {
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
             >
               <ExternalLink className="w-4 h-4" />
-              Export
+              {t('export')}
               <ChevronDown className="w-4 h-4" />
             </button>
 
@@ -625,8 +637,8 @@ export default function InquiriesPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">Excel (.xlsx)</p>
-                    <p className="text-xs text-gray-500">Download Excel file</p>
+                    <p className="font-semibold text-gray-900 text-sm">{t('exportExcel')}</p>
+                    <p className="text-xs text-gray-500">{t('exportExcelDesc')}</p>
                   </div>
                 </button>
 
@@ -640,8 +652,8 @@ export default function InquiriesPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">CSV (.csv)</p>
-                    <p className="text-xs text-gray-500">Comma-separated values</p>
+                    <p className="font-semibold text-gray-900 text-sm">{t('exportCsv')}</p>
+                    <p className="text-xs text-gray-500">{t('exportCsvDesc')}</p>
                   </div>
                 </button>
 
@@ -655,8 +667,8 @@ export default function InquiriesPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">JSON (.json)</p>
-                    <p className="text-xs text-gray-500">For developers</p>
+                    <p className="font-semibold text-gray-900 text-sm">{t('exportJson')}</p>
+                    <p className="text-xs text-gray-500">{t('exportJsonDesc')}</p>
                   </div>
                 </button>
 
@@ -670,15 +682,15 @@ export default function InquiriesPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">Copy to Clipboard</p>
-                    <p className="text-xs text-gray-500">Paste to Google Sheets</p>
+                    <p className="font-semibold text-gray-900 text-sm">{t('copyToClipboard')}</p>
+                    <p className="text-xs text-gray-500">{t('copyToClipboardDesc')}</p>
                   </div>
                 </button>
 
                 <div className="border-t border-gray-200 mt-2 pt-2 px-4 py-2">
                   <p className="text-xs text-gray-500 flex items-center gap-2">
                     <Info className="w-3 h-3" />
-                    {filteredInquiries.length} inquiries will be exported
+                    {t('exportCount', { count: filteredInquiries.length })}
                   </p>
                 </div>
               </div>
@@ -694,25 +706,25 @@ export default function InquiriesPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Contact
+                  {t('contact')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Organization
+                  {t('organization')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Details
+                  {t('details')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Status
+                  {t('status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Priority
+                  {t('priority')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Date
+                  {t('date')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Actions
+                  {t('actions')}
                 </th>
               </tr>
             </thead>
@@ -720,7 +732,7 @@ export default function InquiriesPage() {
               {filteredInquiries.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No inquiries found
+                    {t('noInquiriesFound')}
                   </td>
                 </tr>
               ) : (
@@ -755,7 +767,7 @@ export default function InquiriesPage() {
                         )}`}
                       >
                         {getStatusIcon(inquiry.status)}
-                        {inquiry.status.replace('_', ' ').toUpperCase()}
+                        {getStatusLabel(inquiry.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -764,7 +776,7 @@ export default function InquiriesPage() {
                           inquiry.priority
                         )}`}
                       >
-                        {inquiry.priority.toUpperCase()}
+                        {getPriorityLabel(inquiry.priority)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -776,13 +788,13 @@ export default function InquiriesPage() {
                           onClick={() => handleOpenDetails(inquiry)}
                           className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                         >
-                          View
+                          {t('view')}
                         </button>
                         <button
                           onClick={() => handleOpenUpdate(inquiry)}
                           className="text-green-600 hover:text-green-700 text-sm font-medium"
                         >
-                          Update
+                          {t('update')}
                         </button>
                       </div>
                     </td>
@@ -800,7 +812,7 @@ export default function InquiriesPage() {
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-gray-900">Inquiry Details</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{t('inquiryDetails')}</h3>
                 <button
                   onClick={() => setDetailsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -811,11 +823,11 @@ export default function InquiriesPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('name')}</label>
                 <p className="text-gray-900">{selectedInquiry.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('email')}</label>
                 <a
                   href={`mailto:${selectedInquiry.email}`}
                   className="text-blue-600 hover:underline"
@@ -825,13 +837,13 @@ export default function InquiriesPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Organization
+                  {t('organization')}
                 </label>
                 <p className="text-gray-900">{selectedInquiry.organization}</p>
               </div>
               {selectedInquiry.phone && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Phone</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">{t('phone')}</label>
                   <a
                     href={`tel:${selectedInquiry.phone}`}
                     className="text-blue-600 hover:underline"
@@ -843,7 +855,7 @@ export default function InquiriesPage() {
               {selectedInquiry.conference_type && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Conference Type
+                    {t('conferenceType')}
                   </label>
                   <p className="text-gray-900">
                     {formatConferenceType(selectedInquiry.conference_type)}
@@ -853,13 +865,13 @@ export default function InquiriesPage() {
               {selectedInquiry.expected_attendees && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Expected Attendees
+                    {t('expectedAttendees')}
                   </label>
                   <p className="text-gray-900">{selectedInquiry.expected_attendees}</p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('message')}</label>
                 <p className="text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
                   {selectedInquiry.message}
                 </p>
@@ -867,7 +879,7 @@ export default function InquiriesPage() {
               {selectedInquiry.notes && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Internal Notes
+                    {t('internalNotes')}
                   </label>
                   <p className="text-gray-900 whitespace-pre-wrap bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                     {selectedInquiry.notes}
@@ -883,7 +895,7 @@ export default function InquiriesPage() {
                     )}`}
                   >
                     {getStatusIcon(selectedInquiry.status)}
-                    {selectedInquiry.status.replace('_', ' ').toUpperCase()}
+                    {getStatusLabel(selectedInquiry.status)}
                   </span>
                 </div>
                 <div>
@@ -895,13 +907,13 @@ export default function InquiriesPage() {
                       selectedInquiry.priority
                     )}`}
                   >
-                    {selectedInquiry.priority.toUpperCase()}
+                    {getPriorityLabel(selectedInquiry.priority)}
                   </span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Submitted
+<label className="block text-sm font-semibold text-gray-700 mb-1">
+                {t('submitted')}
                 </label>
                 <p className="text-gray-900">
                   {new Date(selectedInquiry.created_at).toLocaleString()}
@@ -913,7 +925,7 @@ export default function InquiriesPage() {
                 onClick={() => setDetailsModalOpen(false)}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
-                Close
+                {t('close')}
               </button>
               <div className="flex gap-3">
                 {selectedInquiry.status !== 'converted' && stripeConfigured !== false && (
@@ -927,13 +939,13 @@ export default function InquiriesPage() {
                     disabled={stripeConfigured === null}
                   >
                     <CreditCard className="w-4 h-4" />
-                    Send Payment Offer
+                    {t('sendPaymentOffer')}
                   </button>
                 )}
                 {selectedInquiry.status !== 'converted' && stripeConfigured === false && (
                   <div className="inline-flex items-center gap-2 px-6 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed font-medium" title="Stripe payment processing is not yet configured">
                     <CreditCard className="w-4 h-4" />
-                    Send Payment Offer
+                    {t('sendPaymentOffer')}
                     <span className="text-xs">(Stripe not configured)</span>
                   </div>
                 )}
@@ -944,7 +956,7 @@ export default function InquiriesPage() {
                   }}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
-                  Update Status
+                  {t('updateStatus')}
                 </button>
               </div>
             </div>
@@ -969,37 +981,37 @@ export default function InquiriesPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('status')}</label>
                 <select
                   value={updateData.status}
                   onChange={(e) => setUpdateData({ ...updateData, status: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="new">New</option>
-                  <option value="contacted">Contacted</option>
-                  <option value="qualified">Qualified</option>
-                  <option value="proposal_sent">Proposal Sent</option>
-                  <option value="negotiating">Negotiating</option>
-                  <option value="converted">Converted</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="new">{t('new')}</option>
+                  <option value="contacted">{t('contacted')}</option>
+                  <option value="qualified">{t('qualified')}</option>
+                  <option value="proposal_sent">{t('proposalSent')}</option>
+                  <option value="negotiating">{t('negotiating')}</option>
+                  <option value="converted">{t('converted')}</option>
+                  <option value="rejected">{t('rejected')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('priority')}</label>
                 <select
                   value={updateData.priority}
                   onChange={(e) => setUpdateData({ ...updateData, priority: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="low">{t('low')}</option>
+                  <option value="medium">{t('medium')}</option>
+                  <option value="high">{t('high')}</option>
+                  <option value="urgent">{t('urgent')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Follow-up Date
+                  {t('followUpDate')}
                 </label>
                 <input
                   type="date"
@@ -1019,7 +1031,7 @@ export default function InquiriesPage() {
                   onChange={(e) => setUpdateData({ ...updateData, notes: e.target.value })}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add internal notes about this inquiry..."
+                  placeholder={t('internalNotesPlaceholder')}
                 />
               </div>
             </div>
@@ -1060,7 +1072,7 @@ export default function InquiriesPage() {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Send Payment Offer</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">{t('sendPaymentOffer')}</h3>
                   <p className="text-gray-600 mt-1">
                     Create and send a payment link to {selectedInquiry.name}
                   </p>

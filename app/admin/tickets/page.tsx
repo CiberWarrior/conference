@@ -269,15 +269,15 @@ function TicketsPageContent() {
         {loading ? (
           <div className="p-12 text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Loading tickets...</p>
+            <p className="text-sm text-gray-600">{t('loadingTickets')}</p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="p-12 text-center">
             <Ticket className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-600">
               {filterStatus === 'all'
-                ? 'No tickets yet. Create one to get started.'
-                : 'No tickets with this status.'}
+                ? t('noTicketsYet')
+                : t('noTicketsWithStatus')}
             </p>
           </div>
         ) : (

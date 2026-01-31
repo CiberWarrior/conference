@@ -178,10 +178,10 @@ export default function AccountPage() {
 
       await refreshProfile()
       setIsEditingBank(false)
-      showSuccess('Bank account settings updated successfully!')
+      showSuccess(t('bankUpdated'))
     } catch (error) {
       console.error('Error updating bank settings:', error)
-      showError('Failed to update bank account settings')
+      showError(t('failedToUpdateBank'))
     } finally {
       setSavingBank(false)
     }
@@ -230,7 +230,7 @@ export default function AccountPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading account information...</p>
+          <p className="text-gray-600">{t('loadingAccount')}</p>
         </div>
       </div>
     )
@@ -241,8 +241,8 @@ export default function AccountPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
-          <p className="text-gray-600">Unable to load your profile information.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('profileNotFound')}</h2>
+          <p className="text-gray-600">{t('unableToLoadProfile')}</p>
         </div>
       </div>
     )
@@ -252,8 +252,8 @@ export default function AccountPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
-        <p className="text-gray-600 mt-2">Manage your profile and security settings</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+        <p className="text-gray-600 mt-2">{t('subtitle')}</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -353,7 +353,7 @@ export default function AccountPage() {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    placeholder="+385 1 234 5678"
+                    placeholder={t('placeholderPhone')}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
@@ -429,8 +429,8 @@ export default function AccountPage() {
                   <Shield className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Security</h2>
-                  <p className="text-sm text-gray-600">Manage your password and security</p>
+                  <h2 className="text-xl font-bold text-gray-900">{t('security')}</h2>
+                  <p className="text-sm text-gray-600">{t('securitySubtitle')}</p>
                 </div>
               </div>
             </div>
@@ -440,15 +440,15 @@ export default function AccountPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Password</h3>
-                      <p className="text-sm text-gray-600">Last changed: {profile.last_login ? new Date(profile.last_login).toLocaleDateString() : 'Never'}</p>
+                      <h3 className="font-semibold text-gray-900 mb-1">{t('password')}</h3>
+                      <p className="text-sm text-gray-600">{t('lastChanged')} {profile.last_login ? new Date(profile.last_login).toLocaleDateString() : t('never')}</p>
                     </div>
                     <button
                       onClick={() => setShowPasswordForm(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <Key className="w-4 h-4" />
-                      Change Password
+                      {t('changePassword')}
                     </button>
                   </div>
                 </div>
@@ -456,7 +456,7 @@ export default function AccountPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Current Password
+                      {t('currentPassword')}
                     </label>
                     <div className="relative">
                       <input
@@ -464,7 +464,7 @@ export default function AccountPage() {
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
-                        placeholder="Enter current password"
+                        placeholder={t('placeholderCurrentPassword')}
                       />
                       <button
                         type="button"
@@ -478,7 +478,7 @@ export default function AccountPage() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      New Password
+                      {t('newPassword')}
                     </label>
                     <div className="relative">
                       <input
@@ -486,7 +486,7 @@ export default function AccountPage() {
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
-                        placeholder="Enter new password (min. 8 characters)"
+                        placeholder={t('placeholderNewPassword')}
                       />
                       <button
                         type="button"
@@ -500,7 +500,7 @@ export default function AccountPage() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Confirm New Password
+                      {t('confirmPassword')}
                     </label>
                     <div className="relative">
                       <input
@@ -508,7 +508,7 @@ export default function AccountPage() {
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
-                        placeholder="Confirm new password"
+                        placeholder={t('placeholderConfirmPassword')}
                       />
                       <button
                         type="button"
@@ -529,12 +529,12 @@ export default function AccountPage() {
                       {changingPassword ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Changing...
+                          {t('changing')}
                         </>
                       ) : (
                         <>
                           <Key className="w-4 h-4" />
-                          Change Password
+                          {t('changePassword')}
                         </>
                       )}
                     </button>
@@ -567,8 +567,8 @@ export default function AccountPage() {
                     <Receipt className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Organization Settings</h2>
-                    <p className="text-sm text-gray-600">Default VAT/PDV for all conferences</p>
+                    <h2 className="text-xl font-bold text-gray-900">{t('organizationSettings')}</h2>
+                    <p className="text-sm text-gray-600">{t('vatSubtitle')}</p>
                   </div>
                 </div>
                 {!isEditingVAT && (
@@ -577,7 +577,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                   >
                     <Edit className="w-4 h-4" />
-                    Edit
+                    {c('edit')}
                   </button>
                 )}
               </div>
@@ -586,16 +586,14 @@ export default function AccountPage() {
             <div className="p-6 space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-900">
-                  <strong>Tip:</strong> Set a default VAT percentage here (e.g., 25% for Croatia). 
-                  All new conferences will automatically use this setting, but you can override it 
-                  for individual conferences if needed.
+                  <strong>{t('vatTipLabel')}</strong> {t('vatTip')}
                 </p>
               </div>
 
               {/* VAT Percentage */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Default VAT Percentage (%)
+                  {t('defaultVatPercentage')}
                 </label>
                 {isEditingVAT ? (
                   <>
@@ -606,18 +604,18 @@ export default function AccountPage() {
                       min="0"
                       max="100"
                       step="0.01"
-                      placeholder="e.g. 25 for 25%"
+                      placeholder={t('vatPercentagePlaceholder')}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Leave empty if you don't want to set a default VAT
+                      {t('vatLeaveEmpty')}
                     </p>
                   </>
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
                     {profile.default_vat_percentage 
                       ? `${profile.default_vat_percentage}%` 
-                      : 'Not set'}
+                      : t('notSet')}
                   </p>
                 )}
               </div>
@@ -625,7 +623,7 @@ export default function AccountPage() {
               {/* VAT Label */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  VAT Label (Optional)
+                  {t('vatLabelOptional')}
                 </label>
                 {isEditingVAT ? (
                   <>
@@ -633,16 +631,16 @@ export default function AccountPage() {
                       type="text"
                       value={vatData.vat_label}
                       onChange={(e) => setVatData({ ...vatData, vat_label: e.target.value })}
-                      placeholder="e.g., Croatia PDV, Germany MwSt"
+                      placeholder={t('vatPlaceholder')}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Friendly name for display (e.g., "Croatia PDV")
+                      {t('vatFriendlyName')}
                     </p>
                   </>
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.vat_label || 'Not set'}
+                    {profile.vat_label || t('notSet')}
                   </p>
                 )}
               </div>
@@ -658,12 +656,12 @@ export default function AccountPage() {
                     {savingVAT ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Saving...
+                        {t('saving')}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Save VAT Settings
+                        {t('saveVatSettings')}
                       </>
                     )}
                   </button>
@@ -694,8 +692,8 @@ export default function AccountPage() {
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Bank Account Settings</h2>
-                    <p className="text-sm text-gray-600">For receiving bank transfer payments</p>
+                    <h2 className="text-xl font-bold text-gray-900">{t('bankSettingsTitle')}</h2>
+                    <p className="text-sm text-gray-600">{t('bankSettingsSubtitle')}</p>
                   </div>
                 </div>
                 {!isEditingBank && (
@@ -704,7 +702,7 @@ export default function AccountPage() {
                     className="flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                   >
                     <Edit className="w-4 h-4" />
-                    Edit
+                    {c('edit')}
                   </button>
                 )}
               </div>
@@ -713,15 +711,14 @@ export default function AccountPage() {
             <div className="p-6 space-y-4">
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-yellow-900">
-                  <strong>Info:</strong> Add your bank account details here. This information will be shown 
-                  to participants who choose to pay by bank transfer. Leave empty if you don't accept bank transfers yet.
+                  <strong>{t('bankInfoLabel')}</strong> {t('bankInfo')}
                 </p>
               </div>
 
               {/* Bank Account Number (IBAN) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Bank Account Number (IBAN)
+                  {t('bankAccountNumber')}
                 </label>
                 {isEditingBank ? (
                   <input
@@ -729,12 +726,12 @@ export default function AccountPage() {
                     value={bankData.bank_account_number}
                     onChange={(e) => setBankData({ ...bankData, bank_account_number: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
-                    placeholder="HR1234567890123456789"
+                    placeholder={t('bankPlaceholderIban')}
                     maxLength={34}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
-                    {profile.bank_account_number || 'Not set'}
+                    {profile.bank_account_number || t('notSet')}
                   </p>
                 )}
               </div>
@@ -742,7 +739,7 @@ export default function AccountPage() {
               {/* Account Holder Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Account Holder Name
+                  {t('accountHolderName')}
                 </label>
                 {isEditingBank ? (
                   <input
@@ -750,11 +747,11 @@ export default function AccountPage() {
                     value={bankData.bank_account_holder}
                     onChange={(e) => setBankData({ ...bankData, bank_account_holder: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                    placeholder="Organization Name"
+                    placeholder={t('bankPlaceholderHolder')}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_account_holder || 'Not set'}
+                    {profile.bank_account_holder || t('notSet')}
                   </p>
                 )}
               </div>
@@ -762,7 +759,7 @@ export default function AccountPage() {
               {/* Bank Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Bank Name
+                  {t('bankName')}
                 </label>
                 {isEditingBank ? (
                   <input
@@ -770,11 +767,11 @@ export default function AccountPage() {
                     value={bankData.bank_name}
                     onChange={(e) => setBankData({ ...bankData, bank_name: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                    placeholder="e.g., Erste Bank, Zagrebačka banka"
+                    placeholder={t('bankPlaceholderName')}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_name || 'Not set'}
+                    {profile.bank_name || t('notSet')}
                   </p>
                 )}
               </div>
@@ -782,7 +779,7 @@ export default function AccountPage() {
               {/* SWIFT/BIC Code */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  SWIFT/BIC Code (for international transfers)
+                  {t('swiftBic')}
                 </label>
                 {isEditingBank ? (
                   <input
@@ -790,12 +787,12 @@ export default function AccountPage() {
                     value={bankData.swift_bic}
                     onChange={(e) => setBankData({ ...bankData, swift_bic: e.target.value.toUpperCase() })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
-                    placeholder="ZABAHR2X"
+                    placeholder={t('bankPlaceholderSwift')}
                     maxLength={11}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
-                    {profile.swift_bic || 'Not set'}
+                    {profile.swift_bic || t('notSet')}
                   </p>
                 )}
               </div>
@@ -803,19 +800,19 @@ export default function AccountPage() {
               {/* Bank Address */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Bank Address (optional)
+                  {t('bankAddressOptional')}
                 </label>
                 {isEditingBank ? (
                   <textarea
                     value={bankData.bank_address}
                     onChange={(e) => setBankData({ ...bankData, bank_address: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
-                    placeholder="Full bank address for international transfers"
+                    placeholder={t('bankPlaceholderAddress')}
                     rows={2}
                   />
                 ) : (
                   <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_address || 'Not set'}
+                    {profile.bank_address || t('notSet')}
                   </p>
                 )}
               </div>
@@ -823,7 +820,7 @@ export default function AccountPage() {
               {/* Account Currency */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Account Currency
+                  {t('accountCurrency')}
                 </label>
                 {isEditingBank ? (
                   <select
@@ -855,7 +852,7 @@ export default function AccountPage() {
                     {savingBank ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Saving...
+                        {t('saving')}
                       </>
                     ) : (
                       <>
@@ -897,8 +894,8 @@ export default function AccountPage() {
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">My Conferences</h2>
-                  <p className="text-sm text-gray-600">{conferences.length} conference(s)</p>
+                  <h2 className="text-xl font-bold text-gray-900">{t('myConferences')}</h2>
+                  <p className="text-sm text-gray-600">{t('conferencesCount', { count: conferences.length })}</p>
                 </div>
               </div>
             </div>
@@ -906,7 +903,7 @@ export default function AccountPage() {
             <div className="p-6">
               {conferences.length === 0 ? (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-600">No conferences assigned</p>
+                  <p className="text-sm text-gray-600">{t('noConferencesAssigned')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -918,7 +915,7 @@ export default function AccountPage() {
                     >
                       <p className="font-semibold text-gray-900">{conference.name}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {conference.start_date ? new Date(conference.start_date).toLocaleDateString() : 'No date set'}
+                        {conference.start_date ? new Date(conference.start_date).toLocaleDateString() : t('noDateSet')}
                       </p>
                     </Link>
                   ))}
@@ -927,7 +924,7 @@ export default function AccountPage() {
                       href="/admin/conferences"
                       className="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium py-2"
                     >
-                      View all {conferences.length} conferences →
+                      {t('viewAllConferences', { count: conferences.length })}
                     </Link>
                   )}
                 </div>

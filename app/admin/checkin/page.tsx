@@ -120,13 +120,13 @@ export default function CheckInPage() {
       } else {
         setResult({
           success: false,
-          message: data.error || 'Failed to check in',
+          message: data.error || t('failedToCheckIn'),
         })
       }
     } catch (error) {
       setResult({
         success: false,
-        message: 'Network error. Please try again.',
+        message: t('networkError'),
       })
     } finally {
       setProcessing(false)
@@ -135,7 +135,7 @@ export default function CheckInPage() {
 
   const handleManualCheckIn = async () => {
     if (!manualId.trim()) {
-      alert('Please enter a registration ID')
+      alert(t('enterRegistrationId'))
       return
     }
 
@@ -206,14 +206,14 @@ export default function CheckInPage() {
                 {result.registration && (
                   <div className="mt-2 text-sm">
                     <p>
-                      <strong>Name:</strong> {result.registration.name}
+                      <strong>{t('nameLabel')}</strong> {result.registration.name}
                     </p>
                     <p>
-                      <strong>Email:</strong> {result.registration.email}
+                      <strong>{t('emailLabel')}</strong> {result.registration.email}
                     </p>
                     {result.registration.checkedInAt && (
                       <p>
-                        <strong>Checked in at:</strong>{' '}
+                        <strong>{t('checkedInAtLabel')}</strong>{' '}
                         {new Date(result.registration.checkedInAt).toLocaleString()}
                       </p>
                     )}
@@ -237,7 +237,7 @@ export default function CheckInPage() {
               </button>
             </div>
             <p className="text-center text-sm text-gray-500 mt-4">
-              Point camera at QR code. For manual entry, stop scanning and use the form below.
+              {t('pointCameraHint')}
             </p>
           </div>
         ) : (
@@ -266,7 +266,7 @@ export default function CheckInPage() {
                 type="text"
                 value={manualId}
                 onChange={(e) => setManualId(e.target.value)}
-                placeholder="Enter registration ID or scan QR code"
+                placeholder={t('placeholderManualId')}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
@@ -283,7 +283,7 @@ export default function CheckInPage() {
               {processing ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Processing...
+                  {t('processing')}
                 </>
               ) : (
                 <>
@@ -299,12 +299,12 @@ export default function CheckInPage() {
 
         {/* Instructions */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">How to use:</h3>
+          <h3 className="font-semibold text-blue-900 mb-2">{t('howToUse')}</h3>
           <ol className="list-decimal list-inside text-sm text-blue-800 space-y-1">
-            <li>Click &quot;Start QR Code Scanner&quot; to use camera</li>
-            <li>Point camera at participant&apos;s QR code</li>
-            <li>Or enter registration ID manually in the form below</li>
-            <li>Check-in status will be updated automatically</li>
+            <li>{t('howToUse1')}</li>
+            <li>{t('howToUse2')}</li>
+            <li>{t('howToUse3')}</li>
+            <li>{t('howToUse4')}</li>
           </ol>
         </div>
       </div>

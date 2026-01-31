@@ -17,7 +17,6 @@ function RegistrationsPageContent() {
   const searchParams = useSearchParams()
   const t = useTranslations('admin.registrations')
   const c = useTranslations('admin.common')
-  const tDashboard = useTranslations('admin.dashboard')
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
@@ -135,7 +134,7 @@ function RegistrationsPageContent() {
         })
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load registrations')
+      setError(err instanceof Error ? err.message : t('loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -164,30 +163,30 @@ function RegistrationsPageContent() {
     const customFieldDefs = currentConference?.settings?.custom_registration_fields || []
     const participantSettings = currentConference?.settings?.participant_settings
     
-    // Standard headers
+    // Standard headers (translated)
     const standardHeaders = [
-      'Conference',
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Country',
-      'Institution',
-      'Arrival Date',
-      'Departure Date',
-      'Payment Required',
-      'Payment by Card',
-      'Payment Status',
-      'Checked In',
-      'Created At',
+      t('exportConference'),
+      t('exportFirstName'),
+      t('exportLastName'),
+      t('exportEmail'),
+      t('exportPhone'),
+      t('exportCountry'),
+      t('exportInstitution'),
+      t('exportArrivalDate'),
+      t('exportDepartureDate'),
+      t('exportPaymentRequired'),
+      t('exportPaymentByCard'),
+      t('exportPaymentStatus'),
+      t('exportCheckedIn'),
+      t('exportCreatedAt'),
     ]
     
     // Add custom field headers
     const customHeaders = customFieldDefs.map(field => field.label)
     
     // Add participant count header if multiple participants are enabled
-    const participantHeaders = participantSettings?.enabled 
-      ? ['Number of Participants', 'Participant Names', 'Participant Emails'] 
+    const participantHeaders = participantSettings?.enabled
+      ? [t('exportNumberOfParticipants'), t('exportParticipantNames'), t('exportParticipantEmails')]
       : []
     
     const headers = [...standardHeaders, ...customHeaders, ...participantHeaders]
@@ -214,7 +213,7 @@ function RegistrationsPageContent() {
       const customData = customFieldDefs.map(field => {
         const value = r.customFields?.[field.name]
         if (value === undefined || value === null) return ''
-        if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+        if (typeof value === 'boolean') return value ? t('yes') : t('no')
         if (Array.isArray(value)) return value.join(', ')
         return String(value)
       })
@@ -240,7 +239,7 @@ function RegistrationsPageContent() {
 
   // Quick export - only basic contact info (First Name, Last Name, Email, Phone)
   const exportBasicContactsCSV = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone']
+    const headers = [t('exportFirstName'), t('exportLastName'), t('exportEmail'), t('exportPhone')]
     const rows = filteredRegistrations.map((r) => [
       r.firstName,
       r.lastName,
@@ -260,11 +259,11 @@ function RegistrationsPageContent() {
     a.click()
     URL.revokeObjectURL(url)
     setExportMenuOpen(false)
-    showSuccess(`Exported ${filteredRegistrations.length} contacts`)
+    showSuccess(t('exportContactsSuccess', { count: filteredRegistrations.length }))
   }
 
   const exportBasicContactsExcel = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone']
+    const headers = [t('exportFirstName'), t('exportLastName'), t('exportEmail'), t('exportPhone')]
     const rows = filteredRegistrations.map((r) => [
       r.firstName,
       r.lastName,
@@ -285,13 +284,13 @@ function RegistrationsPageContent() {
     ]
 
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Contacts')
+    XLSX.utils.book_append_sheet(wb, ws, t('worksheetContacts'))
 
     // Generate Excel file
     const fileName = `contacts-${currentConference?.name || 'export'}-${new Date().toISOString().split('T')[0]}.xlsx`
     XLSX.writeFile(wb, fileName)
     setExportMenuOpen(false)
-    showSuccess(`Exported ${filteredRegistrations.length} contacts`)
+    showSuccess(t('exportContactsSuccess', { count: filteredRegistrations.length }))
   }
 
   const exportToCSV = () => {
@@ -348,9 +347,7 @@ function RegistrationsPageContent() {
     URL.revokeObjectURL(url)
     
     // Show instructions
-    showInfo(
-      'CSV file downloaded! To import into Google Sheets: Open Google Sheets → File → Import → Upload CSV file'
-    )
+    showInfo(t('googleSheetsImportInfo'))
     setExportMenuOpen(false)
   }
 
@@ -391,10 +388,10 @@ function RegistrationsPageContent() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update registrations')
+        throw new Error(result.error || t('updateFailed'))
       }
 
-      showSuccess(`Successfully updated ${result.updated} registration(s)`)
+      showSuccess(t('updateSuccess', { count: result.updated }))
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
       loadRegistrations()
@@ -427,15 +424,15 @@ function RegistrationsPageContent() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete registrations')
+        throw new Error(result.error || t('deleteFailed'))
       }
 
-      showSuccess(`Successfully deleted ${result.deleted} registration(s)`)
+      showSuccess(t('deleteSuccess', { count: result.deleted }))
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
       loadRegistrations()
     } catch (error) {
-      showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showError(t('errorPrefix') + (error instanceof Error ? error.message : t('unknownError')))
     } finally {
       setBulkProcessing(false)
     }
@@ -471,7 +468,7 @@ function RegistrationsPageContent() {
       setBulkEmailModalOpen(false)
       setBulkActionMenuOpen(false)
     } catch (error) {
-      showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showError(t('errorPrefix') + (error instanceof Error ? error.message : t('unknownError')))
     } finally {
       setBulkProcessing(false)
     }
@@ -482,18 +479,18 @@ function RegistrationsPageContent() {
     if (selectedRegistrations.length === 0) return
 
     const headers = [
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Country',
-      'Institution',
-      'Arrival Date',
-      'Departure Date',
-      'Payment Required',
-      'Payment by Card',
-      'Payment Status',
-      'Created At',
+      t('exportFirstName'),
+      t('exportLastName'),
+      t('exportEmail'),
+      t('exportPhone'),
+      t('exportCountry'),
+      t('exportInstitution'),
+      t('exportArrivalDate'),
+      t('exportDepartureDate'),
+      t('exportPaymentRequired'),
+      t('exportPaymentByCard'),
+      t('exportPaymentStatus'),
+      t('exportCreatedAt'),
     ]
     const rows = selectedRegistrations.map((r) => [
       r.firstName,
@@ -504,8 +501,8 @@ function RegistrationsPageContent() {
       r.institution || '',
       r.arrivalDate || '',
       r.departureDate || '',
-      r.paymentRequired ? 'Yes' : 'No',
-      r.paymentByCard ? 'Yes' : 'No',
+      r.paymentRequired ? t('yes') : t('no'),
+      r.paymentByCard ? t('yes') : t('no'),
       r.paymentStatus,
       new Date(r.createdAt).toLocaleString(),
     ])
@@ -513,7 +510,7 @@ function RegistrationsPageContent() {
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
     ws['!cols'] = headers.map(() => ({ wch: 20 }))
-    XLSX.utils.book_append_sheet(wb, ws, 'Selected Registrations')
+    XLSX.utils.book_append_sheet(wb, ws, t('worksheetSelectedRegistrations'))
     XLSX.writeFile(wb, `selected-registrations-${new Date().toISOString().split('T')[0]}.xlsx`)
 
     setSelectedIds(new Set())
@@ -561,7 +558,7 @@ function RegistrationsPageContent() {
                   <div className="py-1">
                     {/* Quick Export Section - Basic Contacts Only */}
                     <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-                      Quick Export (Basic Info)
+                      {t('quickExportBasic')}
                     </div>
                     <button
                       onClick={exportBasicContactsCSV}
@@ -571,8 +568,8 @@ function RegistrationsPageContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
                       </svg>
                       <div>
-                        <div className="font-medium text-gray-900">Contacts CSV</div>
-                        <div className="text-xs text-gray-500">Name, Email, Phone</div>
+                        <div className="font-medium text-gray-900">{t('contactsCsv')}</div>
+                        <div className="text-xs text-gray-500">{t('contactsCsvDesc')}</div>
                       </div>
                     </button>
                     <button
@@ -583,8 +580,8 @@ function RegistrationsPageContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <div>
-                        <div className="font-medium text-gray-900">Contacts Excel</div>
-                        <div className="text-xs text-gray-500">Name, Email, Phone</div>
+                        <div className="font-medium text-gray-900">{t('contactsExcel')}</div>
+                        <div className="text-xs text-gray-500">{t('contactsCsvDesc')}</div>
                       </div>
                     </button>
 
@@ -593,7 +590,7 @@ function RegistrationsPageContent() {
 
                     {/* Full Export Section - All Data */}
                     <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-                      Full Export (All Data)
+                      {t('fullExportAll')}
                     </div>
                     <button
                       onClick={exportToCSV}
@@ -602,7 +599,7 @@ function RegistrationsPageContent() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Export as CSV
+                      {t('exportAsCsv')}
                     </button>
                     <button
                       onClick={exportToExcel}
@@ -611,7 +608,7 @@ function RegistrationsPageContent() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Export as Excel (.xlsx)
+                      {t('exportAsExcel')}
                     </button>
                     <button
                       onClick={exportToGoogleSheets}
@@ -620,7 +617,7 @@ function RegistrationsPageContent() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Export for Google Sheets
+                      {t('exportGoogleSheets')}
                     </button>
                   </div>
                 </div>
@@ -636,7 +633,7 @@ function RegistrationsPageContent() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Full Backup
+            {t('fullBackup')}
           </a>
         </div>
       </div>
@@ -654,7 +651,7 @@ function RegistrationsPageContent() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search by name, email, country, or institution..."
+                  placeholder={t('searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -674,10 +671,10 @@ function RegistrationsPageContent() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending Payment</option>
-              <option value="paid">Paid</option>
-              <option value="not_required">Not Required</option>
+              <option value="all">{t('allStatuses')}</option>
+              <option value="pending">{t('pendingPayment')}</option>
+              <option value="paid">{t('paid')}</option>
+              <option value="not_required">{t('notRequired')}</option>
             </select>
           </div>
         </div>
@@ -687,13 +684,13 @@ function RegistrationsPageContent() {
           <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-blue-900">
-                {selectedIds.size} registration(s) selected
+                {t('selectedCount', { count: selectedIds.size })}
               </span>
               <button
                 onClick={() => setSelectedIds(new Set())}
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
-                Clear selection
+                {t('clearSelection')}
               </button>
             </div>
             <div className="flex gap-2">
@@ -703,7 +700,7 @@ function RegistrationsPageContent() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
                   disabled={bulkProcessing}
                 >
-                  Bulk Actions
+                  {t('bulkActions')}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -726,7 +723,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
-                          Send Email
+                          {t('sendEmail')}
                         </button>
                         <div className="border-t border-gray-200 my-1" />
                         <button
@@ -737,7 +734,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Mark as Paid
+                          {t('markAsPaid')}
                         </button>
                         <button
                           onClick={() => handleBulkUpdateStatus('pending')}
@@ -747,7 +744,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Mark as Pending
+                          {t('markAsPending')}
                         </button>
                         <button
                           onClick={() => handleBulkUpdateStatus('not_required')}
@@ -757,7 +754,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          Mark as Not Required
+                          {t('markAsNotRequired')}
                         </button>
                         <div className="border-t border-gray-200 my-1" />
                         <button
@@ -767,7 +764,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          Export Selected
+                          {t('exportSelected')}
                         </button>
                         <div className="border-t border-red-200 my-1" />
                         <button
@@ -778,7 +775,7 @@ function RegistrationsPageContent() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
-                          Delete Selected
+                          {t('deleteSelected')}
                         </button>
                       </div>
                     </div>
@@ -802,46 +799,46 @@ function RegistrationsPageContent() {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reg #
+                  {t('regNumber')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
+                  {t('name')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
+                  {t('email')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phone
+                  {t('phone')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Country
+                  {t('country')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Institution
+                  {t('institution')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Arrival
+                  {t('arrival')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Departure
+                  {t('departure')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hotel
+                  {t('hotel')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment
+                  {t('payment')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Card
+                  {t('card')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-In
+                  {t('checkIn')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  QR Code
+                  {t('qrCode')}
                 </th>
               </tr>
             </thead>
@@ -862,7 +859,7 @@ function RegistrationsPageContent() {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <p className="mt-4 text-sm">No registrations found</p>
+                    <p className="mt-4 text-sm">{t('noRegistrationsFound')}</p>
                   </td>
                 </tr>
               ) : (
@@ -926,7 +923,7 @@ function RegistrationsPageContent() {
                           </div>
                           {reg.accommodation?.number_of_nights && (
                             <div className="text-xs text-gray-500">
-                              {reg.accommodation.number_of_nights} nights
+                              {reg.accommodation.number_of_nights} {t('nights')}
                             </div>
                           )}
                         </div>
@@ -936,9 +933,9 @@ function RegistrationsPageContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.paymentRequired ? (
-                        <span className="text-blue-600 text-sm">Yes</span>
+                        <span className="text-blue-600 text-sm">{t('yes')}</span>
                       ) : (
-                        <span className="text-gray-400 text-sm">No</span>
+                        <span className="text-gray-400 text-sm">{t('no')}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -958,7 +955,11 @@ function RegistrationsPageContent() {
                               : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {reg.paymentStatus}
+                        {reg.paymentStatus === 'paid'
+                          ? t('paid')
+                          : reg.paymentStatus === 'pending'
+                            ? t('pendingPayment')
+                            : t('notRequired')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -967,11 +968,11 @@ function RegistrationsPageContent() {
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Checked In
+                          {t('checkedIn')}
                         </span>
                       ) : (
                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          Not Checked In
+                          {t('notCheckedIn')}
                         </span>
                       )}
                       {reg.checkedInAt && (
@@ -987,12 +988,12 @@ function RegistrationsPageContent() {
                           setQrModalOpen(true)
                         }}
                         className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                        title="View QR Code"
+                        title={t('viewQrCode')}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                         </svg>
-                        QR
+                        {t('qr')}
                       </button>
                     </td>
                   </tr>
@@ -1004,8 +1005,10 @@ function RegistrationsPageContent() {
 
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <p className="text-sm text-gray-600">
-            Showing <span className="font-medium">{filteredRegistrations.length}</span> of{' '}
-            <span className="font-medium">{registrations.length}</span> registrations
+            {t('showingCount', {
+              filtered: filteredRegistrations.length,
+              total: registrations.length,
+            })}
           </p>
         </div>
       </div>
@@ -1016,13 +1019,13 @@ function RegistrationsPageContent() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
-                Send Email to {selectedIds.size} Registration(s)
+                {t('sendEmailToCount', { count: selectedIds.size })}
               </h3>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Type
+                  {t('emailType')}
                 </label>
                 <select
                   value={bulkEmailType}
@@ -1033,9 +1036,9 @@ function RegistrationsPageContent() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="payment_reminder">Payment Reminder</option>
-                  <option value="pre_conference_reminder">Pre-Conference Reminder</option>
-                  <option value="event_details">Event Details</option>
+                  <option value="payment_reminder">{t('paymentReminder')}</option>
+                  <option value="pre_conference_reminder">{t('preConferenceReminder')}</option>
+                  <option value="event_details">{t('eventDetails')}</option>
                 </select>
               </div>
 
@@ -1043,7 +1046,7 @@ function RegistrationsPageContent() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Conference Date
+                      {t('conferenceDate')}
                     </label>
                     <input
                       type="text"
@@ -1051,13 +1054,13 @@ function RegistrationsPageContent() {
                       onChange={(e) =>
                         setBulkEmailData({ ...bulkEmailData, conferenceDate: e.target.value })
                       }
-                      placeholder="e.g., March 15, 2025"
+                      placeholder={t('conferenceDatePlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Conference Location
+                      {t('conferenceLocation')}
                     </label>
                     <input
                       type="text"
@@ -1065,20 +1068,20 @@ function RegistrationsPageContent() {
                       onChange={(e) =>
                         setBulkEmailData({ ...bulkEmailData, conferenceLocation: e.target.value })
                       }
-                      placeholder="e.g., Zagreb, Croatia"
+                      placeholder={t('conferenceLocationPlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Conference Program
+                      {t('conferenceProgram')}
                     </label>
                     <textarea
                       value={bulkEmailData.conferenceProgram}
                       onChange={(e) =>
                         setBulkEmailData({ ...bulkEmailData, conferenceProgram: e.target.value })
                       }
-                      placeholder="Enter conference program details..."
+                      placeholder={t('conferenceProgramPlaceholder')}
                       rows={4}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -1088,14 +1091,14 @@ function RegistrationsPageContent() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Custom Message (Optional)
+                  {t('customMessageOptional')}
                 </label>
                 <textarea
                   value={bulkEmailData.customMessage}
                   onChange={(e) =>
                     setBulkEmailData({ ...bulkEmailData, customMessage: e.target.value })
                   }
-                  placeholder="Add any additional message..."
+                  placeholder={t('customMessagePlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -1115,7 +1118,7 @@ function RegistrationsPageContent() {
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 disabled={bulkProcessing}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 onClick={handleBulkSendEmail}
@@ -1125,14 +1128,14 @@ function RegistrationsPageContent() {
                 {bulkProcessing ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Sending...
+                    {t('sending')}
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    Send Email
+                    {t('sendEmail')}
                   </>
                 )}
               </button>
@@ -1175,17 +1178,17 @@ function RegistrationsPageContent() {
                 />
               </div>
               <p className="text-xs text-gray-500 mb-4">
-                Registration ID: {selectedQRRegistration.id}
+                {t('registrationId')} {selectedQRRegistration.id}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(selectedQRRegistration.id)
-                    showSuccess('Registration ID copied to clipboard!')
+                    showSuccess(t('idCopied'))
                   }}
                   className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >
-                  Copy ID
+                  {t('copyId')}
                 </button>
                 <button
                   onClick={() => {
@@ -1194,7 +1197,7 @@ function RegistrationsPageContent() {
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
-                  Close
+                  {t('close')}
                 </button>
               </div>
             </div>

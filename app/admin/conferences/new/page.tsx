@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save, Building2, Users, Settings, Upload, Plus, X, GripVertical } from 'lucide-react'
@@ -15,6 +16,7 @@ import { formatPriceWithoutZeros } from '@/utils/pricing'
 import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 
 export default function NewConferencePage() {
+  const t = useTranslations('admin.conferences')
   const router = useRouter()
   const { refreshConferences } = useConference()
   const { isSuperAdmin, loading: authLoading, profile } = useAuth()
@@ -84,7 +86,7 @@ export default function NewConferencePage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -404,12 +406,12 @@ export default function NewConferencePage() {
         const errorMsg = data.details 
           ? `${data.error}: ${data.details}`
           : data.error || 'Unknown error'
-        showError(`Failed to create conference: ${errorMsg}`)
+        showError(`${t('failedToCreateConference')}: ${errorMsg}`)
         console.error('Conference creation error:', data)
       }
     } catch (error: any) {
       console.error('Error creating conference:', error)
-      const errorMessage = error?.message || error?.details || 'An error occurred while creating the conference'
+      const errorMessage = error?.message || error?.details || t('errorCreatingConference')
       showError(errorMessage)
     } finally {
       setLoading(false)
@@ -443,16 +445,16 @@ export default function NewConferencePage() {
               className="inline-flex items-center gap-2 text-blue-200 hover:text-white mb-6 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Conferences
+              {t('backToConferences')}
             </Link>
           </div>
           
           <div className="text-left">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight text-white">
-              Create New Conference
+              {t('createNewConferenceTitle')}
             </h1>
             <p className="text-lg md:text-xl mb-6 text-blue-100 leading-relaxed">
-              Set up a new conference event. Fill in the details below to create your conference.
+              {t('setUpNewConferenceDesc')}
             </p>
           </div>
         </div>
@@ -476,24 +478,24 @@ export default function NewConferencePage() {
                   <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                     <Globe className="w-8 h-8 text-white" />
                   </div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">Basic Information</h2>
-                  <p className="text-gray-600">Enter the basic details about your conference</p>
+                  <h2 className="text-3xl font-black text-gray-900 mb-2">{t('basicInformation')}</h2>
+                  <p className="text-gray-600">{t('enterBasicDetails')}</p>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                      {formData.event_type === 'conference' 
-                        ? 'Conference Name *' 
+                      {formData.event_type === 'conference'
+                        ? t('conferenceNameStar')
                         : formData.event_type === 'workshop'
-                        ? 'Workshop Name *'
+                        ? t('workshopNameStar')
                         : formData.event_type === 'seminar'
-                        ? 'Seminar Name *'
+                        ? t('seminarNameStar')
                         : formData.event_type === 'webinar'
-                        ? 'Webinar Name *'
+                        ? t('webinarNameStar')
                         : formData.event_type === 'training'
-                        ? 'Training Course Name *'
-                        : 'Event Name *'}
+                        ? t('trainingNameStar')
+                        : t('eventNameStar')}
                     </label>
                     <input
                       type="text"
@@ -505,16 +507,16 @@ export default function NewConferencePage() {
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder={
                         formData.event_type === 'conference'
-                          ? 'e.g., International Tech Conference 2024'
+                          ? t('placeholderConferenceName')
                           : formData.event_type === 'workshop'
-                          ? 'e.g., Advanced React Workshop'
+                          ? t('placeholderWorkshopName')
                           : formData.event_type === 'seminar'
-                          ? 'e.g., Business Strategy Seminar'
+                          ? t('placeholderSeminarName')
                           : formData.event_type === 'webinar'
-                          ? 'e.g., Introduction to AI Webinar'
+                          ? t('placeholderWebinarName')
                           : formData.event_type === 'training'
-                          ? 'e.g., Project Management Training'
-                          : 'e.g., Event Name'
+                          ? t('placeholderTrainingName')
+                          : t('placeholderEventName')
                       }
                     />
                   </div>
@@ -522,9 +524,9 @@ export default function NewConferencePage() {
                   {/* Conference Code */}
                   <div>
                     <label htmlFor="conference_code" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Conference Code *
+                      {t('conferenceCodeStar')}
                       <span className="text-xs text-gray-500 font-normal ml-2">
-                        (Used in registration numbers)
+                        {t('usedInRegistrationNumbers')}
                       </span>
                     </label>
                     <input
@@ -533,17 +535,16 @@ export default function NewConferencePage() {
                       name="conference_code"
                       value={formData.conference_code}
                       onChange={(e) => {
-                        // Auto-uppercase and limit to alphanumeric + hyphens
                         const code = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')
                         setFormData({ ...formData, conference_code: code })
                       }}
                       required
                       maxLength={20}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase"
-                      placeholder="e.g., ICD11, ISMB2025, TEDx2024"
+                      placeholder={t('placeholderConferenceCode')}
                     />
                     <p className="mt-2 text-xs text-gray-500">
-                      Short abbreviation for your event. Registration numbers will be formatted as:
+                      {t('registrationNumbersFormat')}{' '}
                       <strong className="text-blue-600 ml-1 font-mono">
                         {formData.conference_code || 'CODE'}-001, {formData.conference_code || 'CODE'}-002
                       </strong>
@@ -553,7 +554,7 @@ export default function NewConferencePage() {
 
                   <div>
                     <label htmlFor="event_type" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Event Type *
+                      {t('eventTypeStar')}
                     </label>
                     <select
                       id="event_type"
@@ -571,13 +572,13 @@ export default function NewConferencePage() {
                       <option value="other">Other</option>
                     </select>
                     <p className="mt-1 text-xs text-gray-500">
-                      Select the type of event you're creating
+                      {t('selectEventType')}
                     </p>
                   </div>
 
                   <div>
                     <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description
+                      {t('descriptionLabel')}
                     </label>
                     <textarea
                       id="description"
@@ -586,14 +587,14 @@ export default function NewConferencePage() {
                       onChange={handleChange}
                       rows={3}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-                      placeholder="Brief description of your conference..."
+                      placeholder={t('placeholderDescription')}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="website_url" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Website URL
+                        {t('websiteUrlLabel')}
                       </label>
                       <input
                         type="url"
@@ -602,13 +603,13 @@ export default function NewConferencePage() {
                         value={formData.website_url}
                         onChange={handleChange}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="https://yourconference.com"
+                        placeholder={t('placeholderWebsiteUrl')}
                       />
                     </div>
 
                     <div>
                       <label htmlFor="primary_color" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Brand Color
+                        {t('brandColorLabel')}
                       </label>
                       <div className="flex items-center gap-3">
                         <input
@@ -631,17 +632,17 @@ export default function NewConferencePage() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Logo URL
+                      {t('logoUrlLabel')}
                     </label>
                     <input
                       type="url"
-                      placeholder="Enter logo URL"
+                      placeholder={t('enterLogoUrl')}
                       value={formData.logo_url || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Enter a URL to your conference logo image
+                      {t('logoUrlHint')}
                     </p>
                   </div>
                 </div>
@@ -657,14 +658,14 @@ export default function NewConferencePage() {
                   <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                     <Calendar className="w-8 h-8 text-white" />
                   </div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">Event Details</h2>
-                  <p className="text-gray-600">Set the dates, location, and venue for your conference</p>
+                  <h2 className="text-3xl font-black text-gray-900 mb-2">{t('eventDetails')}</h2>
+                  <p className="text-gray-600">{t('eventDetailsDesc')}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="start_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Start Date
+                      {t('startDate')}
                     </label>
                     <input
                       type="date"
@@ -678,7 +679,7 @@ export default function NewConferencePage() {
 
                   <div>
                     <label htmlFor="end_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                      End Date
+                      {t('endDate')}
                     </label>
                     <input
                       type="date"
@@ -692,7 +693,7 @@ export default function NewConferencePage() {
 
                   <div>
                     <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Location (City/Country)
+                      {t('locationCityCountry')}
                     </label>
                     <input
                       type="text"
@@ -701,13 +702,13 @@ export default function NewConferencePage() {
                       value={formData.location}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="e.g., Zagreb, Croatia"
+                      placeholder={t('placeholderLocation')}
                     />
                   </div>
 
                   <div>
                     <label htmlFor="venue" className="block text-sm font-semibold text-gray-700 mb-2">
-                      Venue
+                      {t('venueLabel')}
                     </label>
                     <input
                       type="text"
@@ -716,7 +717,7 @@ export default function NewConferencePage() {
                       value={formData.venue}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                      placeholder="e.g., Grand Hotel Conference Center"
+                      placeholder={t('placeholderVenue')}
                     />
                   </div>
                 </div>

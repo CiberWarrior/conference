@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { ArrowLeft, Mail, Phone, MapPin, Building2, Award, Calendar, CheckCircle, XCircle, Clock, Edit2 } from 'lucide-react'
@@ -57,6 +58,8 @@ interface LoyaltyDiscount {
 }
 
 export default function AdminParticipantDetailPage() {
+  const t = useTranslations('admin.participants')
+  const c = useTranslations('admin.common')
   const { user, profile, loading: authLoading } = useAuth()
   const params = useParams()
   const router = useRouter()
@@ -141,26 +144,26 @@ export default function AdminParticipantDetailPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-300">Confirmed</span>
+        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-300">{t('statusConfirmed')}</span>
       case 'cancelled':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-300">Cancelled</span>
+        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-300">{t('statusCancelled')}</span>
       case 'attended':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-300">Attended</span>
+        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-300">{t('statusAttended')}</span>
       case 'no_show':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300">No Show</span>
+        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300">{t('statusNoShow')}</span>
       default:
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Unknown</span>
+        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('statusUnknown')}</span>
     }
   }
 
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Paid</span>
+        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">{t('paymentPaid')}</span>
       case 'pending':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{t('paymentPending')}</span>
       case 'not_required':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Not Required</span>
+        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('paymentNotRequired')}</span>
       default:
         return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>
     }
@@ -173,9 +176,9 @@ export default function AdminParticipantDetailPage() {
   if (!participant) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Participant not found</p>
+        <p className="text-gray-600">{t('participantNotFound')}</p>
         <Link href="/admin/participants" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">
-          ← Back to Participants
+          {t('backToParticipantsShort')}
         </Link>
       </div>
     )
@@ -194,7 +197,7 @@ export default function AdminParticipantDetailPage() {
         className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Participants
+        {t('backToParticipants')}
       </Link>
 
       {/* Header Card */}
@@ -216,14 +219,14 @@ export default function AdminParticipantDetailPage() {
                       value={editData.first_name}
                       onChange={(e) => setEditData({ ...editData, first_name: e.target.value })}
                       className="px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="First Name"
+                      placeholder={t('firstNamePlaceholder')}
                     />
                     <input
                       type="text"
                       value={editData.last_name}
                       onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
                       className="px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="Last Name"
+                      placeholder={t('lastNamePlaceholder')}
                     />
                   </div>
                   <input
@@ -231,34 +234,34 @@ export default function AdminParticipantDetailPage() {
                     value={editData.phone}
                     onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Phone"
+                    placeholder={t('phonePlaceholder')}
                   />
                   <input
                     type="text"
                     value={editData.country}
                     onChange={(e) => setEditData({ ...editData, country: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Country"
+                    placeholder={t('countryPlaceholder')}
                   />
                   <input
                     type="text"
                     value={editData.institution}
                     onChange={(e) => setEditData({ ...editData, institution: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Institution"
+                    placeholder={t('institutionPlaceholder')}
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveEdit}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                      Save
+                      {c('save')}
                     </button>
                     <button
                       onClick={() => setIsEditing(false)}
                       className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                     >
-                      Cancel
+                      {c('cancel')}
                     </button>
                   </div>
                 </div>
@@ -304,20 +307,22 @@ export default function AdminParticipantDetailPage() {
                 className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
                 <Edit2 className="w-4 h-4" />
-                Edit
+                {c('edit')}
               </button>
             )}
             <div className="flex gap-2">
               <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getLoyaltyColor(participant.loyalty_tier)}`}>
-                {participant.loyalty_tier.toUpperCase()}
+                {['platinum', 'gold', 'silver', 'bronze'].includes(participant.loyalty_tier)
+                  ? t(participant.loyalty_tier as 'platinum' | 'gold' | 'silver' | 'bronze')
+                  : participant.loyalty_tier}
               </span>
               {participant.has_account ? (
                 <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-300">
-                  Has Account
+                  {t('hasAccount')}
                 </span>
               ) : (
                 <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300">
-                  Guest
+                  {t('guest')}
                 </span>
               )}
             </div>
@@ -330,7 +335,7 @@ export default function AdminParticipantDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Registrations</p>
+              <p className="text-sm text-gray-600">{t('totalRegistrations')}</p>
               <p className="text-3xl font-bold text-gray-900">{registrations.length}</p>
             </div>
             <Calendar className="w-10 h-10 text-blue-500" />
@@ -340,7 +345,7 @@ export default function AdminParticipantDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Attended Events</p>
+              <p className="text-sm text-gray-600">{t('attendedEvents')}</p>
               <p className="text-3xl font-bold text-green-600">{attendedCount}</p>
             </div>
             <CheckCircle className="w-10 h-10 text-green-500" />
@@ -350,7 +355,7 @@ export default function AdminParticipantDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Paid</p>
+              <p className="text-sm text-gray-600">{t('totalPaid')}</p>
               <p className="text-3xl font-bold text-gray-900">
                 {registrations[0]?.currency || '€'}{formatPriceWithoutZeros(totalPaid)}
               </p>
@@ -362,7 +367,7 @@ export default function AdminParticipantDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Loyalty Points</p>
+              <p className="text-sm text-gray-600">{t('loyaltyPoints')}</p>
               <p className="text-3xl font-bold text-purple-600">{participant.loyalty_points}</p>
             </div>
             <Award className="w-10 h-10 text-purple-500" />
@@ -373,12 +378,12 @@ export default function AdminParticipantDetailPage() {
       {/* Registrations Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Registration History</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('registrationHistory')}</h2>
         </div>
 
         {registrations.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            No registrations yet
+            {t('noRegistrationsYet')}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -386,25 +391,25 @@ export default function AdminParticipantDetailPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Registration #
+                    {t('regNumber')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conference
+                    {t('conference')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    {t('date')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment
+                    {t('payment')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    {t('amount')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Check-in
+                    {t('checkIn')}
                   </th>
                 </tr>
               </thead>
@@ -454,7 +459,7 @@ export default function AdminParticipantDetailPage() {
       {/* Loyalty Discounts */}
       {discounts.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Loyalty Discounts</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('loyaltyDiscounts')}</h2>
           <div className="space-y-3">
             {discounts.map((discount) => (
               <div key={discount.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -470,11 +475,11 @@ export default function AdminParticipantDetailPage() {
                 <div className="text-right">
                   {discount.applied ? (
                     <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      Applied
+                      {t('applied')}
                     </span>
                   ) : (
                     <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                      Available
+                      {t('available')}
                     </span>
                   )}
                   <p className="text-xs text-gray-500 mt-1">

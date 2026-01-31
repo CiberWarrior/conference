@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket } from 'lucide-react'
@@ -24,6 +25,7 @@ import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 import { formatPriceWithoutZeros } from '@/utils/pricing'
 
 export default function ConferenceSettingsPage() {
+  const t = useTranslations('admin.conferences')
   const router = useRouter()
   const params = useParams()
   const { refreshConferences } = useConference()
@@ -194,12 +196,12 @@ export default function ConferenceSettingsPage() {
             description: data.ticket.description ?? null,
           },
         ])
-        showSuccess(data.created ? 'Ticket created.' : 'Ticket already exists.')
+        showSuccess(data.created ? t('ticketCreated') : t('ticketAlreadyExists'))
       } else {
-        showError(data.error || 'Error creating ticket.')
+        showError(data.error || t('errorCreatingTicket'))
       }
     } catch {
-      showError('Error creating ticket.')
+      showError(t('errorCreatingTicket'))
     } finally {
       setCreatingTicketForHotel(null)
     }
@@ -574,13 +576,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      showError('Please upload an image file')
+      showError(t('pleaseUploadImageFile'))
       return
     }
 
     // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
-      showError('File size must be less than 2MB')
+      showError(t('fileSizeMustBeLessThan2MB'))
       return
     }
 
@@ -614,10 +616,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
           setFormData((prev) => ({ ...prev, logo_url: data.url }))
           // Reload conference to show updated logo without full page refresh
           await loadConference()
-          showSuccess('Logo uploaded successfully!')
+          showSuccess(t('logoUploadedSuccess'))
         } else {
           const saveData = await saveResponse.json()
-          showError(`Logo uploaded but failed to save: ${saveData.error || 'Unknown error'}`)
+          showError(`${t('logoUploadedButFailedToSave')}: ${saveData.error || 'Unknown error'}`)
           console.error('Save error:', saveData)
         }
       } else {
@@ -629,7 +631,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
       }
     } catch (error) {
       console.error('Logo upload error:', error)
-      showError('Failed to upload logo. Please check the console for details.')
+      showError(t('failedToUploadLogo'))
     } finally {
       setUploadingLogo(false)
       // Reset file input
@@ -721,13 +723,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
         await refreshConferences()
         // Reload conference data to ensure we have the latest from database
         await loadConference()
-        showSuccess('Conference settings saved successfully!')
+        showSuccess(t('settingsSavedSuccess'))
       } else {
         console.error('API Error:', data)
-        showError(`Failed to save: ${data.error}`)
+        showError(`${t('failedToSave')}: ${data.error}`)
       }
     } catch (error) {
-      showError('An error occurred while saving')
+      showError(t('errorSaving'))
     } finally {
       setSaving(false)
     }
@@ -751,14 +753,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
       if (response.ok) {
         await refreshConferences()
-        showSuccess('Conference deleted successfully')
+        showSuccess(t('conferenceDeletedSuccess'))
         router.push('/admin/conferences')
       } else {
         const data = await response.json()
-        showError(`Failed to delete: ${data.error}`)
+        showError(`${t('failedToDelete')}: ${data.error}`)
       }
     } catch (error) {
-      showError('An error occurred while deleting')
+      showError(t('errorDeleting'))
     } finally {
       setDeleting(false)
     }

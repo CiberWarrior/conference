@@ -118,7 +118,7 @@ export default function CertificatesPage() {
 
   const generateCertificate = async (registrationId: string) => {
     if (!currentConference) {
-      showWarning('Please select a conference first')
+      showWarning(t('selectConferenceFirst'))
       return
     }
 
@@ -146,14 +146,14 @@ export default function CertificatesPage() {
         a.download = `certificate-${registrationId.substring(0, 8)}.pdf`
         a.click()
         window.URL.revokeObjectURL(url)
-        showSuccess('Certificate generated successfully!')
+        showSuccess(t('certificateGeneratedSuccess'))
         loadCertificates()
       } else {
         const data = await response.json()
-        showError('Error: ' + data.error)
+        showError(t('errorPrefix') + data.error)
       }
     } catch (error) {
-      showError('Error generating certificate')
+      showError(t('errorGeneratingCertificate'))
     } finally {
       setProcessing(false)
     }
@@ -161,12 +161,12 @@ export default function CertificatesPage() {
 
   const generateBulkCertificates = async () => {
     if (selectedIds.size === 0) {
-      showWarning('Please select registrations')
+      showWarning(t('selectRegistrations'))
       return
     }
 
     if (!currentConference) {
-      showWarning('Please select a conference first')
+      showWarning(t('selectConferenceFirst'))
       return
     }
 
@@ -192,10 +192,10 @@ export default function CertificatesPage() {
         setSelectedIds(new Set())
         loadCertificates()
       } else {
-        showError('Error: ' + data.error)
+        showError(t('errorPrefix') + data.error)
       }
     } catch (error) {
-      showError('Error generating certificates')
+      showError(t('errorGeneratingCertificates'))
     } finally {
       setProcessing(false)
     }
@@ -226,15 +226,15 @@ export default function CertificatesPage() {
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conference Selected</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{tDashboard('noConferenceSelected')}</h2>
           <p className="text-gray-600 mb-6">
-            Please select a conference from the header dropdown or create a new one.
+            {t('selectConferenceHint')}
           </p>
           <Link
             href="/admin/conferences"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
           >
-            Go to My Conferences
+            {t('goToMyConferences')}
           </Link>
         </div>
       </div>
@@ -250,11 +250,11 @@ export default function CertificatesPage() {
 
       {/* Settings */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Certificate Settings</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('certificateSettings')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Conference Name
+              {t('conferenceName')}
             </label>
             <input
               type="text"
@@ -265,7 +265,7 @@ export default function CertificatesPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Certificate Type
+              {t('certificateType')}
             </label>
             <select
               value={certificateType}
@@ -276,49 +276,49 @@ export default function CertificatesPage() {
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="participation">Participation</option>
-              <option value="presentation">Presentation</option>
-              <option value="organizer">Organizer</option>
-              <option value="volunteer">Volunteer</option>
+              <option value="participation">{t('participation')}</option>
+              <option value="presentation">{t('presentation')}</option>
+              <option value="organizer">{t('organizer')}</option>
+              <option value="volunteer">{t('volunteer')}</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Conference Date
+              {t('conferenceDate')}
             </label>
             <input
               type="text"
               value={conferenceDate}
               onChange={(e) => setConferenceDate(e.target.value)}
-              placeholder="e.g., March 15, 2025"
+              placeholder={t('conferenceDatePlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Conference Location
+              {t('conferenceLocation')}
             </label>
             <input
               type="text"
               value={conferenceLocation}
               onChange={(e) => setConferenceLocation(e.target.value)}
-              placeholder="e.g., Zagreb, Croatia"
+              placeholder={t('conferenceLocationPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Logo URL (Optional)
+              {t('logoUrlOptional')}
             </label>
             <input
               type="url"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://example.com/logo.png"
+              placeholder={t('logoUrlPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Enter a URL to an image file (PNG, JPG, SVG). Logo will appear at the top of the certificate.
+              {t('logoUrlHint')}
             </p>
           </div>
         </div>
@@ -329,13 +329,13 @@ export default function CertificatesPage() {
         <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 mb-6 flex items-center justify-between rounded-lg">
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-blue-900">
-              {selectedIds.size} registration(s) selected
+              {t('selectedCount', { count: selectedIds.size })}
             </span>
             <button
               onClick={() => setSelectedIds(new Set())}
               className="text-sm text-blue-600 hover:text-blue-700"
             >
-              Clear selection
+              {t('clearSelection')}
             </button>
           </div>
           <button
@@ -343,7 +343,7 @@ export default function CertificatesPage() {
             disabled={processing}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {processing ? 'Generating...' : 'Generate Certificates'}
+            {processing ? t('generating') : t('generateCertificates')}
           </button>
         </div>
       )}
@@ -351,14 +351,14 @@ export default function CertificatesPage() {
       {/* Certificates List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Certificates</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('certificatesList')}</h2>
         </div>
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           </div>
         ) : certificates.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">No certificates found</div>
+          <div className="p-12 text-center text-gray-500">{t('noCertificatesFound')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -372,12 +372,12 @@ export default function CertificatesPage() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate #</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issued</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('email')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('type')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('certificateNumber')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('issued')}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -401,7 +401,15 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {cert.certificate_type}
+                        {cert.certificate_type === 'participation'
+                          ? t('participation')
+                          : cert.certificate_type === 'presentation'
+                            ? t('presentation')
+                            : cert.certificate_type === 'organizer'
+                              ? t('organizer')
+                              : cert.certificate_type === 'volunteer'
+                                ? t('volunteer')
+                                : cert.certificate_type}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -416,7 +424,7 @@ export default function CertificatesPage() {
                         disabled={processing}
                         className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
                       >
-                        Download
+                        {t('download')}
                       </button>
                     </td>
                   </tr>

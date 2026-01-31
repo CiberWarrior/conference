@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
 import {
@@ -46,6 +47,8 @@ export default function EditUserPage() {
   const router = useRouter()
   const params = useParams()
   const userId = params.id as string
+  const t = useTranslations('admin.users')
+  const c = useTranslations('admin.common')
   const { isSuperAdmin, loading: authLoading } = useAuth()
   
   // Form state
@@ -119,11 +122,11 @@ export default function EditUserPage() {
           })
         }
       } else {
-        setError('User not found')
+        setError(t('userNotFound'))
       }
     } catch (error) {
       console.error('Error loading user:', error)
-      setError('Failed to load user')
+      setError(t('loadUserFailed'))
     } finally {
       setLoadingUser(false)
     }
@@ -151,20 +154,20 @@ export default function EditUserPage() {
 
     // Validation
     if (!fullName) {
-      setError('Full name is required')
+      setError(t('validationFullNameRequired'))
       setLoading(false)
       return
     }
 
     if (selectedConferences.length === 0) {
-      setError('Please select at least one conference')
+      setError(t('validationSelectConference'))
       setLoading(false)
       return
     }
 
     // Validate password if provided
     if (newPassword && newPassword.length < 8) {
-      setError('Password must be at least 8 characters long')
+      setError(t('validationPasswordLength'))
       setLoading(false)
       return
     }
@@ -199,11 +202,11 @@ export default function EditUserPage() {
           router.push('/admin/users')
         }, 2000)
       } else {
-        setError(data.error || 'Failed to update user')
+        setError(data.error || t('updateFailed'))
         setLoading(false)
       }
     } catch (error) {
-      setError('An error occurred. Please try again.')
+      setError(t('errorGeneric'))
       setLoading(false)
     }
   }
@@ -228,7 +231,7 @@ export default function EditUserPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -245,11 +248,11 @@ export default function EditUserPage() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">User Updated Successfully!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('userUpdatedSuccess')}</h2>
           <p className="text-gray-600 mb-6">
-            The user has been updated with the new settings and permissions.
+            {t('userUpdatedMessage')}
           </p>
-          <p className="text-sm text-gray-500">Redirecting to users list...</p>
+          <p className="text-sm text-gray-500">{t('redirectingToUsers')}</p>
         </div>
       </div>
     )
@@ -264,20 +267,20 @@ export default function EditUserPage() {
           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Users
+          {t('backToUsers')}
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <UserPlus className="w-8 h-8 text-blue-600" />
-          Edit Conference Admin
+          {t('editPageTitle')}
         </h1>
-        <p className="text-gray-600 mt-2">Update user details and permissions</p>
+        <p className="text-gray-600 mt-2">{t('editPageSubtitle')}</p>
       </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-800">Error</p>
+            <p className="text-sm font-medium text-red-800">{t('errorLabel')}</p>
             <p className="text-sm text-red-600 mt-1">{error}</p>
           </div>
         </div>
@@ -286,11 +289,11 @@ export default function EditUserPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('basicInformation')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email <span className="text-gray-400">(cannot be changed)</span>
+                {t('email')} <span className="text-gray-400">{t('emailCannotChange')}</span>
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -305,21 +308,21 @@ export default function EditUserPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                New Password <span className="text-gray-400">(leave blank to keep current)</span>
+                {t('newPasswordLabel')} <span className="text-gray-400">{t('newPasswordLeaveBlank')}</span>
               </label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Min. 8 characters"
+                placeholder={t('passwordPlaceholder')}
                 minLength={8}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name <span className="text-red-500">*</span>
+                {t('fullName')} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -329,14 +332,14 @@ export default function EditUserPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="John Doe"
+                  placeholder={t('fullNamePlaceholder')}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone
+                {t('phone')}
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -345,14 +348,14 @@ export default function EditUserPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="+1 234 567 8900"
+                  placeholder={t('phonePlaceholder')}
                 />
               </div>
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Organization
+                {t('organization')}
               </label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -361,7 +364,7 @@ export default function EditUserPage() {
                   value={organization}
                   onChange={(e) => setOrganization(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Acme Corporation"
+                  placeholder={t('organizationPlaceholder')}
                 />
               </div>
             </div>
@@ -374,7 +377,7 @@ export default function EditUserPage() {
                   onChange={(e) => setActive(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Active (user can login)</span>
+                <span className="text-sm font-medium text-gray-700">{t('activeUserCanLogin')}</span>
               </label>
             </div>
           </div>
@@ -383,9 +386,9 @@ export default function EditUserPage() {
         {/* Assign Conferences */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            Assign Conferences <span className="text-red-500">*</span>
+            {t('assignConferences')} <span className="text-red-500">*</span>
           </h2>
-          <p className="text-sm text-gray-600 mb-4">Select which conferences this user can manage</p>
+          <p className="text-sm text-gray-600 mb-4">{t('assignConferencesHint')}</p>
           
           <div className="space-y-2">
             {conferences.map((conference) => (
@@ -411,57 +414,57 @@ export default function EditUserPage() {
 
         {/* Permissions */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Permissions</h2>
-          <p className="text-sm text-gray-600 mb-4">Set what this user can do in their assigned conferences</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">{t('permissions')}</h2>
+          <p className="text-sm text-gray-600 mb-4">{t('permissionsHint')}</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <PermissionCheckbox
               checked={permissions.can_view_registrations}
               onChange={() => togglePermission('can_view_registrations')}
-              label="View Registrations"
-              description="Can view participant registrations"
+              label={t('permViewRegistrations')}
+              description={t('permViewRegistrationsDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_export_data}
               onChange={() => togglePermission('can_export_data')}
-              label="Export Data"
-              description="Can export data to Excel/CSV"
+              label={t('permExportData')}
+              description={t('permExportDataDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_manage_payments}
               onChange={() => togglePermission('can_manage_payments')}
-              label="Manage Payments"
-              description="Can view and update payment status"
+              label={t('permManagePayments')}
+              description={t('permManagePaymentsDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_manage_abstracts}
               onChange={() => togglePermission('can_manage_abstracts')}
-              label="Manage Abstracts"
-              description="Can review and manage abstracts"
+              label={t('permManageAbstracts')}
+              description={t('permManageAbstractsDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_check_in}
               onChange={() => togglePermission('can_check_in')}
-              label="Check-in Participants"
-              description="Can check-in attendees"
+              label={t('permCheckIn')}
+              description={t('permCheckInDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_generate_certificates}
               onChange={() => togglePermission('can_generate_certificates')}
-              label="Generate Certificates"
-              description="Can create and issue certificates"
+              label={t('permGenerateCertificates')}
+              description={t('permGenerateCertificatesDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_edit_conference}
               onChange={() => togglePermission('can_edit_conference')}
-              label="Edit Conference Settings"
-              description="Can modify conference details"
+              label={t('permEditConference')}
+              description={t('permEditConferenceDesc')}
             />
             <PermissionCheckbox
               checked={permissions.can_delete_data}
               onChange={() => togglePermission('can_delete_data')}
-              label="Delete Data"
-              description="Can delete registrations and data"
+              label={t('permDeleteData')}
+              description={t('permDeleteDataDesc')}
             />
           </div>
         </div>
@@ -472,7 +475,7 @@ export default function EditUserPage() {
             href="/admin/users"
             className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
           >
-            Cancel
+            {c('cancel')}
           </Link>
           <button
             type="submit"
@@ -482,12 +485,12 @@ export default function EditUserPage() {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Updating...
+                {t('updating')}
               </>
             ) : (
               <>
                 <CheckCircle className="w-5 h-5" />
-                Update User
+                {t('updateUserButton')}
               </>
             )}
           </button>

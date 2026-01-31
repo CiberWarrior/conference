@@ -1,6 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
 export default function Footer() {
+  const t = useTranslations('footer')
+
   return (
     <footer className="bg-gray-900 text-gray-300 border-t border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -15,33 +20,33 @@ export default function Footer() {
               <span className="text-xl font-bold text-white">MeetFlow</span>
             </Link>
             <p className="text-gray-400 mb-4 max-w-md">
-              Professional event management platform for conferences. Registration, payment processing, and abstract management all in one place.
+              {t('description')}
             </p>
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Quick Links</h3>
+            <h3 className="text-white font-semibold mb-4">{t('quickLinks')}</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="/" className="hover:text-white transition-colors">
-                  Home
+                  {t('home')}
                 </Link>
               </li>
               <li>
                 <a href="#contact" className="hover:text-white transition-colors">
-                  Contact Us
+                  {t('contactUs')}
                 </a>
               </li>
               <li>
                 <Link href="/admin" className="hover:text-white transition-colors">
-                  Admin Dashboard
+                  {t('adminDashboard')}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Contact</h3>
+            <h3 className="text-white font-semibold mb-4">{t('contact')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <a href="mailto:screatives.info@gmail.com" className="hover:text-white transition-colors inline-flex items-center gap-2">
@@ -55,14 +60,14 @@ export default function Footer() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                Available upon request
+                {t('availableUponRequest')}
               </li>
             </ul>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm text-gray-400">
-          <p>&copy; {new Date().getFullYear()} MeetFlow. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} MeetFlow. {t('copyright')}</p>
         </div>
       </div>
     </footer>

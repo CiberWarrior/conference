@@ -103,7 +103,7 @@ export default function AdminParticipantsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">With Accounts</p>
+              <p className="text-sm text-gray-600">{t('withAccounts')}</p>
               <p className="text-2xl font-bold text-blue-600">
                 {participants.filter((p) => p.has_account).length}
               </p>
@@ -115,7 +115,7 @@ export default function AdminParticipantsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Guest Participants</p>
+              <p className="text-sm text-gray-600">{t('guestParticipants')}</p>
               <p className="text-2xl font-bold text-gray-600">
                 {participants.filter((p) => !p.has_account).length}
               </p>
@@ -127,7 +127,7 @@ export default function AdminParticipantsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Platinum Members</p>
+              <p className="text-sm text-gray-600">{t('platinumMembers')}</p>
               <p className="text-2xl font-bold text-purple-600">
                 {participants.filter((p) => p.loyalty_tier === 'platinum').length}
               </p>
@@ -142,7 +142,7 @@ export default function AdminParticipantsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
+              {t('search')}
             </label>
             <input
               type="text"
@@ -150,14 +150,14 @@ export default function AdminParticipantsPage() {
               onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
               }
-              placeholder="Search by name or email..."
+              placeholder={t('searchPlaceholder')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account Status
+              {t('accountStatus')}
             </label>
             <select
               value={filters.hasAccount}
@@ -166,15 +166,15 @@ export default function AdminParticipantsPage() {
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All</option>
-              <option value="true">With Account</option>
-              <option value="false">Guest Only</option>
+              <option value="all">{t('all')}</option>
+              <option value="true">{t('withAccount')}</option>
+              <option value="false">{t('guestOnly')}</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Loyalty Tier
+              {t('loyaltyTier')}
             </label>
             <select
               value={filters.loyaltyTier}
@@ -183,11 +183,11 @@ export default function AdminParticipantsPage() {
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Tiers</option>
-              <option value="platinum">Platinum</option>
-              <option value="gold">Gold</option>
-              <option value="silver">Silver</option>
-              <option value="bronze">Bronze</option>
+              <option value="all">{t('allTiers')}</option>
+              <option value="platinum">{t('platinum')}</option>
+              <option value="gold">{t('gold')}</option>
+              <option value="silver">{t('silver')}</option>
+              <option value="bronze">{t('bronze')}</option>
             </select>
           </div>
         </div>
@@ -200,22 +200,22 @@ export default function AdminParticipantsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Participant
+                  {t('participantHeader')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
+                  {t('contact')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Loyalty
+                  {t('loyalty')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Events
+                  {t('events')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('actions')}
                 </th>
               </tr>
             </thead>
@@ -248,26 +248,28 @@ export default function AdminParticipantsPage() {
                     <span
                       className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getLoyaltyColor(participant.loyalty_tier)}`}
                     >
-                      {participant.loyalty_tier.toUpperCase()}
+                      {['platinum', 'gold', 'silver', 'bronze'].includes(participant.loyalty_tier)
+                        ? t(participant.loyalty_tier as 'platinum' | 'gold' | 'silver' | 'bronze')
+                        : participant.loyalty_tier}
                     </span>
                     <div className="text-xs text-gray-500 mt-1">
                       {participant.loyalty_points} pts
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>{participant.stats.total_registrations} total</div>
+                    <div>{participant.stats.total_registrations} {t('total')}</div>
                     <div className="text-xs text-gray-500">
-                      {participant.stats.attended_events} attended
+                      {participant.stats.attended_events} {t('attended')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {participant.has_account ? (
                       <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Has Account
+                        {t('hasAccount')}
                       </span>
                     ) : (
                       <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                        Guest
+                        {t('guest')}
                       </span>
                     )}
                   </td>
@@ -276,7 +278,7 @@ export default function AdminParticipantsPage() {
                       href={`/admin/participants/${participant.id}`}
                       className="text-blue-600 hover:text-blue-900"
                     >
-                      View Details
+                      {t('viewDetails')}
                     </Link>
                   </td>
                 </tr>
@@ -289,7 +291,7 @@ export default function AdminParticipantsPage() {
         {pagination.pages > 1 && (
           <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
             <div className="text-sm text-gray-700">
-              Showing page {pagination.page} of {pagination.pages}
+              {t('showingPage', { page: pagination.page, pages: pagination.pages })}
             </div>
             <div className="flex gap-2">
               <button
@@ -299,7 +301,7 @@ export default function AdminParticipantsPage() {
                 disabled={pagination.page === 1}
                 className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
               >
-                Previous
+                {t('previous')}
               </button>
               <button
                 onClick={() =>
@@ -308,7 +310,7 @@ export default function AdminParticipantsPage() {
                 disabled={pagination.page === pagination.pages}
                 className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
               >
-                Next
+                {t('next')}
               </button>
             </div>
           </div>

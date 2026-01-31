@@ -85,7 +85,7 @@ export default function ConferencesPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading conferences...</p>
+          <p className="text-gray-600">{t('loadingConferences')}</p>
         </div>
       </div>
     )
@@ -96,8 +96,8 @@ export default function ConferencesPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Conferences</h1>
-          <p className="text-gray-600 mt-2">Manage your conference events</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+          <p className="text-gray-600 mt-2">{t('subtitle')}</p>
         </div>
         {isSuperAdmin && (
           <Link
@@ -105,7 +105,7 @@ export default function ConferencesPage() {
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
           >
             <Plus className="w-5 h-5" />
-            Create New Conference
+            {t('createNew')}
           </Link>
         )}
       </div>
@@ -117,11 +117,9 @@ export default function ConferencesPage() {
             <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-10 h-10 text-blue-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">No Conferences Yet</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">{t('noConferencesYet')}</h2>
             <p className="text-gray-600 mb-6">
-              {isSuperAdmin
-                ? 'Get started by creating your first conference event. You can manage registrations, abstracts, payments, and more.'
-                : 'You don\'t have any conferences assigned yet. Please contact your administrator to get access to a conference.'}
+              {isSuperAdmin ? t('getStartedSuper') : t('noAssigned')}
             </p>
             {isSuperAdmin && (
               <Link
@@ -129,7 +127,7 @@ export default function ConferencesPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
               >
                 <Plus className="w-5 h-5" />
-                Create Your First Conference
+                {t('createFirst')}
               </Link>
             )}
           </div>

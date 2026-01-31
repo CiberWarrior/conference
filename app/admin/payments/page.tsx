@@ -140,10 +140,10 @@ function PaymentsPageContent() {
         showSuccess(data.message)
         loadReminderStats()
       } else {
-        showError('Error: ' + data.error)
+        showError(t('errorPrefix') + data.error)
       }
     } catch (error) {
-      showError('Error sending reminders')
+      showError(t('errorSendingReminders'))
     } finally {
       setProcessing(false)
     }
@@ -180,10 +180,10 @@ function PaymentsPageContent() {
         setSelectedRefund(null)
         loadRefunds()
       } else {
-        showError('Error: ' + data.error)
+        showError(t('errorPrefix') + data.error)
       }
     } catch (error) {
-      showError('Error processing refund')
+      showError(t('errorProcessingRefund'))
     } finally {
       setProcessing(false)
     }
@@ -207,10 +207,10 @@ function PaymentsPageContent() {
         showSuccess(data.message)
         loadRefunds()
       } else {
-        showError('Error: ' + data.error)
+        showError(t('errorPrefix') + data.error)
       }
     } catch (error) {
-      showError('Error updating refund status')
+      showError(t('errorUpdatingRefundStatus'))
     } finally {
       setProcessing(false)
     }
@@ -269,19 +269,19 @@ function PaymentsPageContent() {
       {/* Payment Reminders Tab */}
       {activeTab === 'reminders' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Reminders</h2>
-          
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('paymentReminders')}</h2>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-600 font-medium">Pending Payments</p>
+              <p className="text-sm text-blue-600 font-medium">{t('pendingPayments')}</p>
               <p className="text-2xl font-bold text-blue-900">{reminderStats.totalPending}</p>
             </div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-600 font-medium">With Reminders Sent</p>
+              <p className="text-sm text-yellow-600 font-medium">{t('withRemindersSent')}</p>
               <p className="text-2xl font-bold text-yellow-900">{reminderStats.withReminders}</p>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-600 font-medium">Avg Reminders</p>
+              <p className="text-sm text-green-600 font-medium">{t('avgReminders')}</p>
               <p className="text-2xl font-bold text-green-900">
                 {reminderStats.averageReminders.toFixed(1)}
               </p>
@@ -294,23 +294,23 @@ function PaymentsPageContent() {
               disabled={processing}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
-              {processing ? 'Testing...' : 'Test Reminders (Dry Run)'}
+              {processing ? t('testing') : t('testRemindersDryRun')}
             </button>
             <button
               onClick={() => sendReminders(false)}
               disabled={processing}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {processing ? 'Sending...' : 'Send Reminders'}
+              {processing ? t('sending') : t('sendReminders')}
             </button>
           </div>
 
           <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">How it works:</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{t('howItWorks')}</h3>
             <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              <li>Reminders are sent to registrations with pending payments</li>
-              <li>Default: Send reminder after 3 days, max 3 reminders per registration</li>
-              <li>Use &quot;Test Reminders&quot; to see what would be sent without actually sending</li>
+              <li>{t('howItWorksBullet1')}</li>
+              <li>{t('howItWorksBullet2')}</li>
+              <li>{t('howItWorksBullet3')}</li>
             </ul>
           </div>
         </div>
@@ -320,25 +320,25 @@ function PaymentsPageContent() {
       {activeTab === 'refunds' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Refund Requests</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('refundRequests')}</h2>
           </div>
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             </div>
           ) : refunds.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">No refund requests found</div>
+            <div className="p-12 text-center text-gray-500">{t('noRefundRequestsFound')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('name')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('email')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('amount')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('requested')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -363,7 +363,15 @@ function PaymentsPageContent() {
                                   : 'bg-yellow-100 text-yellow-800'
                           }`}
                         >
-                          {refund.refund_status}
+                          {refund.refund_status === 'requested'
+                            ? t('statusRequested')
+                            : refund.refund_status === 'approved'
+                              ? t('statusApproved')
+                              : refund.refund_status === 'rejected'
+                                ? t('statusRejected')
+                                : refund.refund_status === 'processed'
+                                  ? t('statusProcessed')
+                                  : refund.refund_status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -377,7 +385,7 @@ function PaymentsPageContent() {
                           target="_blank"
                           className="text-blue-600 hover:text-blue-900 mr-3"
                         >
-                          Invoice PDF
+                          {t('invoicePdf')}
                         </a>
                         {refund.refund_status === 'requested' && (
                           <div className="flex gap-2">
@@ -385,19 +393,19 @@ function PaymentsPageContent() {
                               onClick={() => updateRefundStatus(refund.id, 'approved')}
                               className="text-blue-600 hover:text-blue-900"
                             >
-                              Approve
+                              {t('approve')}
                             </button>
                             <button
                               onClick={() => updateRefundStatus(refund.id, 'rejected')}
                               className="text-red-600 hover:text-red-900"
                             >
-                              Reject
+                              {t('reject')}
                             </button>
                             <button
                               onClick={() => handleRefundRequest(refund)}
                               className="text-green-600 hover:text-green-900"
                             >
-                              Process
+                              {t('process')}
                             </button>
                           </div>
                         )}
@@ -406,7 +414,7 @@ function PaymentsPageContent() {
                             onClick={() => handleRefundRequest(refund)}
                             className="text-green-600 hover:text-green-900"
                           >
-                            Process Refund
+                            {t('processRefund')}
                           </button>
                         )}
                       </td>
@@ -423,25 +431,25 @@ function PaymentsPageContent() {
       {activeTab === 'history' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Payment History</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('paymentHistory')}</h2>
           </div>
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             </div>
           ) : paymentHistory.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">No payment history found</div>
+            <div className="p-12 text-center text-gray-500">{t('noPaymentHistoryFound')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('date')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('type')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('amount')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('description')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -480,7 +488,11 @@ function PaymentsPageContent() {
                                 : 'bg-yellow-100 text-yellow-800'
                           }`}
                         >
-                          {entry.status}
+                          {entry.status === 'completed'
+                            ? t('statusCompleted')
+                            : entry.status === 'failed'
+                              ? t('statusFailed')
+                              : entry.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
@@ -500,37 +512,37 @@ function PaymentsPageContent() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Process Refund</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('processRefund')}</h3>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
                 <p className="text-sm text-gray-600">
-                  <strong>Name:</strong> {selectedRefund.first_name} {selectedRefund.last_name}
+                  <strong>{t('name')}:</strong> {selectedRefund.first_name} {selectedRefund.last_name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Email:</strong> {selectedRefund.email}
+                  <strong>{t('email')}:</strong> {selectedRefund.email}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Refund Amount
+                  {t('refundAmount')}
                 </label>
                 <input
                   type="number"
                   value={refundAmount}
                   onChange={(e) => setRefundAmount(e.target.value)}
-                  placeholder="Enter amount (leave empty for full refund)"
+                  placeholder={t('refundAmountPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason
+                  {t('reason')}
                 </label>
                 <textarea
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
-                  placeholder="Enter refund reason"
+                  placeholder={t('reasonPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -545,14 +557,14 @@ function PaymentsPageContent() {
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 disabled={processing}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 onClick={() => processRefund(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 disabled={processing}
               >
-                {processing ? 'Processing...' : 'Process Refund'}
+                {processing ? t('processing') : t('processRefund')}
               </button>
             </div>
           </div>

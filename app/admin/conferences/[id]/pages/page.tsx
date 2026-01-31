@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { showError, showSuccess } from '@/utils/toast'
 import type { ConferencePage } from '@/types/conference-page'
 import { PAGE_TEMPLATES, getTemplateById, generateInfoCardsFromConference } from '@/templates/page-templates'
@@ -17,6 +18,8 @@ function slugify(input: string) {
 }
 
 export default function ConferencePagesAdminPage() {
+  const t = useTranslations('admin.conferences')
+  const c = useTranslations('admin.common')
   const params = useParams()
   const conferenceId = params?.id as string
 
@@ -55,7 +58,7 @@ export default function ConferencePagesAdminPage() {
       }
       setPages(data.pages || [])
     } catch (e: any) {
-      const errorMsg = e?.message || 'Failed to load pages'
+      const errorMsg = e?.message || t('failedToLoadPages')
       showError(errorMsg)
       console.error('Failed to load pages:', e)
     } finally {
@@ -97,7 +100,7 @@ export default function ConferencePagesAdminPage() {
 
   const createPage = async () => {
     if (!newTitle.trim() || !newSlug.trim()) {
-      showError('Title and slug are required')
+      showError(t('titleAndSlugRequired'))
       return
     }
     try {
@@ -135,15 +138,15 @@ export default function ConferencePagesAdminPage() {
         body: JSON.stringify(pageData),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.details || data.error || 'Failed to create page')
-      showSuccess('Page created')
+      if (!res.ok) throw new Error(data.details || data.error || t('failedToCreatePage'))
+      showSuccess(t('pageCreated'))
       setNewTitle('')
       setNewSlug('')
       setSlugTouched(false)
       setSelectedTemplate('blank')
       await loadPages()
     } catch (e: any) {
-      showError(e?.message || 'Failed to create page')
+      showError(e?.message || t('failedToCreatePage'))
     } finally {
       setCreating(false)
     }
@@ -193,10 +196,10 @@ export default function ConferencePagesAdminPage() {
           })
         )
       )
-      showSuccess('Order updated')
+      showSuccess(t('orderUpdated'))
       await loadPages()
     } catch (e: any) {
-      showError('Failed to update order')
+      showError(t('failedToUpdateOrder'))
     } finally {
       setUpdatingOrder(false)
       setDraggedIndex(null)
@@ -208,25 +211,25 @@ export default function ConferencePagesAdminPage() {
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Conference Pages</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('conferencePages')}</h1>
           <p className="text-gray-600 mt-1">
-            Phase 1: create custom pages (stored as plain text and rendered safely).
+            {t('phase1Desc')}
           </p>
         </div>
         <Link
           href={`/admin/conferences/${conferenceId}/settings`}
           className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
         >
-          Back to Settings
+          {t('backToSettings')}
         </Link>
       </div>
 
       {/* Create */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Create new page</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('createNewPage')}</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Template (Optional)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t('templateOptional')}</label>
             <select
               value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value)}
@@ -239,21 +242,21 @@ export default function ConferencePagesAdminPage() {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Choose a template to auto-configure hero layout and styling. You can change everything later.
+              {t('templateHint')}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
             <div className="md:col-span-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('titleLabel')}</label>
               <input
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Venue"
+                placeholder={t('placeholderTitle')}
               />
             </div>
             <div className="md:col-span-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Slug</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('slugLabel')}</label>
               <input
                 value={newSlug}
                 onChange={(e) => {
@@ -261,9 +264,9 @@ export default function ConferencePagesAdminPage() {
                   setNewSlug(e.target.value)
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. venue"
+                placeholder={t('placeholderSlug')}
               />
-              <p className="text-xs text-gray-500 mt-2">Used in URL: `/conferences/[slug]/p/{newSlug || '...'}`</p>
+              <p className="text-xs text-gray-500 mt-2">{t('usedInUrl')} <span className="font-mono">/conferences/[slug]/p/{newSlug || '...'}</span></p>
             </div>
             <div className="md:col-span-1 flex items-end justify-end">
               <button
@@ -271,7 +274,7 @@ export default function ConferencePagesAdminPage() {
                 disabled={creating}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
-                {creating ? 'Creating…' : 'Create'}
+                {creating ? t('creating') : t('addPage')}
               </button>
             </div>
           </div>
@@ -281,19 +284,19 @@ export default function ConferencePagesAdminPage() {
       {/* List */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Pages</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('pages')}</h2>
           <button
             onClick={loadPages}
             className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
           >
-            Refresh
+            {t('refresh')}
           </button>
         </div>
 
         {loading ? (
-          <div className="p-6 text-gray-600">Loading…</div>
+          <div className="p-6 text-gray-600">{t('loadingPage')}</div>
         ) : sortedPages.length === 0 ? (
-          <div className="p-6 text-gray-600">No pages yet.</div>
+          <div className="p-6 text-gray-600">{t('noPagesYet')}</div>
         ) : (
           <div className="divide-y divide-gray-200">
             {sortedPages.map((p, index) => (
@@ -325,12 +328,12 @@ export default function ConferencePagesAdminPage() {
                           p.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {p.published ? 'Published' : 'Draft'}
+                        {p.published ? t('published') : t('draft')}
                       </span>
-                      <span className="text-xs text-gray-500">order: {p.sort_order ?? 0}</span>
+                      <span className="text-xs text-gray-500">{t('orderLabel')} {p.sort_order ?? 0}</span>
                     </div>
                     <div className="text-sm text-gray-600 truncate">
-                      Slug: <span className="font-mono">{p.slug}</span>
+                      {t('slugLabel')} <span className="font-mono">{p.slug}</span>
                     </div>
                   </div>
                 </div>
@@ -339,7 +342,7 @@ export default function ConferencePagesAdminPage() {
                     href={`/admin/conferences/${conferenceId}/pages/${p.id}`}
                     className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-sm font-medium"
                   >
-                    Edit
+                    {c('edit')}
                   </Link>
                 </div>
               </div>

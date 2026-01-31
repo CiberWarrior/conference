@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
@@ -41,6 +41,9 @@ interface Abstract {
 
 function AbstractsPageContent() {
   const searchParams = useSearchParams()
+  const t = useTranslations('admin.abstracts')
+  const c = useTranslations('admin.common')
+  const locale = useLocale()
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } =
     useConference()
   const [abstracts, setAbstracts] = useState<Abstract[]>([])
@@ -115,8 +118,8 @@ function AbstractsPageContent() {
         }))
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load abstracts')
-      showError('Failed to load abstracts')
+      setError(err instanceof Error ? err.message : t('loadFailed'))
+      showError(t('loadFailedToast'))
     } finally {
       setLoading(false)
     }
@@ -142,15 +145,16 @@ function AbstractsPageContent() {
         link.click()
         document.body.removeChild(link)
 
-        showSuccess('Abstract downloaded successfully')
+        showSuccess(t('downloadSuccess'))
       } else {
-        throw new Error('Failed to generate download URL')
+        throw new Error(t('downloadUrlFailed'))
       }
     } catch (err) {
       console.error('Download error:', err)
       showError(
-        'Failed to download abstract: ' +
-          (err instanceof Error ? err.message : 'Unknown error')
+        t('downloadFailed') +
+          ': ' +
+          (err instanceof Error ? err.message : t('unknownError'))
       )
     } finally {
       setDownloadingId(null)
@@ -213,7 +217,7 @@ function AbstractsPageContent() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by file name, email, or conference..."
+              placeholder={t('searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
@@ -222,7 +226,7 @@ function AbstractsPageContent() {
               <button
                 onClick={() => setSearchTerm('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear search"
+                aria-label={t('clearSearch')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -237,7 +241,7 @@ function AbstractsPageContent() {
               onChange={(e) => setSelectedConferenceId(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer outline-none"
             >
-              <option value="all">All Conferences</option>
+              <option value="all">{t('allConferences')}</option>
               {conferences.map((conf) => (
                 <option key={conf.id} value={conf.id}>
                   {conf.name}
@@ -266,7 +270,7 @@ function AbstractsPageContent() {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-purple-700">Filtered Results</p>
+              <p className="text-sm font-medium text-purple-700">{t('filteredResults')}</p>
               <p className="text-3xl font-bold text-purple-900 mt-2">
                 {filteredAbstracts.length}
               </p>
@@ -315,7 +319,7 @@ function AbstractsPageContent() {
           </h3>
           <p className="text-gray-600 max-w-md mx-auto">
             {searchTerm || selectedConferenceId !== 'all'
-              ? c('noResults')
+              ? t('noResultsFilter')
               : t('noAbstracts')}
           </p>
         </div>
@@ -332,22 +336,22 @@ function AbstractsPageContent() {
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    File Name
+                    {t('fileName')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Conference
+                    {t('conference')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Email
+                    {t('email')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Size
+                    {t('size')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Uploaded
+                    {t('uploaded')}
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Actions
+                    {t('actions')}
                   </th>
                 </tr>
               </thead>
@@ -419,13 +423,16 @@ function AbstractsPageContent() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(abstract.uploaded_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {new Date(abstract.uploaded_at).toLocaleDateString(
+                        locale === 'hr' ? 'hr-HR' : 'en-US',
+                        {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
@@ -439,7 +446,7 @@ function AbstractsPageContent() {
                         {downloadingId === abstract.id ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Downloading...</span>
+                            <span>{t('downloading')}</span>
                           </>
                         ) : (
                           <>

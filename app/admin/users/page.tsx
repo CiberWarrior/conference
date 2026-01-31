@@ -39,6 +39,7 @@ interface User {
 
 export default function UsersPage() {
   const t = useTranslations('admin.users')
+  const c = useTranslations('admin.common')
   const router = useRouter()
   const { isSuperAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
@@ -106,7 +107,7 @@ export default function UsersPage() {
   }, [searchTerm, roleFilter, statusFilter, users])
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to deactivate "${userName}"? They will no longer be able to log in.`)) {
+    if (!confirm(t('confirmDeactivate', { name: userName }))) {
       return
     }
 
@@ -119,10 +120,10 @@ export default function UsersPage() {
         await loadUsers()
       } else {
         const data = await response.json()
-        showError(`Failed to deactivate user: ${data.error}`)
+        showError(t('deactivateFailed', { error: data.error || '' }))
       }
     } catch (error) {
-      showError('An error occurred while deactivating the user')
+      showError(t('deactivateError'))
     }
   }
 
@@ -148,16 +149,16 @@ export default function UsersPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="w-8 h-8 text-blue-600" />
-            Users Management
+            {t('title')}
           </h1>
-          <p className="text-gray-600 mt-2">Manage admin users and their permissions</p>
+          <p className="text-gray-600 mt-2">{t('subtitle')}</p>
         </div>
         <Link
           href="/admin/users/new"
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
         >
           <Plus className="w-5 h-5" />
-          Add New User
+          {t('addNewUser')}
         </Link>
       </div>
 
@@ -173,7 +174,7 @@ export default function UsersPage() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Super Admins</span>
+            <span className="text-sm font-medium text-gray-600">{t('superAdmins')}</span>
             <ShieldCheck className="w-5 h-5 text-blue-500" />
           </div>
           <p className="text-3xl font-bold text-blue-600">
@@ -214,7 +215,7 @@ export default function UsersPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, email, organization..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -225,39 +226,39 @@ export default function UsersPage() {
           {/* Role Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role
+              {t('role')}
             </label>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value as any)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Roles</option>
-              <option value="super_admin">Super Admin</option>
-              <option value="conference_admin">Conference Admin</option>
+              <option value="all">{t('allRoles')}</option>
+              <option value="super_admin">{t('superAdmin')}</option>
+              <option value="conference_admin">{t('conferenceAdmin')}</option>
             </select>
           </div>
 
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
+              {t('status')}
             </label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('allStatus')}</option>
+              <option value="active">{t('active')}</option>
+              <option value="inactive">{t('inactive')}</option>
             </select>
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
           <span>
-            Showing {filteredUsers.length} of {users.length} users
+            {t('showingUsers', { filtered: filteredUsers.length, total: users.length })}
           </span>
           {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all') && (
             <button
@@ -268,7 +269,7 @@ export default function UsersPage() {
               }}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
-              Clear filters
+              {t('clearFilters')}
             </button>
           )}
         </div>
@@ -281,25 +282,25 @@ export default function UsersPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  User
+                  {t('userHeader')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Role
+                  {t('role')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Organization
+                  {t('organization')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Conferences
+                  {t('conferences')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Status
+                  {t('status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Last Login
+                  {t('lastLogin')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Actions
+                  {t('actions')}
                 </th>
               </tr>
             </thead>
@@ -308,9 +309,9 @@ export default function UsersPage() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
                     <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No users found</p>
+                    <p className="text-gray-500">{t('noUsers')}</p>
                     {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all') && (
-                      <p className="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
+                      <p className="text-sm text-gray-400 mt-1">{t('tryAdjustingFilters')}</p>
                     )}
                   </td>
                 </tr>
@@ -345,7 +346,7 @@ export default function UsersPage() {
                           ? 'bg-blue-100 text-blue-800'
                           : 'bg-purple-100 text-purple-800'
                       }`}>
-                        {user.role === 'super_admin' ? 'Super Admin' : 'Conference Admin'}
+                        {user.role === 'super_admin' ? t('superAdmin') : t('conferenceAdmin')}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -360,25 +361,25 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       {user.role === 'super_admin' ? (
-                        <span className="text-sm font-medium text-blue-600">All</span>
+                        <span className="text-sm font-medium text-blue-600">{c('all')}</span>
                       ) : user.assigned_conferences_count > 0 ? (
                         <span className="text-sm text-gray-700">
-                          {user.assigned_conferences_count} assigned
+                          {t('assignedCount', { count: user.assigned_conferences_count })}
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-400">None</span>
+                        <span className="text-sm text-gray-400">{t('none')}</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       {user.active ? (
                         <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
                           <CheckCircle className="w-4 h-4" />
-                          Active
+                          {t('active')}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-xs font-semibold text-gray-500">
                           <XCircle className="w-4 h-4" />
-                          Inactive
+                          {t('inactive')}
                         </span>
                       )}
                     </td>
@@ -388,7 +389,7 @@ export default function UsersPage() {
                           {new Date(user.last_login).toLocaleDateString()}
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-400">Never</span>
+                        <span className="text-sm text-gray-400">{t('never')}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -396,7 +397,7 @@ export default function UsersPage() {
                         <Link
                           href={`/admin/users/${user.id}/edit`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit user"
+                          title={t('editUserTitle')}
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
@@ -404,7 +405,7 @@ export default function UsersPage() {
                           <button
                             onClick={() => handleDeleteUser(user.id, user.full_name)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Deactivate user"
+                            title={t('deactivateUserTitle')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
