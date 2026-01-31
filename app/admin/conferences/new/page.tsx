@@ -1158,18 +1158,18 @@ export default function NewConferencePage() {
               )}
             </div>
 
-            {/* Custom Registration Fields */}
+            {/* Custom Registration Fields – all labels use t() for i18n */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Custom Registration Fields</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{t('customRegistrationFields')}</h2>
                 <p className="text-sm text-gray-600">
-                  Add custom fields to the registration form.
+                  {t('customRegistrationFieldsDesc')}
                 </p>
               </div>
 
               <div className="flex items-center justify-between mb-4">
                 <div className="text-sm text-gray-600">
-                  {formData.custom_registration_fields.length} field(s) configured
+                  {t('fieldsConfigured', { count: formData.custom_registration_fields.length })}
                 </div>
                 <button
                   type="button"
@@ -1177,13 +1177,13 @@ export default function NewConferencePage() {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Field
+                  {t('addField')}
                 </button>
               </div>
 
               {formData.custom_registration_fields.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <p className="text-gray-500 text-sm">No custom registration fields yet</p>
+                  <p className="text-gray-500 text-sm">{t('noCustomRegistrationFields')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1466,13 +1466,13 @@ export default function NewConferencePage() {
                 </div>
               </div>
 
-              {/* Custom Pricing Fields */}
+              {/* Custom Pricing Fields – all labels use t() for i18n */}
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Custom Pricing Fields</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('customPricingFields')}</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      Add custom pricing fields with your own labels and descriptions
+                      {t('customPricingFieldsDesc')}
                     </p>
                   </div>
                   <button
@@ -1481,14 +1481,14 @@ export default function NewConferencePage() {
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-md hover:shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Field
+                    {t('addField')}
                   </button>
                 </div>
 
                 {formData.custom_pricing_fields.length === 0 ? (
                   <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-white rounded-xl border-2 border-dashed border-blue-200">
-                    <p className="text-gray-700 font-semibold text-sm mb-1">No custom pricing fields yet</p>
-                    <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom pricing field</p>
+                    <p className="text-gray-700 font-semibold text-sm mb-1">{t('noCustomPricingFields')}</p>
+                    <p className="text-gray-500 text-xs">{t('addPricingFieldHint')}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1499,12 +1499,13 @@ export default function NewConferencePage() {
                       >
                         <div className="flex items-start justify-between mb-4">
                           <h4 className="text-sm font-semibold text-gray-700">
-                            Custom Field #{index + 1}
+                            {t('customFieldNumber', { number: index + 1 })}
                           </h4>
                           <button
                             type="button"
                             onClick={() => removeCustomPricingField(field.id)}
                             className="text-red-600 hover:text-red-700 transition-colors"
+                            title={t('removeField')}
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -1513,7 +1514,7 @@ export default function NewConferencePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Field Name *
+                              {t('fieldNameStar')}
                             </label>
                             <input
                               type="text"
@@ -1521,7 +1522,7 @@ export default function NewConferencePage() {
                               onChange={(e) =>
                                 updateCustomPricingField(field.id, { name: e.target.value })
                               }
-                              placeholder="e.g., VIP Price, Group Discount"
+                              placeholder={t('customPricingFieldPlaceholder')}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               required
                             />
@@ -1529,7 +1530,7 @@ export default function NewConferencePage() {
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Value (Price) *
+                              {t('valuePriceStar')}
                             </label>
                             <input
                               type="number"
@@ -1550,14 +1551,14 @@ export default function NewConferencePage() {
 
                         <div className="mt-4">
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Description *
+                            {t('descriptionStar')}
                           </label>
                           <textarea
                             value={field.description}
                             onChange={(e) =>
                               updateCustomPricingField(field.id, { description: e.target.value })
                             }
-                            placeholder="Describe what this pricing field represents"
+                            placeholder={t('describePricingField')}
                             rows={2}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
@@ -1804,24 +1805,24 @@ export default function NewConferencePage() {
               </div>
             </div>
 
-            {/* Custom Abstract Submission Fields */}
+            {/* Custom Abstract Submission Fields – all labels use t() for i18n */}
             <div className="bg-white rounded-lg shadow-sm border-2 border-purple-100 p-6">
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
                     <Upload className="w-5 h-5 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-gray-900">Custom Abstract Submission Fields</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{t('customAbstractFields')}</h2>
                 </div>
                 <p className="text-sm text-gray-600 ml-13">
-                  Add custom fields to the abstract submission form.
+                  {t('customAbstractFieldsDesc')}
                 </p>
               </div>
 
               <div className="flex items-center justify-between mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-purple-900">
-                    {formData.custom_abstract_fields.length} field(s) configured
+                    {t('fieldsConfigured', { count: formData.custom_abstract_fields.length })}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1829,11 +1830,12 @@ export default function NewConferencePage() {
                     type="button"
                     onClick={addCustomAbstractSeparator}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-md hover:shadow-lg"
+                    title={t('addSectionSeparator')}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                     </svg>
-                    Add Separator
+                    {t('addSeparator')}
                   </button>
                   <button
                     type="button"
@@ -1841,15 +1843,15 @@ export default function NewConferencePage() {
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-md hover:shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Field
+                    {t('addField')}
                   </button>
                 </div>
               </div>
 
               {formData.custom_abstract_fields.length === 0 ? (
                 <div className="text-center py-12 bg-gradient-to-br from-purple-50 to-white rounded-xl border-2 border-dashed border-purple-200">
-                  <p className="text-gray-700 font-semibold text-sm mb-1">No custom abstract fields yet</p>
-                  <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom abstract field</p>
+                  <p className="text-gray-700 font-semibold text-sm mb-1">{t('noAbstractFields')}</p>
+                  <p className="text-gray-500 text-xs">{t('addAbstractFieldHint')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">

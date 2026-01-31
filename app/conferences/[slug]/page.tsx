@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   Calendar,
   MapPin,
@@ -16,6 +17,7 @@ import {
 import type { Conference } from '@/types/conference'
 
 export default function ConferencePage() {
+  const t = useTranslations('conferencePage')
   const params = useParams()
   const slug = params?.slug as string
   const [conference, setConference] = useState<Conference | null>(null)
@@ -41,13 +43,13 @@ export default function ConferencePage() {
         const data = await response.json()
 
         if (!response.ok) {
-          setError(data.error || 'Conference not found')
+          setError(data.error || t('conferenceNotFound'))
           return
         }
 
         setConference(data.conference)
       } catch (err) {
-        setError('Failed to load conference')
+        setError(t('loadFailed'))
         console.error('Error loading conference:', err)
       } finally {
         setLoading(false)
@@ -63,7 +65,7 @@ export default function ConferencePage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading conference...</p>
+            <p className="text-gray-600">{t('loadingConference')}</p>
           </div>
         </div>
       </main>
@@ -77,15 +79,15 @@ export default function ConferencePage() {
           <div className="text-center">
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Conference Not Found
+              {t('conferenceNotFound')}
             </h1>
-            <p className="text-gray-600 mb-6">{error || 'The conference you are looking for does not exist.'}</p>
+            <p className="text-gray-600 mb-6">{error || t('conferenceNotFoundDesc')}</p>
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold"
             >
               <ArrowRight className="w-4 h-4 rotate-180" />
-              Back to Home
+              {t('backToHome')}
             </Link>
           </div>
         </div>
@@ -211,10 +213,10 @@ export default function ConferencePage() {
             {/* Section Header */}
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4">
-                Welcome
+                {t('welcome')}
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Join us at the conference. Register now or submit your research abstract.
+                {t('welcomeSubtitle')}
               </p>
             </div>
 
@@ -247,10 +249,10 @@ export default function ConferencePage() {
                         <Users className="w-10 h-10 text-white" />
                       </div>
                       <h3 className="text-3xl font-black text-gray-900 mb-3">
-                        Registration Form
+                        {t('registrationFormTitle')}
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                        Secure your spot at the conference. Complete the registration form and pay your attendance fee online.
+                        {t('registrationFormDesc')}
                       </p>
                     </div>
 
@@ -259,20 +261,20 @@ export default function ConferencePage() {
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Secure online payment
+                          {t('securePayment')}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Instant confirmation email
+                          {t('instantConfirmation')}
                         </span>
                       </div>
                       {pricing.early_bird && (
                         <div className="flex items-center gap-3">
                           <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-gray-800">
-                            Early bird discounts available
+                            {t('earlyBirdAvailable')}
                           </span>
                         </div>
                       )}
@@ -280,7 +282,7 @@ export default function ConferencePage() {
 
                     {/* CTA Button */}
                     <div className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700 font-semibold">
-                      <span>Start Registration</span>
+                      <span>{t('startRegistration')}</span>
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -314,10 +316,10 @@ export default function ConferencePage() {
                         <Upload className="w-10 h-10 text-white" />
                       </div>
                       <h3 className="text-3xl font-black text-gray-900 mb-3">
-                        Abstract Submission
+                        {t('abstractSubmissionTitle')}
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                        Share your research with the scientific community. Upload your abstract or paper to be considered for presentation.
+                        {t('abstractSubmissionDesc')}
                       </p>
                     </div>
 
@@ -326,26 +328,26 @@ export default function ConferencePage() {
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Word format (.doc, .docx, .pdf)
+                          {t('wordFormat')}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Quick upload process
+                          {t('quickUpload')}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-violet-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800">
-                          Instant submission confirmation
+                          {t('instantSubmissionConfirmation')}
                         </span>
                       </div>
                     </div>
 
                     {/* CTA Button */}
                     <div className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700 font-semibold">
-                      <span>Submit Abstract</span>
+                      <span>{t('submitAbstract')}</span>
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -362,7 +364,7 @@ export default function ConferencePage() {
                   </div>
                   <div className="relative flex justify-center">
                     <span className="bg-gradient-to-br from-gray-50 to-white px-6 py-2 text-gray-500 text-sm font-semibold tracking-wide uppercase">
-                      Additional Information
+                      {t('additionalInformation')}
                     </span>
                   </div>
                 </div>
@@ -389,9 +391,9 @@ export default function ConferencePage() {
                           </div>
                           <div>
                             <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                              Important Dates
+                              {t('importantDates')}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-0.5">Key deadlines to remember</p>
+                            <p className="text-sm text-gray-500 mt-0.5">{t('keyDeadlines')}</p>
                           </div>
                         </div>
 
@@ -408,8 +410,8 @@ export default function ConferencePage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Early Registration</span>
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Limited Time</span>
+                                    <span className="text-xs font-bold text-green-700 uppercase tracking-wide">{t('earlyRegistration')}</span>
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">{t('limitedTime')}</span>
                                   </div>
                                   <div className="text-lg font-bold text-gray-900">
                                     {new Date(
@@ -421,7 +423,7 @@ export default function ConferencePage() {
                                     })}
                                   </div>
                                   <div className="text-xs text-gray-500 mt-1">
-                                    Save with early bird pricing
+                                    {t('saveEarlyBird')}
                                   </div>
                                 </div>
                               </div>
@@ -438,7 +440,7 @@ export default function ConferencePage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Conference Dates</span>
+                                    <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">{t('conferenceDates')}</span>
                                   </div>
                                   <div className="text-lg font-bold text-gray-900">
                                     {new Date(
@@ -458,7 +460,7 @@ export default function ConferencePage() {
                                       })}`}
                                   </div>
                                   <div className="text-xs text-gray-500 mt-1">
-                                    Mark your calendar
+                                    {t('markYourCalendar')}
                                   </div>
                                 </div>
                               </div>
@@ -485,9 +487,9 @@ export default function ConferencePage() {
                       </div>
                       <div>
                         <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                          Additional Information
+                          {t('additionalInformation')}
                         </h3>
-                        <p className="text-sm text-gray-500 mt-0.5">More details coming soon</p>
+                        <p className="text-sm text-gray-500 mt-0.5">{t('moreDetailsSoon')}</p>
                       </div>
                     </div>
 
@@ -495,7 +497,7 @@ export default function ConferencePage() {
                     <div className="space-y-4">
                       <div className="p-6 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100">
                         <p className="text-sm text-gray-600 text-center italic">
-                          Content will be added here
+                          {t('contentPlaceholder')}
                         </p>
                       </div>
                     </div>

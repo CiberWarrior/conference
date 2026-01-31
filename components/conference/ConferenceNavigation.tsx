@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import type { Conference } from '@/types/conference'
 
 interface ConferenceNavigationProps {
@@ -18,6 +19,7 @@ interface NavPage {
 export default function ConferenceNavigation({
   conference,
 }: ConferenceNavigationProps) {
+  const t = useTranslations('register')
   const primaryColor = conference.primary_color || '#3B82F6'
   const [pages, setPages] = useState<NavPage[]>([])
   const [showMoreDropdown, setShowMoreDropdown] = useState(false)
@@ -92,7 +94,7 @@ export default function ConferenceNavigation({
                 href={`/conferences/${conference.slug}/register`}
                 className="text-gray-700 hover:text-gray-900"
               >
-                Register
+                {t('navLink')}
               </Link>
             )}
             {conference.settings?.abstract_submission_enabled !== false && (

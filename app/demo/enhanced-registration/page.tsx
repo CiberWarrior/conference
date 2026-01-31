@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import ProgressSteps from '@/components/ProgressSteps'
 import SocialProof from '@/components/SocialProof'
 import RegistrationSummary from '@/components/RegistrationSummary'
@@ -8,6 +9,7 @@ import ParticipantAuthModal from '@/components/ParticipantAuthModal'
 import { UserPlus, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react'
 
 export default function EnhancedRegistrationDemo() {
+  const t = useTranslations('demo')
   const [currentStep, setCurrentStep] = useState(1)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [userAccount, setUserAccount] = useState<{
@@ -16,9 +18,9 @@ export default function EnhancedRegistrationDemo() {
   } | null>(null)
 
   const wizardSteps = [
-    { id: 1, title: 'Details', description: 'Registration info' },
-    { id: 2, title: 'Account', description: 'Optional' },
-    { id: 3, title: 'Review', description: 'Confirm & submit' },
+    { id: 1, title: t('stepDetails'), description: t('stepDetailsDesc') },
+    { id: 2, title: t('stepAccount'), description: t('stepAccountDesc') },
+    { id: 3, title: t('stepReview'), description: t('stepReviewDesc') },
   ]
 
   return (
@@ -27,16 +29,16 @@ export default function EnhancedRegistrationDemo() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Enhanced Registration Flow - Demo
+            {t('pageTitle')}
           </h1>
           <p className="text-gray-600 text-lg">
-            Pogledaj kako funkcioniraju sve nove komponente
+            {t('pageSubtitle')}
           </p>
         </div>
 
         {/* Progress Steps Demo */}
         <div className="mb-12 bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">1. Progress Steps</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('progressStepsTitle')}</h2>
           <ProgressSteps steps={wizardSteps} currentStep={currentStep} />
           
           <div className="mt-6 flex gap-4 justify-center">
@@ -46,14 +48,14 @@ export default function EnhancedRegistrationDemo() {
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Previous
+              {t('previous')}
             </button>
             <button
               onClick={() => setCurrentStep(Math.min(3, currentStep + 1))}
               disabled={currentStep === 3}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Next
+              {t('next')}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -61,7 +63,7 @@ export default function EnhancedRegistrationDemo() {
 
         {/* Social Proof Demo */}
         <div className="mb-12 bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">2. Social Proof</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('socialProofTitle')}</h2>
           <SocialProof
             conferenceStats={{
               totalRegistrations: 150,
@@ -75,7 +77,7 @@ export default function EnhancedRegistrationDemo() {
         {/* Registration Summary Demo */}
         <div className="mb-12 bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            3. Registration Summary
+            {t('registrationSummaryTitle')}
           </h2>
           <RegistrationSummary
             conferenceName="International AI & Data Science Conference 2026"
@@ -101,10 +103,10 @@ export default function EnhancedRegistrationDemo() {
         {/* Participant Auth Modal Demo */}
         <div className="mb-12 bg-white rounded-2xl p-8 shadow-lg border-2 border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            4. Participant Auth Modal (Dual View)
+            {t('authModalTitle')}
           </h2>
           <p className="text-gray-600 mb-6">
-            Modal sa toggle-om između "Create Account" i "Login"
+            {t('authModalDesc')}
           </p>
           
           <button
@@ -112,7 +114,7 @@ export default function EnhancedRegistrationDemo() {
             className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg flex items-center gap-2"
           >
             <UserPlus className="w-5 h-5" />
-            Open Auth Modal
+            {t('openAuthModal')}
           </button>
 
           <ParticipantAuthModal
@@ -128,10 +130,10 @@ export default function EnhancedRegistrationDemo() {
 
           {userAccount && (
             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm font-semibold text-green-900">Account Info:</p>
-              <p className="text-sm text-gray-700">Email: {userAccount.email}</p>
+              <p className="text-sm font-semibold text-green-900">{t('accountInfo')}</p>
+              <p className="text-sm text-gray-700">{t('email')} {userAccount.email}</p>
               <p className="text-sm text-gray-700">
-                Has Account: {userAccount.hasAccount ? 'Yes' : 'No (Guest)'}
+                {t('hasAccount')} {userAccount.hasAccount ? t('hasAccountYes') : t('hasAccountNoGuest')}
               </p>
             </div>
           )}
@@ -140,10 +142,10 @@ export default function EnhancedRegistrationDemo() {
         {/* Complete Flow Demo */}
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8 shadow-lg border-2 border-purple-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            🎯 Complete Enhanced Flow
+            🎯 {t('completeFlowTitle')}
           </h2>
           <p className="text-gray-700 mb-6">
-            Da vidiš sve skupa u akciji, posjeti:{' '}
+            {t('completeFlowDesc')}{' '}
             <a
               href="/conferences/demo/register-v2"
               className="text-blue-600 hover:text-blue-700 font-semibold underline"
@@ -152,31 +154,31 @@ export default function EnhancedRegistrationDemo() {
             </a>
           </p>
           <div className="bg-white rounded-lg p-4 border border-purple-200">
-            <h3 className="font-bold text-gray-900 mb-3">What's Included:</h3>
+            <h3 className="font-bold text-gray-900 mb-3">{t('whatsIncluded')}</h3>
             <ul className="space-y-2 text-sm text-gray-700">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Multi-step wizard (Registration → Account → Success)
+                {t('includedWizard')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Progress indicator sa visual feedback
+                {t('includedProgress')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Social proof (ratings, testimonials, recent registrations)
+                {t('includedSocialProof')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Dual view auth modal (Signup / Login toggle)
+                {t('includedAuthModal')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Registration summary sa clear pricing breakdown
+                {t('includedSummary')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                Optional account creation (skip = continue as guest)
+                {t('includedOptionalAccount')}
               </li>
             </ul>
           </div>

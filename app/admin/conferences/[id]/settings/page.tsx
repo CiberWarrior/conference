@@ -368,13 +368,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
     ))
   }
 
-  // Room type – oznake za UI
+  // Room type – oznake za UI (prevedeno)
   const ROOM_TYPE_LABELS: Record<RoomType, string> = {
-    single: 'Single',
-    double: 'Double',
-    twin: 'Twin',
-    suite: 'Suite',
-    other: 'Other',
+    single: t('roomTypeSingle'),
+    double: t('roomTypeDouble'),
+    twin: t('roomTypeTwin'),
+    suite: t('roomTypeSuite'),
+    other: t('roomTypeOther'),
   }
 
   // Hotel Options Management
@@ -513,7 +513,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
       id: `abstract_separator_${Date.now()}`,
       name: '', // Separators don't need a name field
       type: 'separator',
-      label: 'New Section',
+      label: t('newSection'),
       placeholder: '',
       description: '',
       required: false,
@@ -619,13 +619,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
           showSuccess(t('logoUploadedSuccess'))
         } else {
           const saveData = await saveResponse.json()
-          showError(`${t('logoUploadedButFailedToSave')}: ${saveData.error || 'Unknown error'}`)
+          showError(`${t('logoUploadedButFailedToSave')}: ${saveData.error || t('unknownError')}`)
           console.error('Save error:', saveData)
         }
       } else {
         const errorMsg = data.details 
           ? `${data.error}: ${data.details}${data.hint ? `\n\nHint: ${data.hint}` : ''}`
-          : data.error || 'Failed to upload logo'
+          : data.error || t('failedToUploadLogoError')
         showError(errorMsg)
         console.error('Upload error:', data)
       }
@@ -771,7 +771,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading conference settings...</p>
+          <p className="text-gray-600">{t('loadingSettings')}</p>
         </div>
       </div>
     )
@@ -781,12 +781,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <p className="text-red-600 font-semibold mb-4">Conference not found</p>
+          <p className="text-red-600 font-semibold mb-4">{t('conferenceNotFound')}</p>
           <Link
             href="/admin/conferences"
             className="text-blue-600 hover:text-blue-700 underline"
           >
-            Back to conferences
+            {t('backToConferences')}
           </Link>
         </div>
       </div>
@@ -802,11 +802,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Conferences
+          {t('backToConferences')}
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Conference Settings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('settingsPageTitle')}</h1>
             <p className="text-gray-600 mt-2">{conference.name}</p>
             {conference.slug && (
               <Link
@@ -815,7 +815,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-2"
               >
                 <Globe className="w-3 h-3" />
-                View Conference Page
+                {t('viewConferencePage')}
               </Link>
             )}
           </div>
@@ -825,7 +825,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               href={`/admin/conferences/${conferenceId}/pages`}
               className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
             >
-              Pages
+              {t('pages')}
             </Link>
             {/* Preview Button */}
             {conference.slug && (
@@ -835,7 +835,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
               >
                 <Eye className="w-4 h-4" />
-                Preview
+                {t('preview')}
               </Link>
             )}
             {/* Publish Toggle */}
@@ -850,12 +850,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
               {formData.published ? (
                 <>
                   <Eye className="w-4 h-4" />
-                  Published
+                  {t('published')}
                 </>
               ) : (
                 <>
                   <EyeOff className="w-4 h-4" />
-                  Draft
+                  {t('draft')}
                 </>
               )}
             </button>
@@ -868,7 +868,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Globe className="w-5 h-5 text-blue-600" />
-            Basic Information
+            {t('basicInformation')}
           </h2>
 
           <div className="space-y-4">
@@ -889,7 +889,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
             <div>
               <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                Description
+                {t('descriptionLabelShort')}
               </label>
               <textarea
                 id="description"
@@ -904,7 +904,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="start_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Start Date
+                  {t('startDateLabel')}
                 </label>
                 <input
                   type="date"
@@ -918,7 +918,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
               <div>
                 <label htmlFor="end_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                  End Date
+                  {t('endDateLabel')}
                 </label>
                 <input
                   type="date"
@@ -941,13 +941,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                   value={formData.location}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="City, Country"
+                  placeholder={t('locationPlaceholder')}
                 />
               </div>
 
               <div>
                 <label htmlFor="venue" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Venue
+                  {t('venueLabelShort')}
                 </label>
                 <input
                   type="text"
@@ -961,7 +961,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
               <div>
                 <label htmlFor="website_url" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Website URL
+                  {t('websiteUrlLabelShort')}
                 </label>
                 <input
                   type="url"
@@ -975,7 +975,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
               <div>
                 <label htmlFor="primary_color" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Brand Color
+                  {t('brandColorLabelShort')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -999,14 +999,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
             {/* Logo Upload */}
             <div className="mt-6">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Conference Logo
+                {t('conferenceLogo')}
               </label>
               <div className="flex items-start gap-4">
                 {conference.logo_url && (
                   <div className="flex-shrink-0">
                     <Image
                       src={conference.logo_url}
-                      alt="Current logo"
+                      alt={t('currentLogo')}
                       width={120}
                       height={120}
                       className="w-24 h-24 object-contain border-2 border-gray-200 rounded-lg p-2 bg-gray-50"
@@ -1028,17 +1028,17 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                         <div className="flex items-center gap-2 text-blue-600">
                           <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-sm font-medium">Uploading...</span>
+                          <span className="text-sm font-medium">{t('uploading')}</span>
                         </div>
                       </div>
                     )}
                   </div>
                   <p className="mt-2 text-xs text-gray-500">
-                    Upload a logo image (PNG, JPG, SVG). Max size: 2MB. Or enter a URL below.
+                    {t('uploadLogoHint')}
                   </p>
                   <input
                     type="url"
-                    placeholder="Or enter logo URL"
+                    placeholder={t('orEnterLogoUrl')}
                     value={formData.logo_url || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
                     className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1052,32 +1052,32 @@ Important: Authors who submit abstracts for presentation are not automatically r
         {/* Registration Information Text */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Registration Information</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('registrationInformation')}</h2>
             <p className="text-sm text-gray-600">
-              Add introductory text or instructions that will appear at the top of the registration form.
+              {t('registrationInfoDesc')}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Information Text
+              {t('informationText')}
             </label>
             <textarea
               value={registrationInfoText}
               onChange={(e) => setRegistrationInfoText(e.target.value)}
               rows={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Enter information text that will be displayed to users when they register. For example: registration details, requirements, deadlines, etc."
+              placeholder={t('informationTextPlaceholder')}
             />
             <p className="text-xs text-gray-500 mt-2">
-              This text will be displayed at the beginning of the registration form
+              {t('informationTextHint')}
             </p>
           </div>
         </div>
 
         {/* Conference Settings */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Conference Settings</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('settingsSection')}</h2>
 
           <div className="space-y-4">
             <label className="flex items-start gap-3 cursor-pointer">
@@ -1089,8 +1089,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <div>
-                <p className="font-semibold text-gray-900">Enable Registration</p>
-                <p className="text-sm text-gray-600">Allow participants to register for the conference</p>
+                <p className="font-semibold text-gray-900">{t('enableRegistration')}</p>
+                <p className="text-sm text-gray-600">{t('enableRegistrationDesc')}</p>
               </div>
             </label>
 
@@ -1102,9 +1102,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900 mb-1">Abstract Submission</p>
+                  <p className="font-semibold text-gray-900 mb-1">{t('abstractSubmission')}</p>
                   <p className="text-sm text-gray-600 mb-3">
-                    Abstract submission is handled by a separate application. When enabled, a link to the abstract submission platform will be displayed on the conference page.
+                    {t('abstractSubmissionDesc')}
                   </p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -1114,7 +1114,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       onChange={handleChange}
                       className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-gray-700">Show abstract submission link on conference page</span>
+                    <span className="text-sm font-medium text-gray-700">{t('showAbstractLink')}</span>
                   </label>
                 </div>
               </div>
@@ -1129,14 +1129,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <div>
-                <p className="font-semibold text-gray-900">Require Payment</p>
-                <p className="text-sm text-gray-600">Participants must pay registration fee</p>
+                <p className="font-semibold text-gray-900">{t('requirePayment')}</p>
+                <p className="text-sm text-gray-600">{t('requirePaymentDesc')}</p>
               </div>
             </label>
 
             <div>
               <label htmlFor="max_registrations" className="block text-sm font-semibold text-gray-700 mb-2">
-                Maximum Registrations (optional)
+                {t('maxRegistrationsOptional')}
               </label>
               <input
                 type="number"
@@ -1146,7 +1146,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 onChange={handleChange}
                 min="0"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Leave empty for unlimited"
+                placeholder={t('leaveEmptyUnlimited')}
               />
             </div>
           </div>
@@ -1155,9 +1155,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
         {/* Payment Options */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Payment Options</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('paymentOptions')}</h2>
             <p className="text-sm text-gray-600">
-              Configure which payment methods are available for this conference
+              {t('paymentOptionsDesc')}
             </p>
           </div>
 
@@ -1165,9 +1165,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
             {/* Enable Payment System Toggle */}
             <div className="flex items-start justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1">Payment System</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('paymentSystem')}</h3>
                 <p className="text-sm text-gray-600">
-                  Enable payment processing for this conference
+                  {t('paymentSystemDesc')}
                 </p>
               </div>
               <button
@@ -1194,7 +1194,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               <>
                 {/* Payment Methods */}
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-3">Available Payment Methods</h3>
+                  <h3 className="font-semibold text-gray-900 mb-3">{t('availablePaymentMethods')}</h3>
                   
                   {/* Card Payment */}
                   <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
@@ -1211,13 +1211,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">💳 Card Payment (Stripe)</p>
+                        <p className="font-semibold text-gray-900">💳 {t('cardPaymentStripe')}</p>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          Instant
+                          {t('instant')}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        Accept credit/debit card payments through Stripe
+                        {t('cardPaymentDesc')}
                       </p>
                     </div>
                   </label>
@@ -1237,17 +1237,17 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">🏦 Bank Transfer</p>
+                        <p className="font-semibold text-gray-900">🏦 {t('bankTransfer')}</p>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          1-2 days
+                          {t('oneTwoDays')}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        Allow participants to pay via bank transfer (requires manual verification)
+                        {t('bankTransferDesc')}
                       </p>
                       {!profile?.bank_account_number && (
                         <p className="text-xs text-amber-600 mt-2 font-medium">
-                          ⚠️ Bank account not configured. Go to Account Settings to add bank details.
+                          ⚠️ {t('bankAccountNotConfigured')}
                         </p>
                       )}
                     </div>
@@ -1257,7 +1257,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 {/* Default Preference */}
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Default Payment Preference
+                    {t('defaultPaymentPreference')}
                   </label>
                   <select
                     value={paymentSettings.default_preference}
@@ -1271,14 +1271,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {paymentSettings.allow_card && (
-                      <option value="pay_now_card">Card Payment (Recommended for instant confirmation)</option>
+                      <option value="pay_now_card">{t('cardPaymentRecommended')}</option>
                     )}
                     {paymentSettings.allow_bank_transfer && (
-                      <option value="pay_now_bank">Bank Transfer</option>
+                      <option value="pay_now_bank">{t('bankTransfer')}</option>
                     )}
                   </select>
                   <p className="text-xs text-gray-500">
-                    This option will be pre-selected in the registration form
+                    {t('defaultPreferenceHint')}
                   </p>
                 </div>
 
@@ -1297,9 +1297,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                     />
                     <div>
-                      <p className="font-semibold text-gray-900">Require Payment Preference at Registration</p>
+                      <p className="font-semibold text-gray-900">{t('requirePaymentPreference')}</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        If enabled, participants must select a payment method during registration
+                        {t('requirePaymentPreferenceDesc')}
                       </p>
                     </div>
                   </label>
@@ -1309,7 +1309,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Bank Transfer Deadline (days)
+                      {t('bankTransferDeadline')}
                     </label>
                     <input
                       type="number"
@@ -1325,13 +1325,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Days after registration to complete bank transfer
+                      {t('bankTransferDeadlineHint')}
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      General Payment Deadline (days)
+                      {t('generalPaymentDeadline')}
                     </label>
                     <input
                       type="number"
@@ -1347,7 +1347,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Days after registration to complete payment
+                      {t('generalPaymentDeadlineHint')}
                     </p>
                   </div>
                 </div>
@@ -1361,9 +1361,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900 mb-1">Payment Reminders</p>
+                      <p className="text-sm font-semibold text-gray-900 mb-1">{t('paymentReminders')}</p>
                       <p className="text-sm text-gray-600">
-                        Automatic payment reminders will be sent 3 days after registration for pending payments.
+                        {t('paymentRemindersDesc')}
                       </p>
                     </div>
                   </div>
@@ -1377,9 +1377,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Multiple Participants</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">{t('multipleParticipants')}</h2>
               <p className="text-sm text-gray-600">
-                Enable this feature to allow registrations with multiple participants (e.g., group registrations, conference delegations).
+                {t('multipleParticipantsDesc')}
               </p>
             </div>
             <button
@@ -1408,22 +1408,22 @@ Important: Authors who submit abstracts for presentation are not automatically r
               {/* Participant Label */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Participant Label
+                  {t('participantLabel')}
                 </label>
                 <input
                   type="text"
-                  value={participantSettings.participantLabel || 'Participant'}
+                  value={participantSettings.participantLabel || t('participantDefault')}
                   onChange={(e) => {
                     setParticipantSettings({
                       ...participantSettings,
                       participantLabel: e.target.value,
                     })
                   }}
-                  placeholder="e.g., Participant, Attendee, Delegate"
+                  placeholder={t('participantLabelPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  This label will be used in the form (e.g., "Add Participant")
+                  {t('participantLabelHint')}
                 </p>
               </div>
 
@@ -1431,7 +1431,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Minimum Participants
+                    {t('minParticipants')}
                   </label>
                   <input
                     type="number"
@@ -1449,7 +1449,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Maximum Participants
+                    {t('maxParticipants')}
                   </label>
                   <input
                     type="number"
@@ -1463,7 +1463,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Set the maximum number of participants allowed per registration</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('maxParticipantsHint')}</p>
                 </div>
               </div>
 
@@ -1482,9 +1482,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                   className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="requireUniqueEmails" className="text-sm text-gray-700">
-                  <span className="font-semibold">Require unique email addresses</span>
+                  <span className="font-semibold">{t('requireUniqueEmails')}</span>
                   <p className="text-xs text-gray-500 mt-1">
-                    Each participant must have a unique email address
+                    {t('requireUniqueEmailsDesc')}
                   </p>
                 </label>
               </div>
@@ -1495,15 +1495,15 @@ Important: Authors who submit abstracts for presentation are not automatically r
         {/* Custom Registration Fields */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Custom Registration Fields</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('customRegistrationFields')}</h2>
             <p className="text-sm text-gray-600">
-              Add custom fields to the registration form. Participants will see and fill these fields when registering.
+              {t('customRegistrationFieldsDesc')}
             </p>
           </div>
 
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-gray-600">
-              {formData.custom_registration_fields.length} field(s) configured
+              {t('fieldsConfigured', { count: formData.custom_registration_fields.length })}
             </div>
             <button
               type="button"
@@ -1511,14 +1511,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Field
+              {t('addField')}
             </button>
           </div>
 
           {formData.custom_registration_fields.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500 text-sm">No custom registration fields yet</p>
-              <p className="text-gray-400 text-xs mt-1">Click "Add Field" to create your first custom field</p>
+              <p className="text-gray-500 text-sm">{t('noCustomRegistrationFields')}</p>
+              <p className="text-gray-400 text-xs mt-1">{t('addFieldHint')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1556,9 +1556,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Registration Fee</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{t('registrationFee')}</h2>
               <p className="text-sm text-gray-600">
-                Set registration fees for different pricing tiers. The system automatically applies the correct price based on the current date and early bird deadline.
+                {t('registrationFeeDesc')}
               </p>
             </div>
           </div>
@@ -1640,9 +1640,9 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
-                      {profile?.default_vat_percentage 
-                        ? 'Recommended: Use the default VAT setting from your organization profile.'
-                        : 'No default VAT set. Go to Account Settings to set one.'}
+                      {profile?.default_vat_percentage
+                        ? t('vatUseDefaultRecommended')
+                        : t('vatNoDefaultSet')}
                     </p>
                   </div>
                 </label>
@@ -1676,7 +1676,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       min="0"
                       max="100"
                       step="0.01"
-                      placeholder="e.g. 19 for 19% (Germany)"
+                      placeholder={t('vatPlaceholderPercent')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
@@ -1693,7 +1693,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               {/* Price Input Mode */}
               <div className="mt-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Price Input Mode
+                  {t('priceInputMode')}
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <label
@@ -1713,10 +1713,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="mt-1 w-4 h-4 text-blue-600"
                     />
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Prices are entered without PDV (net)</div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Example: Enter 400 → public shows 500 if PDV is 25%.
-                      </p>
+                      <div className="font-semibold text-gray-900">{t('pricesNet')}</div>
+                      <p className="text-sm text-gray-600 mt-1">{t('exampleNetHint')}</p>
                     </div>
                   </label>
 
@@ -1737,10 +1735,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       className="mt-1 w-4 h-4 text-purple-600"
                     />
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Prices are entered with PDV included (gross)</div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Example: Enter 400 → public shows 400, admin calculates net from PDV.
-                      </p>
+                      <div className="font-semibold text-gray-900">{t('pricesGrossLabel')}</div>
+                      <p className="text-sm text-gray-600 mt-1">{t('exampleGrossHint')}</p>
                     </div>
                   </label>
                 </div>
@@ -1750,20 +1746,20 @@ Important: Authors who submit abstracts for presentation are not automatically r
             {/* Display names for fee types (optional) */}
             <div className="md:col-span-2">
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
-                Display names for fee types (optional)
+                {t('displayNamesFeeTypesOptional')}
               </h3>
               <p className="text-xs text-gray-500 mb-3">
-                If left empty, default names (Early Bird, Regular, etc.) will be used. Enter the label you want participants to see on the form for this conference.
+                {t('feeTypeLabelsHint')}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(['early_bird', 'regular', 'late', 'student', 'accompanying_person'] as const).map((key) => (
                   <div key={key}>
                     <label htmlFor={`fee_label_${key}`} className="block text-xs font-medium text-gray-600 mb-1">
-                      {key === 'early_bird' && 'Early Bird'}
-                      {key === 'regular' && 'Regular'}
-                      {key === 'late' && 'Late Registration'}
-                      {key === 'student' && 'Student'}
-                      {key === 'accompanying_person' && 'Accompanying Person'}
+                      {key === 'early_bird' && t('earlyBird')}
+                      {key === 'regular' && t('regular')}
+                      {key === 'late' && t('late')}
+                      {key === 'student' && t('student')}
+                      {key === 'accompanying_person' && t('accompanyingPerson')}
                     </label>
                     <input
                       id={`fee_label_${key}`}
@@ -1777,14 +1773,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       }
                       placeholder={
                         key === 'early_bird'
-                          ? 'e.g. Early rate'
+                          ? t('placeholderEarlyRate')
                           : key === 'regular'
-                            ? 'e.g. Regular fee'
+                            ? t('placeholderRegularFee')
                             : key === 'late'
-                              ? 'e.g. Late registration'
+                              ? t('placeholderLateRegistration')
                               : key === 'student'
-                                ? 'e.g. Student'
-                                : 'e.g. Accompanying person'
+                                ? t('placeholderStudent')
+                                : t('placeholderAccompanyingPerson')
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -1796,16 +1792,16 @@ Important: Authors who submit abstracts for presentation are not automatically r
             {/* Cijene po periodu (Early Bird / Regular / Late) */}
             <div className="md:col-span-2 mb-1">
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                Prices by period (Early Bird → Regular → Late)
+                {t('pricesByPeriod')}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
-                One set of prices for all participant types; student and custom types have their own prices below.
+                {t('pricesByPeriodHint')}
               </p>
             </div>
 
             <div>
               <label htmlFor="early_bird_amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                Early Bird (price)
+                {t('earlyBirdPrice')}
               </label>
               <input
                 type="number"
@@ -1819,13 +1815,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Price during the early bird period (before the deadline).
+                {t('earlyBirdPriceHint')}
               </p>
             </div>
 
             <div>
               <label htmlFor="early_bird_deadline" className="block text-sm font-semibold text-gray-700 mb-2">
-                Early Bird Deadline
+                {t('earlyBirdDeadline')}
               </label>
               <input
                 type="date"
@@ -1836,7 +1832,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-500">
-                After this date, regular pricing will apply automatically
+                {t('earlyBirdDeadlineHint')}
               </p>
             </div>
 
@@ -1988,7 +1984,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <div className="md:col-span-2 mb-4 mt-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="h-px flex-1 bg-gradient-to-r from-purple-200 to-transparent"></div>
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Custom fee types</h3>
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t('customFeeTypes')}</h3>
                 <div className="h-px flex-1 bg-gradient-to-l from-purple-200 to-transparent"></div>
               </div>
               <div className="flex items-center justify-between mb-4">
@@ -2001,14 +1997,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                   className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors font-medium"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Fee Type
+                  {t('addFeeType')}
                 </button>
               </div>
 
               {customFeeTypes.length === 0 ? (
                 <div className="text-center py-8 bg-purple-50 rounded-lg border-2 border-dashed border-purple-200">
-                  <p className="text-gray-500 text-sm">No custom fee types yet</p>
-                  <p className="text-gray-400 text-xs mt-1">Click &quot;Add Fee Type&quot; to create custom pricing for specific groups</p>
+                  <p className="text-gray-500 text-sm">{t('noCustomFeeTypes')}</p>
+                  <p className="text-gray-400 text-xs mt-1">{t('addFeeTypeHint')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -2043,7 +2039,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             type="button"
                             onClick={() => removeCustomFeeType(feeType.id)}
                             className="text-red-600 hover:text-red-700 transition-colors ml-2"
-                            title="Remove fee type"
+                            title={t('removeFeeType')}
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -2062,11 +2058,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 placeholder="e.g. VIP member, Senior, Speaker"
                                 className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                               />
-                              <p className="mt-1 text-xs text-purple-600">What participants see on the form</p>
+                              <p className="mt-1 text-xs text-purple-600">{t('whatParticipantsSee')}</p>
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                Internal key (slug, optional)
+                                {t('internalKeySlugOptional')}
                               </label>
                               <input
                                 type="text"
@@ -2082,17 +2078,17 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 placeholder="e.g. vip_member (lowercase, underscores)"
                                 className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                               />
-                              <p className="mt-1 text-xs text-purple-600">For export/API; if empty, ID is used</p>
+                              <p className="mt-1 text-xs text-purple-600">{t('forExportApi')}</p>
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                Description (optional)
+                                {t('descriptionOptional')}
                               </label>
                               <input
                                 type="text"
                                 value={feeType.description || ''}
                                 onChange={(e) => updateCustomFeeType(feeType.id, { description: e.target.value })}
-                                placeholder="Brief description of this fee type"
+                                placeholder={t('briefDescriptionFeeType')}
                                 className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                               />
                             </div>
@@ -2112,13 +2108,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
-                                  Price during early bird period
+                                  {t('priceDuringEarlyBird')}
                                 </p>
                               </div>
 
                               <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  Regular
+                                  {t('regular')}
                                 </label>
                                 <input
                                   type="number"
@@ -2130,13 +2126,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
-                                  Default price after early bird
+                                  {t('defaultPriceAfterEarlyBird')}
                                 </p>
                               </div>
 
                               <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  Late
+                                  {t('late')}
                                 </label>
                                 <input
                                   type="number"
@@ -2148,7 +2144,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
-                                  Price for late registration
+                                  {t('priceForLateRegistration')}
                                 </p>
                               </div>
                             </div>
@@ -2163,7 +2159,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
             <div>
               <label htmlFor="accompanying_person_price" className="block text-sm font-semibold text-gray-700 mb-2">
-                Accompanying Person Price
+                {t('accompanyingPerson')} Price
               </label>
               <input
                 type="number"
@@ -2176,9 +2172,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Price for each accompanying person. This price applies to all pricing tiers (early bird, regular, late).
-              </p>
+              <p className="mt-1 text-xs text-gray-500">{t('accompanyingPersonPriceDesc')}</p>
             </div>
           </div>
 
@@ -2197,7 +2191,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-md hover:shadow-lg"
               >
                 <Plus className="w-4 h-4" />
-                Add Field
+                {t('addPricingField')}
               </button>
             </div>
 
@@ -2208,8 +2202,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-gray-700 font-semibold text-sm mb-1">No custom pricing fields yet</p>
-                <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom pricing field</p>
+                <p className="text-gray-700 font-semibold text-sm mb-1">{t('noCustomPricingFieldsYet')}</p>
+                <p className="text-gray-500 text-xs">{t('addPricingFieldClickHint')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2220,13 +2214,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                   >
                     <div className="flex items-start justify-between mb-4">
                       <h4 className="text-sm font-semibold text-gray-700">
-                        Custom Field #{index + 1}
+                        {t('customFieldNumber', { number: index + 1 })}
                       </h4>
                       <button
                         type="button"
                         onClick={() => removeCustomPricingField(field.id)}
                         className="text-red-600 hover:text-red-700 transition-colors"
-                        title="Remove field"
+                        title={t('removeField')}
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -2235,7 +2229,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Field Name *
+                          {t('fieldNameStar')}
                         </label>
                         <input
                           type="text"
@@ -2243,7 +2237,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                           onChange={(e) =>
                             updateCustomPricingField(field.id, { name: e.target.value })
                           }
-                          placeholder="e.g., VIP Price, Group Discount"
+                          placeholder={t('customPricingFieldPlaceholder')}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
                         />
@@ -2279,7 +2273,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                         onChange={(e) =>
                           updateCustomPricingField(field.id, { description: e.target.value })
                         }
-                        placeholder="Describe what this pricing field represents (e.g., 'Special price for VIP members', 'Group discount for 5+ participants')"
+                        placeholder={t('describePricingField')}
                         rows={2}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
@@ -2289,7 +2283,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     {/* Preview */}
                     {field.name && field.value > 0 && (
                       <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">Preview:</p>
+                        <p className="text-xs text-gray-500 mb-1">{t('previewLabel')}</p>
                         <p className="text-sm font-semibold text-gray-900">
                           {field.name}: {field.value.toFixed(2)} {formData.currency}
                         </p>
@@ -2308,15 +2302,15 @@ Important: Authors who submit abstracts for presentation are not automatically r
         {/* Hotel Options for Accommodation */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Hotel Options</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('hotelOptions')}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Add available hotels and room types for accommodation booking
+              {t('hotelOptionsDesc')}
             </p>
           </div>
 
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-gray-600">
-              {hotelOptions.length} hotel option(s) configured
+              {t('fieldsConfigured', { count: hotelOptions.length })}
             </div>
             <button
               type="button"
@@ -2324,14 +2318,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Hotel
+              {t('addField')} Hotel
             </button>
           </div>
 
           {hotelOptions.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500 text-sm">No hotel options yet</p>
-              <p className="text-gray-400 text-xs mt-1">Click "Add Hotel" to create your first hotel option</p>
+              <p className="text-gray-500 text-sm">{t('noHotels')}</p>
+              <p className="text-gray-400 text-xs mt-1">{t('addHotelHint')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -2360,7 +2354,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="flex items-center gap-3 flex-1">
                         <div 
                           className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Drag to reorder"
+                          title={t('dragToReorder')}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <GripVertical className="w-5 h-5" />
@@ -2379,14 +2373,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               )}
                               <span>{hotel.occupancy}</span>
                               <span>•</span>
-                              <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {formData.currency}/night</span>
+                              <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {formData.currency}{t('perNight')}</span>
                               {typeof hotel.max_rooms === 'number' && hotel.max_rooms > 0 && (
                                 <>
                                   <span>•</span>
                                   <span>
-                                    Reserved: {loadingHotelUsage ? '…' : (hotelUsage[hotel.id] ?? 0)} / {hotel.max_rooms} rooms
+                                    {t('reserved')} {loadingHotelUsage ? '…' : (hotelUsage[hotel.id] ?? 0)} / {hotel.max_rooms} {t('rooms')}
                                     {(hotelUsage[hotel.id] ?? 0) >= hotel.max_rooms && (
-                                      <span className="ml-1 font-semibold text-amber-600">Full</span>
+                                      <span className="ml-1 font-semibold text-amber-600">{t('full')}</span>
                                     )}
                                   </span>
                                 </>
@@ -2403,7 +2397,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             removeHotelOption(hotel.id)
                           }}
                           className="text-red-600 hover:text-red-700 transition-colors p-1"
-                          title="Remove hotel"
+                          title={t('removeHotel')}
                         >
                           <X className="w-5 h-5" />
                         </button>
@@ -2429,7 +2423,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                       <div className="px-4 pb-4 space-y-4 border-t border-gray-200 pt-4">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Hotel / room name *
+                            {t('hotelRoomNameStar')}
                           </label>
                           <input
                             type="text"
@@ -2445,7 +2439,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Room type
+                            {t('roomType')}
                           </label>
                           <select
                             value={hotel.room_type ?? ''}
@@ -2456,7 +2450,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             }
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           >
-                            <option value="">— Not selected —</option>
+                            <option value="">— {t('notSelected')} —</option>
                             {(Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][]).map(([value, label]) => (
                               <option key={value} value={value}>
                                 {label}
@@ -2490,7 +2484,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Price Per Night ({formData.currency}) *
+                              {t('pricePerNight')} ({formData.currency}) *
                             </label>
                             <div className="relative">
                               <span className="absolute left-3 top-2.5 text-gray-500 font-medium">
@@ -2527,7 +2521,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                             onChange={(e) =>
                               updateHotelOption(hotel.id, { description: e.target.value })
                             }
-                            placeholder="Additional information"
+                            placeholder={t('additionalInformation')}
                             rows={2}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
@@ -2537,7 +2531,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Available From (Optional)
+                              {t('availableFromOptional')}
                             </label>
                             <input
                               type="date"
@@ -2546,16 +2540,16 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 updateHotelOption(hotel.id, { available_from: e.target.value || undefined })
                               }
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                              placeholder="Start date"
+                              placeholder={t('startDatePlaceholder')}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Leave empty to make available from conference start date
+                              {t('availableFromHint')}
                             </p>
                           </div>
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Available Until (Optional)
+                              {t('availableUntilOptional')}
                             </label>
                             <input
                               type="date"
@@ -2565,10 +2559,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               }
                               min={hotel.available_from || undefined}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                              placeholder="End date"
+                              placeholder={t('endDatePlaceholder')}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Leave empty to make available until conference end date
+                              {t('availableFromHint')}
                             </p>
                           </div>
                         </div>
@@ -2576,7 +2570,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                         {/* Max Rooms (Optional) – manual room capacity */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Max. number of rooms (capacity) *
+                            {t('maxRoomsOptional')}
                           </label>
                           <input
                             type="number"
@@ -2587,19 +2581,17 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               })
                             }
                             min="1"
-                            placeholder="e.g. 50 – admin enters manually"
+                            placeholder={t('maxRoomsPlaceholder')}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
-                          <p className="text-xs text-gray-500 mt-1">
-                            How many rooms are reserved for this conference. The system counts reservations and when full, you can create a ticket.
-                          </p>
+                          <p className="text-xs text-gray-500 mt-1">{t('maxRoomsHint')}</p>
                         </div>
 
                         {/* Reserved X / Y rooms + Full + Create ticket */}
                         {typeof hotel.max_rooms === 'number' && hotel.max_rooms > 0 && (
                           <div className="pt-2 border-t border-gray-200">
                             {loadingHotelUsage ? (
-                              <p className="text-sm text-gray-500">Loading reservation count...</p>
+                              <p className="text-sm text-gray-500">{t('loadingReservationCount')}</p>
                             ) : (
                               <>
                                 <p className="text-sm font-medium text-gray-700 mb-2">
@@ -2627,7 +2619,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-sm font-medium disabled:opacity-50"
                                       >
                                         <Ticket className="w-4 h-4" />
-                                        {creatingTicketForHotel === hotel.id ? 'Creating...' : 'Create ticket'}
+                                        {creatingTicketForHotel === hotel.id ? t('creatingTicket') : t('createTicket')}
                                       </button>
                                     )}
                                   </div>
@@ -2640,14 +2632,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                         {/* Preview */}
                         {hotel.name && hotel.pricePerNight > 0 && (
                           <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-                            <p className="text-xs text-gray-500 mb-1">Preview:</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('previewLabel')}</p>
                             <p className="text-sm font-semibold text-gray-900">🏨 {hotel.name}</p>
                             <div className="flex items-center gap-4 mt-1 text-xs text-gray-600 flex-wrap">
                               {hotel.room_type && (
                                 <span>🛏 {ROOM_TYPE_LABELS[hotel.room_type]}</span>
                               )}
                               <span>👤 {hotel.occupancy}</span>
-                              <span>💶 {hotel.pricePerNight.toFixed(2)} {formData.currency}/night</span>
+                              <span>💶 {hotel.pricePerNight.toFixed(2)} {formData.currency}{t('perNight')}</span>
                             </div>
                             {hotel.description && (
                               <p className="text-xs text-gray-600 mt-1">{hotel.description}</p>
@@ -2666,26 +2658,22 @@ Important: Authors who submit abstracts for presentation are not automatically r
         {/* Abstract Information Text */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Abstract Information</h2>
-            <p className="text-sm text-gray-600">
-              Add introductory text or instructions that will appear at the top of the abstract submission form.
-            </p>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('abstractInformation')}</h2>
+            <p className="text-sm text-gray-600">{t('abstractInfoSectionDesc')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Information Text
+              {t('informationText')}
             </label>
             <textarea
               value={abstractInfoText}
               onChange={(e) => setAbstractInfoText(e.target.value)}
               rows={12}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-              placeholder="Enter information text that will be displayed to users when they submit abstracts. For example: guidelines, requirements, deadlines, etc."
+              placeholder={t('abstractInfoPlaceholder')}
             />
-            <p className="text-xs text-gray-500 mt-2">
-              This text will be displayed at the beginning of the abstract submission form
-            </p>
+            <p className="text-xs text-gray-500 mt-2">{t('abstractInfoFormHint')}</p>
           </div>
         </div>
 
@@ -2696,10 +2684,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
                 <Upload className="w-5 h-5 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Custom Abstract Submission Fields</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t('customAbstractFields')}</h2>
             </div>
             <p className="text-sm text-gray-600 ml-13">
-              Add custom fields to the abstract submission form. Users will see and fill these fields when submitting abstracts.
+              {t('customRegistrationFieldsDesc')}
             </p>
           </div>
 
@@ -2719,12 +2707,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 type="button"
                 onClick={addCustomAbstractSeparator}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-md hover:shadow-lg"
-                title="Add section separator for multiple authors"
+                title={t('addSectionSeparator')}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
-                Add Separator
+                {t('addSeparator')}
               </button>
               <button
                 type="button"
@@ -2732,7 +2720,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-md hover:shadow-lg"
               >
                 <Plus className="w-4 h-4" />
-                Add Field
+                {t('addField')}
               </button>
             </div>
           </div>
@@ -2742,8 +2730,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Upload className="w-8 h-8 text-purple-600" />
               </div>
-              <p className="text-gray-700 font-semibold text-sm mb-1">No custom abstract fields yet</p>
-              <p className="text-gray-500 text-xs">Click "Add Field" to create your first custom abstract field</p>
+              <p className="text-gray-700 font-semibold text-sm mb-1">{t('noCustomAbstractFieldsYet')}</p>
+              <p className="text-gray-500 text-xs">{t('addAbstractFieldClickHint')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -2774,34 +2762,34 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
         {/* Tickets for this conference – e.g. when hotel rooms are full */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Tickets for this conference</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('ticketsForConference')}</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Internal tasks for this conference (e.g. &quot;Hotel X full&quot;, &quot;Add accommodation&quot;).
+            {t('ticketsDesc')}
           </p>
           {loadingTickets ? (
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              Loading...
+              {t('loading')}
             </div>
           ) : (
             <>
               {conferenceTickets.length === 0 ? (
-                <p className="text-sm text-gray-500 mb-4">No tickets for this conference.</p>
+                <p className="text-sm text-gray-500 mb-4">{t('noTickets')}</p>
               ) : (
                 <ul className="space-y-2 mb-4">
-                  {conferenceTickets.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-sm font-medium text-gray-900 truncate pr-2">{t.subject}</span>
+                  {conferenceTickets.map((ticket) => (
+                    <li key={ticket.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-sm font-medium text-gray-900 truncate pr-2">{ticket.subject}</span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                          t.status === 'open'
+                          ticket.status === 'open'
                             ? 'bg-amber-100 text-amber-800'
-                            : t.status === 'in_progress'
+                            : ticket.status === 'in_progress'
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {t.status === 'open' ? 'Open' : t.status === 'in_progress' ? 'In progress' : t.status}
+                        {ticket.status === 'open' ? t('ticketStatusOpen') : ticket.status === 'in_progress' ? t('ticketStatusInProgress') : ticket.status}
                       </span>
                     </li>
                   ))}
@@ -2812,14 +2800,14 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium text-sm transition-colors"
               >
                 <Ticket className="w-4 h-4" />
-                New ticket (e.g. rooms full)
+                {t('newTicketRoomsFull')}
               </Link>
               {conferenceTickets.length > 0 && (
                 <Link
                   href={`/admin/tickets?conference_id=${conferenceId}`}
                   className="ml-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Open all tickets →
+                  {t('openAllTickets')}
                 </Link>
               )}
             </>
@@ -2828,12 +2816,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
         {/* Email Settings */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Email Settings</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('emailSettings')}</h2>
 
           <div className="space-y-4">
             <div>
               <label htmlFor="from_email" className="block text-sm font-semibold text-gray-700 mb-2">
-                From Email
+                {t('fromEmail')}
               </label>
               <input
                 type="email"
@@ -2842,13 +2830,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 value={formData.from_email}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="conference@yourorganization.com"
+                placeholder={t('fromEmailPlaceholder')}
               />
             </div>
 
             <div>
               <label htmlFor="from_name" className="block text-sm font-semibold text-gray-700 mb-2">
-                From Name
+                {t('fromName')}
               </label>
               <input
                 type="text"
@@ -2857,13 +2845,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 value={formData.from_name}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Conference Team"
+                placeholder={t('fromNamePlaceholder')}
               />
             </div>
 
             <div>
               <label htmlFor="reply_to" className="block text-sm font-semibold text-gray-700 mb-2">
-                Reply-To Email
+                {t('replyToEmail')}
               </label>
               <input
                 type="email"
@@ -2872,7 +2860,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 value={formData.reply_to}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="support@yourorganization.com"
+                placeholder={t('replyToPlaceholder')}
               />
             </div>
           </div>
@@ -2888,7 +2876,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-5 h-5" />
-              {deleting ? 'Deleting...' : 'Delete Conference'}
+              {deleting ? t('deleting') : t('deleteConference')}
             </button>
           )}
 
@@ -2897,7 +2885,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
               href="/admin/conferences"
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              {t('back')}
             </Link>
             <button
               type="submit"
@@ -2907,12 +2895,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
               {saving ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Saving...
+                  {t('saving')}
                 </>
               ) : (
                 <>
                   <Save className="w-5 h-5" />
-                  Save Changes
+                  {t('save')}
                 </>
               )}
             </button>

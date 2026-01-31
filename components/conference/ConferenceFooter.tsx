@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Mail, Phone, MapPin, Globe, ExternalLink } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { ABSTRACT_APP_URL } from '@/constants/config'
@@ -12,6 +13,7 @@ interface ConferenceFooterProps {
 export default function ConferenceFooter({
   conference,
 }: ConferenceFooterProps) {
+  const t = useTranslations('register')
   const primaryColor = conference.primary_color || '#1e3a8a' // Dark blue default
 
   return (
@@ -76,7 +78,7 @@ export default function ConferenceFooter({
                     href={`/conferences/${conference.slug}/register`}
                     className="text-blue-100 hover:text-white transition-colors inline-block"
                   >
-                    Register
+                    {t('navLink')}
                   </Link>
                 </li>
               )}

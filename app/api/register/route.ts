@@ -12,6 +12,21 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+// Payer type and company details (for invoicing / billing)
+const companyDetailsSchema = z
+  .object({
+    vat_number: z.string().nullable().optional(),
+    no_vat: z.boolean().optional().default(false),
+    company_name: z.string().min(1),
+    country: z.string().min(1),
+    city: z.string().min(1),
+    postal_code: z.string().min(1),
+    address: z.string().min(1),
+    phone: z.string().nullable().optional(),
+  })
+  .optional()
+  .nullable()
+
 // Simplified registration schema - all fields are custom and defined by admin
 const registrationSchema = z.object({
   conference_id: z.string().uuid(),
@@ -20,18 +35,24 @@ const registrationSchema = z.object({
   // Pay Later removed from product; keep only immediate options
   payment_preference: z.enum(['pay_now_card', 'pay_now_bank']).optional().default('pay_now_card'), // Payment preference
   participants: z
-      .array(
-        z.object({
+    .array(
+      z.object({
         customFields: z.record(z.any()), // All participant data is now in custom fields
-        })
-      )
-      .optional(),
-  accommodation: z.object({
-    arrival_date: z.string(),
-    departure_date: z.string(),
-    number_of_nights: z.number(),
-    hotel_id: z.string().nullable().optional(), // Selected hotel ID
-  }).optional().nullable(), // Accommodation details (arrival, departure, nights, hotel)
+      })
+    )
+    .optional(),
+  accommodation: z
+    .object({
+      arrival_date: z.string(),
+      departure_date: z.string(),
+      number_of_nights: z.number(),
+      hotel_id: z.string().nullable().optional(), // Selected hotel ID
+    })
+    .optional()
+    .nullable(), // Accommodation details (arrival, departure, nights, hotel)
+  // Payer type: person or company; company_details required when payer_type === 'company'
+  payer_type: z.enum(['person', 'company']).optional().default('person'),
+  company_details: companyDetailsSchema,
 })
 
 export async function POST(request: NextRequest) {
@@ -167,12 +188,19 @@ export async function POST(request: NextRequest) {
       paymentStatus = 'pending'
     }
 
+    // Merge payer_type and company_details into custom_data for storage and admin display
+    const customDataWithPayer = {
+      ...(validatedData.custom_data || {}),
+      payer_type: validatedData.payer_type ?? 'person',
+      company_details: validatedData.company_details ?? null,
+    }
+
     // Insert registration with simplified data structure
     const { data: registration, error: insertError } = await supabase
       .from('registrations')
       .insert({
         conference_id: validatedData.conference_id,
-        custom_data: validatedData.custom_data || {},
+        custom_data: customDataWithPayer,
         participants: validatedData.participants || [],
         registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
         payment_method: paymentMethod, // Payment method: card, bank_transfer, or null

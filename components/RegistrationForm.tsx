@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
 import {
@@ -48,6 +48,8 @@ export default function RegistrationForm({
   hasBankAccount = false,
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
+  const tFieldLabels = useTranslations('admin.conferences')
+  const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
@@ -112,6 +114,17 @@ export default function RegistrationForm({
   const [departureDate, setDepartureDate] = useState<string>('')
   const [numberOfNights, setNumberOfNights] = useState<number>(0)
   const [selectedHotel, setSelectedHotel] = useState<string>('') // Selected hotel ID
+
+  // Payer type: Person vs Company (for invoicing / billing)
+  const [payerType, setPayerType] = useState<'person' | 'company'>('person')
+  const [companyNoVat, setCompanyNoVat] = useState(false)
+  const [companyVatNumber, setCompanyVatNumber] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [companyCountry, setCompanyCountry] = useState('')
+  const [companyCity, setCompanyCity] = useState('')
+  const [companyPostalCode, setCompanyPostalCode] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
+  const [companyPhone, setCompanyPhone] = useState('')
   
   // Multiple participants state
   const [participants, setParticipants] = useState<Participant[]>([
@@ -161,14 +174,42 @@ export default function RegistrationForm({
   const validateForm = (): boolean => {
     // Check if there's at least one participant
     if (participants.length === 0) {
-      showError('At least one participant is required')
+      showError(t('atLeastOneParticipant'))
       return false
     }
 
     // Check if registration fee is selected (if pricing is available)
     if (pricing && !selectedFee) {
-      showError('Please select a registration fee option')
+      showError(t('pleaseSelectFee'))
       return false
+    }
+
+    // If paying as company, validate company fields (all required except phone and VAT when "I don't have VAT")
+    if (pricing && paymentSettings?.enabled && payerType === 'company') {
+      if (!companyName?.trim()) {
+        showError(t('companyNameRequired'))
+        return false
+      }
+      if (!companyCountry?.trim()) {
+        showError(t('companyCountryRequired'))
+        return false
+      }
+      if (!companyCity?.trim()) {
+        showError(t('companyCityRequired'))
+        return false
+      }
+      if (!companyPostalCode?.trim()) {
+        showError(t('companyPostalCodeRequired'))
+        return false
+      }
+      if (!companyAddress?.trim()) {
+        showError(t('companyAddressRequired'))
+        return false
+      }
+      if (!companyNoVat && !companyVatNumber?.trim()) {
+        showError(t('companyVatRequired'))
+        return false
+      }
     }
 
     // Check all required custom fields for each participant
@@ -186,7 +227,9 @@ export default function RegistrationForm({
             value === '' ||
             (field.type === 'checkbox' && value !== true)
           ) {
-            showError(`Participant ${i + 1}: ${field.label} is required`)
+            const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
+            const displayLabel = labelKey ? tFieldLabels(labelKey) : field.label
+            showError(t('participantFieldRequired', { num: i + 1, label: displayLabel }))
             return false
         }
         }
@@ -218,6 +261,21 @@ export default function RegistrationForm({
           number_of_nights: numberOfNights,
           hotel_id: selectedHotel || null, // Include selected hotel
         } : null,
+        // Payer type and company details (for invoicing / billing)
+        payer_type: payerType,
+        company_details:
+          payerType === 'company'
+            ? {
+                vat_number: companyNoVat ? null : companyVatNumber?.trim() || null,
+                no_vat: companyNoVat,
+                company_name: companyName?.trim() || '',
+                country: companyCountry?.trim() || '',
+                city: companyCity?.trim() || '',
+                postal_code: companyPostalCode?.trim() || '',
+                address: companyAddress?.trim() || '',
+                phone: companyPhone?.trim() || null,
+              }
+            : null,
       }
 
       console.log('📤 Sending payload:', JSON.stringify(payload, null, 2))
@@ -233,16 +291,16 @@ export default function RegistrationForm({
       if (!response.ok) {
         const errorData = await response.json()
         console.log('❌ Error from API:', errorData)
-        throw new Error(errorData.error || 'Registration failed')
+        throw new Error(errorData.error || t('registrationFailed'))
       }
 
       await response.json()
 
       setSubmitSuccess(true)
-      showSuccess('Registration submitted successfully!')
+      showSuccess(t('registrationSuccess'))
     } catch (error: any) {
       console.error('❌ Registration error:', error)
-      showError(error.message || 'Failed to submit registration')
+      showError(error.message || t('submitFailed'))
     } finally {
       setIsSubmitting(false)
     }
@@ -258,13 +316,13 @@ export default function RegistrationForm({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Registration Successful!</h2>
-            <p className="text-lg text-gray-700 mb-6">Thank you for registering. You will receive a confirmation email shortly.</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">{t('successTitle')}</h2>
+            <p className="text-lg text-gray-700 mb-6">{t('successMessage')}</p>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-green-200">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span className="text-sm font-medium text-gray-700">Check your email for confirmation</span>
+              <span className="text-sm font-medium text-gray-700">{t('successCheckEmail')}</span>
             </div>
           </div>
         </div>
@@ -325,7 +383,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-blue-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
             </div>
@@ -359,7 +417,7 @@ export default function RegistrationForm({
                             ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
                             : pricing.early_bird?.deadline 
                               ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                              : 'Standard registration'}
+                              : t('standardRegistration')}
                         </div>
               </div>
             </div>
@@ -372,7 +430,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-indigo-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
           </div>
@@ -406,7 +464,7 @@ export default function RegistrationForm({
                             ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
                             : pricing.early_bird?.deadline 
                               ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                              : 'Special pricing for students'}
+                              : t('specialPricingStudents')}
                         </div>
               </div>
             </div>
@@ -423,7 +481,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-emerald-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
           </div>
@@ -459,7 +517,7 @@ export default function RegistrationForm({
                               ? `After ${new Date(pricing.regular.start_date).toLocaleDateString()}`
                               : pricing.early_bird?.deadline 
                                 ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                                : 'Late registration period'}
+                                : t('lateRegistrationPeriod')}
                         </div>
               </div>
             </div>
@@ -472,7 +530,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-amber-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
           </div>
@@ -501,7 +559,7 @@ export default function RegistrationForm({
                         <div className={`text-xs font-bold mb-1 leading-tight ${selectedFee === 'accompanying_person' ? 'text-rose-900' : 'text-rose-800'}`}>
                           {getTierDisplayName('accompanying_person', pricing.fee_type_labels)}
                         </div>
-                        <div className="text-xs text-rose-600 leading-snug">For guests and companions</div>
+                        <div className="text-xs text-rose-600 leading-snug">{t('forGuestsAndCompanions')}</div>
               </div>
             </div>
                     <div className="mt-auto pt-4 border-t-2 border-rose-200">
@@ -515,7 +573,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-rose-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-rose-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
           </div>
@@ -566,7 +624,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-purple-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
           </div>
@@ -606,7 +664,7 @@ export default function RegistrationForm({
                       <div className="text-xs font-semibold text-violet-600 uppercase tracking-wide">{pricing.currency}</div>
                       {vatPercentage && (
                         <div className="mt-1 text-[10px] font-semibold text-violet-700/80">
-                          PDV included ({vatPercentage}%)
+                          {t('vatIncluded', { vat: vatPercentage })}
                         </div>
                       )}
                     </div>
@@ -645,7 +703,7 @@ export default function RegistrationForm({
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-bold text-gray-900 mb-2">Registration Information</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-2">{t('registrationInfoTitle')}</h3>
               <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                 {registrationInfoText}
               </div>
@@ -667,7 +725,7 @@ export default function RegistrationForm({
               }`}
             >
               <UserPlus className={`w-5 h-5 ${activeTab === 'registration' ? 'text-white' : 'text-gray-500'}`} />
-              <span>Registration</span>
+              <span>{t('tabRegistration')}</span>
             </button>
             <button
               type="button"
@@ -679,7 +737,7 @@ export default function RegistrationForm({
               }`}
             >
               <Bed className={`w-5 h-5 ${activeTab === 'accommodation' ? 'text-white' : 'text-gray-500'}`} />
-              <span>Accommodation</span>
+              <span>{t('tabAccommodation')}</span>
             </button>
             
             {abstractSubmissionEnabled && conferenceSlug && (
@@ -688,7 +746,7 @@ export default function RegistrationForm({
                 className="flex items-center gap-3 px-6 py-3.5 text-base font-semibold rounded-xl transition-all duration-200 text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 border border-gray-200"
               >
                 <Upload className="w-5 h-5 text-gray-500" />
-                <span>Abstract Submission</span>
+                <span>{t('tabAbstractSubmission')}</span>
               </Link>
             )}
         </nav>
@@ -705,8 +763,8 @@ export default function RegistrationForm({
                   <UserPlus className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Registration Form</h2>
-                  <p className="text-sm text-gray-600">Fill in your details below</p>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">{t('formTitle')}</h2>
+                  <p className="text-sm text-gray-600">{t('formSubtitle')}</p>
                 </div>
               </div>
               
@@ -717,7 +775,7 @@ export default function RegistrationForm({
                   maxParticipants={participantSettings?.maxParticipants || 5}
                   participantFields={participantSettings?.participantFields || []}
                   customFields={customFields}
-                  participantLabel={participantSettings?.participantLabel || 'Participant'}
+                  participantLabel={participantSettings?.participantLabel || t('participantLabel')}
                   customFieldsPerParticipant={true}
                 />
               </div>
@@ -728,9 +786,9 @@ export default function RegistrationForm({
           {customFields.length === 0 && (
             <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
               <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-lg font-medium text-gray-700 mb-2">No registration fields configured yet.</p>
+              <p className="text-lg font-medium text-gray-700 mb-2">{t('noFieldsConfigured')}</p>
               <p className="text-sm text-gray-500">
-                Please contact the conference administrator.
+                {t('contactAdministrator')}
               </p>
             </div>
           )}
@@ -745,11 +803,11 @@ export default function RegistrationForm({
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Payment Options</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">{t('paymentMethodTitle')}</h2>
                   <p className="text-sm text-gray-600">
                     {availableOptionsCount === 1 
-                      ? 'Payment method' 
-                      : 'Choose when and how you want to pay'}
+                      ? t('paymentMethodTitle') 
+                      : t('choosePaymentSubtitle')}
                   </p>
                 </div>
               </div>
@@ -779,12 +837,12 @@ export default function RegistrationForm({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                           </svg>
                         </div>
-                        <div className="font-bold text-gray-900">Credit/Debit Card</div>
+                        <div className="font-bold text-gray-900">{t('creditDebitCard')}</div>
                       </div>
-                      <p className="text-sm text-gray-600 ml-11">Pay securely with Stripe (Instant confirmation)</p>
+                      <p className="text-sm text-gray-600 ml-11">{t('payWithStripe')}</p>
                     </div>
                     <div className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
-                      Instant
+                      {t('instant')}
                     </div>
                   </label>
                   )}
@@ -813,16 +871,166 @@ export default function RegistrationForm({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
                           </svg>
                         </div>
-                        <div className="font-bold text-gray-900">Bank Transfer</div>
+                        <div className="font-bold text-gray-900">{t('bankTransfer')}</div>
                       </div>
-                      <p className="text-sm text-gray-600 ml-11">Transfer to our bank account (Manual verification required)</p>
+                      <p className="text-sm text-gray-600 ml-11">{t('bankTransferDescription')}</p>
                     </div>
                     <div className="bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
-                      1-2 days
+                      {t('oneTwoDays')}
                     </div>
                   </label>
                   )}
 
+                </div>
+
+                {/* Payer type: Person vs Company (radio) */}
+                <div className="mt-8 pt-6 border-t-2 border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 mb-3">{t('payerTypeLabel')}</h3>
+                  <div className="flex flex-wrap gap-6">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payer_type"
+                        value="person"
+                        checked={payerType === 'person'}
+                        onChange={() => setPayerType('person')}
+                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      />
+                      <span className="font-medium text-gray-900">{t('payerPerson')}</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payer_type"
+                        value="company"
+                        checked={payerType === 'company'}
+                        onChange={() => setPayerType('company')}
+                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      />
+                      <span className="font-medium text-gray-900">{t('payerCompany')}</span>
+                    </label>
+                  </div>
+
+                  {/* Company details form (when Company selected) */}
+                  {payerType === 'company' && (
+                    <div className="mt-6 p-6 bg-gray-50 rounded-xl border-2 border-gray-200 space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900 mb-4">{t('companyDetailsTitle')}</h4>
+
+                      {/* VAT number + "I don't have a VAT number" */}
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          {t('companyVatNumber')}
+                          {!companyNoVat && <span className="text-red-600 ml-1">*</span>}
+                        </label>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <input
+                            type="text"
+                            value={companyVatNumber}
+                            onChange={(e) => setCompanyVatNumber(e.target.value)}
+                            disabled={companyNoVat}
+                            placeholder={companyNoVat ? '' : t('vatPlaceholder')}
+                            className="flex-1 min-w-[200px] px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                          />
+                          <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={companyNoVat}
+                              onChange={(e) => {
+                                setCompanyNoVat(e.target.checked)
+                                if (e.target.checked) setCompanyVatNumber('')
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{t('companyNoVat')}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Company name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('companyName')} <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={t('companyNamePlaceholder')}
+                        />
+                      </div>
+
+                      {/* Country */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('companyCountry')} <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyCountry}
+                          onChange={(e) => setCompanyCountry(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={t('companyCountryPlaceholder')}
+                        />
+                      </div>
+
+                      {/* City + Postal code */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t('companyCity')} <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={companyCity}
+                            onChange={(e) => setCompanyCity(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={t('companyCityPlaceholder')}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t('companyPostalCode')} <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={companyPostalCode}
+                            onChange={(e) => setCompanyPostalCode(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={t('companyPostalCodePlaceholder')}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Address */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('companyAddress')} <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyAddress}
+                          onChange={(e) => setCompanyAddress(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={t('companyAddressPlaceholder')}
+                        />
+                      </div>
+
+                      {/* Phone (optional) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('companyPhone')} <span className="text-gray-500 text-xs">({t('optional')})</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={companyPhone}
+                          onChange={(e) => setCompanyPhone(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={t('companyPhonePlaceholder')}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bank Transfer Instructions (conditional) */}
@@ -835,29 +1043,28 @@ export default function RegistrationForm({
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-base font-bold text-gray-900 mb-2">Bank Transfer Instructions</h4>
+                        <h4 className="text-base font-bold text-gray-900 mb-2">{t('bankTransferInstructions')}</h4>
                         <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                          After submitting your registration, you will receive bank account details and a unique payment reference number via email.
-                          Molimo izvršite uplatu u roku od <strong className="text-gray-900">7 dana</strong> kako biste rezervirali mjesto.
+                          {t('bankTransferIntro')}
                         </p>
                         <div className="bg-white border border-green-200 rounded-lg p-5">
-                          <p className="font-bold text-gray-900 mb-3">What happens next:</p>
+                          <p className="font-bold text-gray-900 mb-3">{t('whatHappensNext')}</p>
                           <ul className="space-y-2.5 text-sm text-gray-700">
                             <li className="flex items-start gap-3">
                               <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>You'll receive an email with bank details and payment reference</span>
+                              <span>{t('bankStep1')}</span>
                             </li>
                             <li className="flex items-start gap-3">
                               <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>Transfer the amount and optionally upload proof of payment</span>
+                              <span>{t('bankStep2')}</span>
                             </li>
                             <li className="flex items-start gap-3">
                               <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>We'll verify your payment within 1-2 business days</span>
+                              <span>{t('bankStep3')}</span>
                             </li>
                             <li className="flex items-start gap-3">
                               <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>You'll receive a confirmation email once verified</span>
+                              <span>{t('bankStep4')}</span>
                             </li>
                           </ul>
                         </div>
@@ -867,7 +1074,7 @@ export default function RegistrationForm({
                     {/* Optional: File upload for proof of payment */}
                     <div className="mt-5 pt-5 border-t-2 border-green-200">
                       <label className="block text-sm font-bold text-gray-900 mb-3">
-                        Upload Proof of Payment (Optional)
+                        {t('uploadProofOptional')}
                       </label>
                       <input
                         type="file"
@@ -876,7 +1083,7 @@ export default function RegistrationForm({
                         className="block w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 cursor-pointer transition-colors"
                       />
                       <p className="text-xs text-gray-600 mt-2">
-                        You can upload this now or later via the confirmation email link
+                        {t('uploadProofHint')}
                       </p>
                     </div>
                   </div>
@@ -921,15 +1128,15 @@ export default function RegistrationForm({
                   <Bed className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Accommodation Dates</h2>
-                  <p className="text-sm text-gray-600">Please select your arrival and departure dates</p>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">{t('accommodationDates')}</h2>
+                  <p className="text-sm text-gray-600">{t('selectArrivalDeparture')}</p>
                 </div>
               </div>
 
             <div className="max-w-md mx-auto space-y-4">
                           <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Check-in (Arrival Date)
+                  {t('checkIn')}
                             </label>
                             <input
                               type="date"
@@ -944,7 +1151,7 @@ export default function RegistrationForm({
 
                           <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Check-out (Departure Date)
+                  {t('checkOut')}
                             </label>
                             <input
                               type="date"
@@ -963,20 +1170,20 @@ export default function RegistrationForm({
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 mt-8 shadow-sm">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Check-in:</span>
+                      <span className="text-sm font-medium text-gray-700">{t('checkIn')}:</span>
                       <span className="text-sm font-bold text-gray-900">
-                        {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                        {arrivalDate ? new Date(arrivalDate).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : t('notSelected')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Check-out:</span>
+                      <span className="text-sm font-medium text-gray-700">{t('checkOut')}:</span>
                       <span className="text-sm font-bold text-gray-900">
-                        {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not selected'}
+                        {departureDate ? new Date(departureDate).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : t('notSelected')}
                       </span>
                     </div>
                     <div className="border-t-2 border-green-300 mt-4 pt-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-base font-semibold text-gray-900">Number of nights:</span>
+                        <span className="text-base font-semibold text-gray-900">{t('numberOfNightsLabel')}</span>
                         <span className="text-3xl font-bold text-green-600">{numberOfNights}</span>
                       </div>
                     </div>
@@ -989,8 +1196,8 @@ export default function RegistrationForm({
                   <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-                  <p className="text-gray-600 font-medium">No dates selected</p>
-                  <p className="text-sm text-gray-500 mt-1">Please select your arrival and departure dates</p>
+                  <p className="text-gray-600 font-medium">{t('noDatesSelected')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('selectArrivalDeparture')}</p>
                       </div>
                         )}
                       </div>
@@ -1004,8 +1211,8 @@ export default function RegistrationForm({
                     <Bed className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Select Your Hotel</h3>
-                    <p className="text-sm text-gray-500">Choose from available accommodation options</p>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('selectHotel')}</h3>
+                    <p className="text-sm text-gray-500">{t('chooseAccommodation')}</p>
                   </div>
                 </div>
 
@@ -1018,9 +1225,9 @@ export default function RegistrationForm({
                         <svg className="w-16 h-16 text-amber-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                        <p className="text-base font-semibold text-amber-900 mb-2">No hotels available for selected dates</p>
+                        <p className="text-base font-semibold text-amber-900 mb-2">{t('noHotelsForDates')}</p>
                         <p className="text-sm text-amber-700">
-                          Please try different dates or contact the conference organizers for accommodation options.
+                          {t('tryDifferentDatesOrContact')}
               </p>
           </div>
                     )
@@ -1064,7 +1271,7 @@ export default function RegistrationForm({
                                   <div className="text-2xl font-bold text-green-600">
                                     {formatPriceWithoutZeros(totalPrice)} {currency}
             </div>
-                                  <p className="text-xs text-gray-500 mt-1">Total</p>
+                                  <p className="text-xs text-gray-500 mt-1">{t('total')}</p>
           </div>
               </div>
 
@@ -1080,20 +1287,20 @@ export default function RegistrationForm({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                                   <span>
-                                    {new Date(arrivalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(departureDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {new Date(arrivalDate).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', { month: 'short', day: 'numeric' })} - {new Date(departureDate).toLocaleDateString(locale === 'hr' ? 'hr-HR' : 'en-US', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                   </svg>
-                                  <span className="font-medium">{numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}</span>
+                                  <span className="font-medium">{numberOfNights} {numberOfNights === 1 ? t('night') : t('nights')}</span>
                   </div>
                                 <div className="flex items-center gap-2">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                                  <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {currency}/night</span>
+                                  <span>{formatPriceWithoutZeros(hotel.pricePerNight)} {currency}{t('perNight')}</span>
               </div>
                 </div>
               </div>
@@ -1108,7 +1315,7 @@ export default function RegistrationForm({
                 {!selectedHotel && getAvailableHotels().length > 0 && (
                   <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                    <p className="text-sm font-medium text-amber-800">Please select a hotel to continue</p>
+                    <p className="text-sm font-medium text-amber-800">{t('selectHotelToContinue')}</p>
                   </div>
                 )}
               </div>
@@ -1132,7 +1339,7 @@ export default function RegistrationForm({
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>Complete Registration</span>
+                      <span>{t('completeRegistration')}</span>
                     </>
                   )}
                 </button>

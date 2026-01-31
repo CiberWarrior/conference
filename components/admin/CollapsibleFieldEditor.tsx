@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { X, Globe, GripVertical } from 'lucide-react'
 import type { CustomRegistrationField } from '@/types/conference'
+import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
 
 // List of all countries in the world
 const WORLD_COUNTRIES = [
@@ -58,6 +60,9 @@ export default function CollapsibleFieldEditor({
   isExpanded,
   onToggleExpand,
 }: CollapsibleFieldEditorProps) {
+  const t = useTranslations('admin.conferences')
+  const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
+  const displayLabel = labelKey ? t(labelKey) : (field.label || t('untitledField'))
   return (
     <div
       className={`bg-gray-50 rounded-lg border transition-all ${
@@ -81,25 +86,25 @@ export default function CollapsibleFieldEditor({
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
             <span className="text-sm font-bold text-gray-900">
-              {field.label || 'Untitled Field'}
+              {displayLabel}
             </span>
           </div>
           <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-            {field.type === 'text' && 'Text'}
-            {field.type === 'textarea' && 'Textarea'}
-            {field.type === 'longtext' && 'Long Text'}
-            {field.type === 'email' && 'Email'}
-            {field.type === 'tel' && 'Phone'}
-            {field.type === 'number' && 'Number'}
-            {field.type === 'date' && 'Date'}
-            {field.type === 'select' && 'Dropdown'}
-            {field.type === 'radio' && 'Radio'}
-            {field.type === 'checkbox' && 'Checkbox'}
-            {field.type === 'file' && 'File Upload'}
-            {(field.type as string) === 'separator' && 'Separator'}
+            {field.type === 'text' && t('fieldTypeText')}
+            {field.type === 'textarea' && t('fieldTypeTextarea')}
+            {field.type === 'longtext' && t('fieldTypeLongtext')}
+            {field.type === 'email' && t('fieldTypeEmail')}
+            {field.type === 'tel' && t('fieldTypeTel')}
+            {field.type === 'number' && t('fieldTypeNumber')}
+            {field.type === 'date' && t('fieldTypeDate')}
+            {field.type === 'select' && t('fieldTypeSelect')}
+            {field.type === 'radio' && t('fieldTypeRadio')}
+            {field.type === 'checkbox' && t('fieldTypeCheckbox')}
+            {field.type === 'file' && t('fieldTypeFile')}
+            {(field.type as string) === 'separator' && t('fieldTypeSeparator')}
           </span>
           {field.required && (field.type as string) !== 'separator' && (
-            <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">Required</span>
+            <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">{t('required')}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -110,7 +115,7 @@ export default function CollapsibleFieldEditor({
               onRemove(field.id)
             }}
             className="text-red-600 hover:text-red-700 transition-colors p-1"
-            title="Remove field"
+            title={t('removeField')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,53 +141,53 @@ export default function CollapsibleFieldEditor({
               <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                  <span className="text-sm font-semibold text-purple-900">Section Separator</span>
+                  <span className="text-sm font-semibold text-purple-900">{t('sectionSeparator')}</span>
                 </div>
                 <p className="text-xs text-purple-700">
-                  This field creates a visual separator in the form. Use it to group fields for different authors or sections.
+                  {t('sectionSeparatorDesc')}
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Field Name (Internal) *
+                    {t('fieldNameInternalStar')}
                   </label>
                   <input
                     type="text"
                     value={field.name}
                     onChange={(e) => onUpdate(field.id, { name: e.target.value })}
-                    placeholder="e.g., author_2_separator"
+                    placeholder={t('placeholderAuthorSeparator')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Used internally (lowercase, underscores)</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('usedInternally')}</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Section Title (Display) *
+                    {t('sectionTitleDisplayStar')}
                   </label>
                   <input
                     type="text"
                     value={field.label}
                     onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-                    placeholder="e.g., Author 2, Additional Authors"
+                    placeholder={t('placeholderAuthor2Title')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Title shown as section header in the form</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('titleShownAsSectionHeader')}</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description / Help Text (Optional)
+                  {t('descriptionHelpTextOptional')}
                 </label>
                 <textarea
                   value={field.description || ''}
                   onChange={(e) => onUpdate(field.id, { description: e.target.value || undefined })}
-                  placeholder="Optional description shown below the section title"
+                  placeholder={t('placeholderOptionalDescription')}
                   rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -194,39 +199,39 @@ export default function CollapsibleFieldEditor({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Field Name (Internal) *
+                    {t('fieldNameInternalStar')}
                   </label>
                   <input
                     type="text"
                     value={field.name}
                     onChange={(e) => onUpdate(field.id, { name: e.target.value })}
-                    placeholder="Enter field name"
+                    placeholder={t('placeholderFieldName')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Used internally (lowercase, underscores)</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('usedInternally')}</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Field Label (Display) *
+                    {t('fieldLabelDisplayStar')}
                   </label>
                   <input
                     type="text"
                     value={field.label}
                     onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-                    placeholder="Field name"
+                    placeholder={t('placeholderFieldName')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Shown to users in the form</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('shownToUsersInForm')}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Field Type *
+                    {t('fieldTypeLabel')}
                   </label>
                   <select
                     value={field.type}
@@ -242,18 +247,18 @@ export default function CollapsibleFieldEditor({
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="text">Text (Short Answer)</option>
-                    <option value="textarea">Textarea (Long Answer)</option>
-                    <option value="longtext">Long Text (Paste - Max 5000 chars)</option>
-                    <option value="file">File Upload (Abstract)</option>
-                    <option value="number">Number</option>
-                    <option value="email">Email</option>
-                    <option value="tel">Phone Number</option>
-                    <option value="date">Date</option>
-                    <option value="select">Dropdown (Select)</option>
-                    <option value="radio">Radio Buttons</option>
-                    <option value="checkbox">Checkbox</option>
-                    <option value="separator">Separator (Section Break)</option>
+                    <option value="text">{t('optionTextShort')}</option>
+                    <option value="textarea">{t('optionTextareaLong')}</option>
+                    <option value="longtext">{t('optionLongtextPaste')}</option>
+                    <option value="file">{t('optionFileUpload')}</option>
+                    <option value="number">{t('optionNumber')}</option>
+                    <option value="email">{t('optionEmail')}</option>
+                    <option value="tel">{t('optionPhoneNumber')}</option>
+                    <option value="date">{t('optionDate')}</option>
+                    <option value="select">{t('optionDropdownSelect')}</option>
+                    <option value="radio">{t('optionRadioButtons')}</option>
+                    <option value="checkbox">{t('optionCheckbox')}</option>
+                    <option value="separator">{t('optionSeparatorBreak')}</option>
                   </select>
                 </div>
 
@@ -266,10 +271,10 @@ export default function CollapsibleFieldEditor({
                       disabled={(field.type as string) === 'separator'}
                       className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <span className="text-sm font-semibold text-gray-700">Required Field</span>
+                    <span className="text-sm font-semibold text-gray-700">{t('requiredField')}</span>
                   </label>
                   {(field.type as string) === 'separator' && (
-                    <p className="text-xs text-gray-500 mt-1">Separators are never required</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('separatorsNeverRequired')}</p>
                   )}
                 </div>
               </div>
@@ -278,7 +283,7 @@ export default function CollapsibleFieldEditor({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Options (one per line) *
+                  {t('optionsOnePerLine')}
                 </label>
                 {field.type === 'select' && (
                   <button
@@ -287,7 +292,7 @@ export default function CollapsibleFieldEditor({
                     className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
                   >
                     <Globe className="w-3 h-3" />
-                    Load All Countries
+                    {t('loadAllCountries')}
                   </button>
                 )}
               </div>
@@ -298,21 +303,25 @@ export default function CollapsibleFieldEditor({
                     options: e.target.value.split('\n').filter((opt) => opt.trim()),
                   })
                 }
-                placeholder={field.type === 'radio' ? "Bank transfer&#10;Credit/debit card" : "Option 1&#10;Option 2&#10;Option 3"}
+                placeholder={
+                  field.type === 'radio'
+                    ? t('placeholderOptionsRadio')
+                    : t('placeholderOptionsSelect')
+                }
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Enter each option on a new line
-                {field.type === 'select' && <span className="font-semibold"> • Or click "Load All Countries" for country dropdown</span>}
+                {t('enterEachOptionOnNewLine')}
+                {field.type === 'select' && <span className="font-semibold"> • {t('orClickLoadAllCountries')}</span>}
               </p>
             </div>
               )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {field.type === 'checkbox' ? 'Checkbox Text' : 'Placeholder Text'}
+                  {field.type === 'checkbox' ? t('checkboxText') : t('placeholderText')}
                 </label>
                 <input
                   type="text"
@@ -321,13 +330,13 @@ export default function CollapsibleFieldEditor({
                   placeholder={
                     field.type === 'checkbox'
                       ? "I accept [Terms of Service](https://example.com/terms)"
-                      : "Enter placeholder text"
+                      : t('placeholderEnterPlaceholder')
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {field.type === 'checkbox' && (
                   <p className="mt-2 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <span className="font-semibold text-blue-900">💡 Tip:</span> Add clickable links using markdown syntax:<br />
+                    <span className="font-semibold text-blue-900">💡 {t('tipAddClickableLinks')}</span><br />
                     <code className="text-blue-800 bg-white px-2 py-1 rounded mt-1 inline-block text-xs">
                       I accept [Terms](https://example.com/terms) and [Privacy Policy](https://example.com/privacy)
                     </code>
@@ -337,12 +346,12 @@ export default function CollapsibleFieldEditor({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description / Help Text
+                  {t('descriptionHelpText')}
                 </label>
                 <textarea
                   value={field.description || ''}
                   onChange={(e) => onUpdate(field.id, { description: e.target.value || undefined })}
-                  placeholder="Help text shown below the field (optional)"
+                  placeholder={t('helpTextShownBelow')}
                   rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -353,12 +362,12 @@ export default function CollapsibleFieldEditor({
                 <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                    <span className="text-sm font-semibold text-green-900">File Upload Settings</span>
+                    <span className="text-sm font-semibold text-green-900">{t('fileUploadSettings')}</span>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Allowed File Types
+                      {t('allowedFileTypes')}
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png'].map((type) => (
@@ -383,7 +392,7 @@ export default function CollapsibleFieldEditor({
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Max File Size (MB)
+                      {t('maxFileSizeMb')}
                     </label>
                     <input
                       type="number"
@@ -393,7 +402,7 @@ export default function CollapsibleFieldEditor({
                       onChange={(e) => onUpdate(field.id, { maxFileSize: parseInt(e.target.value) || 10 })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Maximum: 50 MB</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('maximum50Mb')}</p>
                   </div>
                 </div>
               )}
@@ -403,12 +412,12 @@ export default function CollapsibleFieldEditor({
                 <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                    <span className="text-sm font-semibold text-purple-900">Long Text Settings</span>
+                    <span className="text-sm font-semibold text-purple-900">{t('longTextSettings')}</span>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Maximum Characters
+                      {t('maximumCharacters')}
                     </label>
                     <input
                       type="number"
@@ -457,17 +466,19 @@ export default function CollapsibleFieldEditor({
                           })
                         }
                       }}
-                      placeholder="Enter max characters (100-5000)"
+                      placeholder={t('placeholderMaxCharacters')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Users can paste up to {field.validation?.maxLength || 5000} characters (Range: 100-5000)
+                      {t('usersCanPasteUpTo', {
+                        max: field.validation?.maxLength || 5000,
+                      })}
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Minimum Characters (Optional)
+                      {t('minimumCharactersOptional')}
                     </label>
                     <input
                       type="number"
@@ -494,11 +505,11 @@ export default function CollapsibleFieldEditor({
                           })
                         }
                       }}
-                      placeholder="No minimum"
+                      placeholder={t('placeholderNoMinimum')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Leave empty for no minimum requirement
+                      {t('leaveEmptyNoMinimum')}
                     </p>
                   </div>
                 </div>
