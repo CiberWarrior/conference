@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Star, Users, CheckCircle, TrendingUp } from 'lucide-react'
 
 interface SocialProofProps {
@@ -15,6 +16,7 @@ export default function SocialProof({
   conferenceStats = {},
   showTestimonial = true,
 }: SocialProofProps) {
+  const t = useTranslations('registrationForm')
   const {
     totalRegistrations = 0,
     rating = 4.9,
@@ -57,7 +59,7 @@ export default function SocialProof({
           <div className="flex items-center gap-2 text-gray-700">
             <Users className="w-5 h-5 text-blue-600" />
             <span className="font-semibold">{totalRegistrations}+</span>
-            <span className="text-sm">registered participants</span>
+            <span className="text-sm">{t('registeredParticipants')}</span>
           </div>
         )}
       </div>
@@ -85,8 +87,8 @@ export default function SocialProof({
               <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-green-600" />
                 {recentRegistrations > 0
-                  ? `${recentRegistrations} people registered recently`
-                  : 'Join other participants'}
+                  ? t('peopleRegisteredRecently', { count: recentRegistrations })
+                  : t('joinOtherParticipants')}
               </p>
               <p className="text-xs text-gray-600">Secure your spot today!</p>
             </div>
@@ -135,7 +137,7 @@ export default function SocialProof({
                 opportunities. Highly recommend!"
               </p>
               <p className="text-xs text-gray-600 font-semibold">
-                - John Doe, Previous Participant
+                - John Doe, {t('previousParticipant')}
               </p>
             </div>
           </div>

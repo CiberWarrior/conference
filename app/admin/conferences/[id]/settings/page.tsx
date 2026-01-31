@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket, ChevronDown, ChevronRight } from 'lucide-react'
 import type {
-  CustomPricingField,
   CustomFeeType,
   HotelOption,
   PaymentSettings,
@@ -22,7 +21,11 @@ import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
-import { formatPriceWithoutZeros } from '@/utils/pricing'
+import {
+  formatPriceWithoutZeros,
+  getPriceBreakdownFromInput,
+  getTravelAgencyMarginVat,
+} from '@/utils/pricing'
 
 export default function ConferenceSettingsPage() {
   const t = useTranslations('admin.conferences')
@@ -49,9 +52,11 @@ export default function ConferenceSettingsPage() {
   const [draggedHotelIndex, setDraggedHotelIndex] = useState<number | null>(null)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [useDefaultVAT, setUseDefaultVAT] = useState(true) // Whether to use organization default VAT
+  const [travelAgencyVatMode, setTravelAgencyVatMode] = useState(false) // Posebni postupak PDV-a za putničke agencije (marža)
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
   const [customFeeTypes, setCustomFeeTypes] = useState<CustomFeeType[]>([])
   const [expandedFeeTypeId, setExpandedFeeTypeId] = useState<string | null>(null)
+  const [draggedFeeTypeIndex, setDraggedFeeTypeIndex] = useState<number | null>(null)
   const [conferenceTickets, setConferenceTickets] = useState<{ id: string; subject: string; status: string; description?: string | null }[]>([])
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [hotelUsage, setHotelUsage] = useState<Record<string, number>>({})
@@ -74,25 +79,19 @@ export default function ConferenceSettingsPage() {
     prices_include_vat: false, // If true, entered prices are VAT-inclusive (sa PDV-om)
     early_bird_amount: 150,
     early_bird_deadline: '',
+    early_bird_start_date: '', // Optional - od kada vrijedi early bird (valid from)
     regular_amount: 200,
-    regular_start_date: '', // Optional - when regular pricing starts (default: early_bird_deadline + 1)
+    regular_start_date: '',
+    regular_end_date: '', // Optional - do kada vrijedi regular (valid to)
     late_amount: 250,
-    late_start_date: '', // Optional - when late registration pricing starts
+    late_start_date: '',
+    late_end_date: '', // Optional - do kada vrijedi late (valid to)
     student_discount: 50, // Legacy - kept for backward compatibility
     // Student pricing (fixed prices per tier)
     student_early_bird: 100,
     student_regular: 150,
     student_late: 200,
     accompanying_person_price: 140,
-    custom_pricing_fields: [] as CustomPricingField[],
-    // Prikazni nazivi tipova kotizacija po konferenciji (opcionalno)
-    fee_type_labels: {
-      early_bird: '',
-      regular: '',
-      late: '',
-      student: '',
-      accompanying_person: '',
-    } as Record<StandardFeeTypeKey, string>,
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
@@ -115,7 +114,7 @@ export default function ConferenceSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conferenceId])
 
-  const loadConferenceTickets = async () => {
+  const loadConferenceTickets = useCallback(async () => {
     if (!conferenceId) return
     setLoadingTickets(true)
     try {
@@ -138,9 +137,9 @@ export default function ConferenceSettingsPage() {
     } finally {
       setLoadingTickets(false)
     }
-  }
+  }, [conferenceId])
 
-  const loadHotelUsage = async () => {
+  const loadHotelUsage = useCallback(async () => {
     if (!conferenceId) return
     setLoadingHotelUsage(true)
     try {
@@ -156,15 +155,15 @@ export default function ConferenceSettingsPage() {
     } finally {
       setLoadingHotelUsage(false)
     }
-  }
+  }, [conferenceId])
 
   useEffect(() => {
     loadConferenceTickets()
-  }, [conferenceId])
+  }, [loadConferenceTickets])
 
   useEffect(() => {
     loadHotelUsage()
-  }, [conferenceId])
+  }, [loadHotelUsage])
 
   const hasTicketForHotel = (hotelId: string) =>
     conferenceTickets.some(
@@ -237,24 +236,19 @@ export default function ConferenceSettingsPage() {
           prices_include_vat: !!conf.pricing?.prices_include_vat,
           early_bird_amount: conf.pricing?.early_bird?.amount || 150,
           early_bird_deadline: conf.pricing?.early_bird?.deadline || '',
+          early_bird_start_date: conf.pricing?.early_bird?.start_date || '',
           regular_amount: conf.pricing?.regular?.amount || 200,
           regular_start_date: conf.pricing?.regular?.start_date || '',
+          regular_end_date: conf.pricing?.regular?.end_date || '',
           late_amount: conf.pricing?.late?.amount || 250,
           late_start_date: conf.pricing?.late?.start_date || '',
+          late_end_date: conf.pricing?.late?.end_date || '',
           student_discount: conf.pricing?.student_discount || 50,
           // Student pricing (use new structure if available, otherwise fallback to discount-based)
           student_early_bird: conf.pricing?.student?.early_bird || (conf.pricing?.early_bird?.amount || 150) - (conf.pricing?.student_discount || 50),
           student_regular: conf.pricing?.student?.regular || (conf.pricing?.regular?.amount || 200) - (conf.pricing?.student_discount || 50),
           student_late: conf.pricing?.student?.late || (conf.pricing?.late?.amount || 250) - (conf.pricing?.student_discount || 50),
           accompanying_person_price: conf.pricing?.accompanying_person_price || 0,
-          custom_pricing_fields: conf.pricing?.custom_fields || [],
-          fee_type_labels: {
-            early_bird: conf.pricing?.fee_type_labels?.early_bird ?? '',
-            regular: conf.pricing?.fee_type_labels?.regular ?? '',
-            late: conf.pricing?.fee_type_labels?.late ?? '',
-            student: conf.pricing?.fee_type_labels?.student ?? '',
-            accompanying_person: conf.pricing?.fee_type_labels?.accompanying_person ?? '',
-          },
           // Settings
           registration_enabled: conf.settings?.registration_enabled ?? true,
           abstract_submission_enabled: conf.settings?.abstract_submission_enabled ?? true,
@@ -275,6 +269,7 @@ export default function ConferenceSettingsPage() {
         // Load participant settings, payment settings, custom fee types, and info texts
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
         setPaymentSettings(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS)
+        setTravelAgencyVatMode(!!conf.pricing?.travel_agency_vat_mode)
         setCustomFeeTypes(conf.pricing?.custom_fee_types || [])
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
         setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
@@ -314,45 +309,18 @@ Important: Authors who submit abstracts for presentation are not automatically r
     }))
   }
 
-  // Custom Pricing Fields Management
-  const addCustomPricingField = () => {
-    const newField: CustomPricingField = {
-      id: `custom_${Date.now()}`,
-      name: '',
-      value: 0,
-      description: '',
-    }
-    setFormData((prev) => ({
-      ...prev,
-      custom_pricing_fields: [...prev.custom_pricing_fields, newField],
-    }))
-  }
-
-  const removeCustomPricingField = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      custom_pricing_fields: prev.custom_pricing_fields.filter((field) => field.id !== id),
-    }))
-  }
-
-  const updateCustomPricingField = (id: string, field: Partial<CustomPricingField>) => {
-    setFormData((prev) => ({
-      ...prev,
-      custom_pricing_fields: prev.custom_pricing_fields.map((f) =>
-        f.id === id ? { ...f, ...field } : f
-      ),
-    }))
-  }
-
   // Custom Fee Types Management
   const addCustomFeeType = () => {
     const newFeeType: CustomFeeType = {
       id: `fee_type_${Date.now()}`,
       name: '',
       description: '',
+      enabled: true,
       early_bird: 0,
       regular: 0,
       late: 0,
+      valid_from: '',
+      valid_to: '',
     }
     setCustomFeeTypes([...customFeeTypes, newFeeType])
     setExpandedFeeTypeId(newFeeType.id)
@@ -366,6 +334,19 @@ Important: Authors who submit abstracts for presentation are not automatically r
     setCustomFeeTypes(customFeeTypes.map((ft) =>
       ft.id === id ? { ...ft, ...updates } : ft
     ))
+  }
+
+  const handleFeeTypeDragStart = (index: number) => {
+    setDraggedFeeTypeIndex(index)
+  }
+
+  const handleFeeTypeDrop = (targetIndex: number) => {
+    if (draggedFeeTypeIndex === null) return
+    const newList = [...customFeeTypes]
+    const [dragged] = newList.splice(draggedFeeTypeIndex, 1)
+    newList.splice(targetIndex, 0, dragged)
+    setCustomFeeTypes(newList)
+    setDraggedFeeTypeIndex(null)
   }
 
   // Room type – oznake za UI (prevedeno)
@@ -664,18 +645,22 @@ Important: Authors who submit abstracts for presentation are not automatically r
               : formData.vat_percentage 
                 ? parseFloat(formData.vat_percentage.toString()) 
                 : null,
-            prices_include_vat: !!formData.prices_include_vat,
+            prices_include_vat: false, // Cijene se uvijek unose kao neto; opcija bruto uklonjena
+            travel_agency_vat_mode: travelAgencyVatMode,
             early_bird: {
               amount: formData.early_bird_amount,
               deadline: formData.early_bird_deadline || undefined,
+              start_date: formData.early_bird_start_date || undefined,
             },
             regular: {
               amount: formData.regular_amount,
               start_date: formData.regular_start_date || undefined,
+              end_date: formData.regular_end_date || undefined,
             },
             late: {
               amount: formData.late_amount,
               start_date: formData.late_start_date || undefined,
+              end_date: formData.late_end_date || undefined,
             },
             // Student pricing (new structure)
             student: {
@@ -685,12 +670,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
             },
             student_discount: formData.student_discount, // Keep for backward compatibility
             accompanying_person_price: formData.accompanying_person_price || undefined,
-            custom_fields: formData.custom_pricing_fields.length > 0 ? formData.custom_pricing_fields : undefined,
+            // Legacy custom_fields removed – koriste se samo Custom Fee Types
+            custom_fields: undefined,
             custom_fee_types: customFeeTypes.length > 0 ? customFeeTypes : undefined,
-            fee_type_labels:
-              Object.values(formData.fee_type_labels).some((v) => v.trim() !== '')
-                ? formData.fee_type_labels
-                : undefined,
+            // Display names for standard fee types removed – form uses i18n defaults; only custom fee types have admin-defined names
+            fee_type_labels: undefined,
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -791,6 +775,24 @@ Important: Authors who submit abstracts for presentation are not automatically r
         </div>
       </div>
     )
+  }
+
+  // Admin dashboard: net + gross must use the same VAT as PDV settings (linked)
+  // – "Use organization default" → profile.default_vat_percentage (e.g. 25%)
+  // – "Set custom VAT" → formData.vat_percentage
+  const adminVatNum = (() => {
+    if (useDefaultVAT && profile?.default_vat_percentage != null) {
+      const n = Number(profile.default_vat_percentage)
+      return Number.isFinite(n) && n >= 0 ? n : 0
+    }
+    const raw = formData.vat_percentage
+    if (raw === null || raw === undefined || raw === '') return 0
+    const n = typeof raw === 'number' ? raw : parseFloat(String(raw))
+    return Number.isFinite(n) && n >= 0 ? n : 0
+  })()
+  const getAdminNetGross = (amount: number) => {
+    if (!adminVatNum) return { withoutVAT: amount, withVAT: amount }
+    return getPriceBreakdownFromInput(amount, adminVatNum, false) // cijene uvijek neto
   }
 
   return (
@@ -1690,296 +1692,109 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 </p>
               </div>
 
-              {/* Price Input Mode */}
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('priceInputMode')}
+              {/* Putnička agencija – posebni postupak PDV-a (marža) */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-amber-300 hover:bg-amber-50/50" style={{
+                  borderColor: travelAgencyVatMode ? '#D97706' : '#E5E7EB',
+                  backgroundColor: travelAgencyVatMode ? '#FFFBEB' : 'white',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={travelAgencyVatMode}
+                    onChange={(e) => setTravelAgencyVatMode(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900">{t('travelAgencyVatMode')}</div>
+                    <p className="text-sm text-gray-600 mt-1">{t('travelAgencyVatModeDesc')}</p>
+                  </div>
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label
-                    className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50/50"
-                    style={{
-                      borderColor: !formData.prices_include_vat ? '#3B82F6' : '#E5E7EB',
-                      backgroundColor: !formData.prices_include_vat ? '#EFF6FF' : 'white',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="prices_include_vat"
-                      checked={!formData.prices_include_vat}
-                      onChange={() =>
-                        setFormData((prev) => ({ ...prev, prices_include_vat: false }))
-                      }
-                      className="mt-1 w-4 h-4 text-blue-600"
-                    />
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900">{t('pricesNet')}</div>
-                      <p className="text-sm text-gray-600 mt-1">{t('exampleNetHint')}</p>
-                    </div>
-                  </label>
+                {travelAgencyVatMode && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-900">{t('travelAgencyVatModeTip')}</p>
+                  </div>
+                )}
+              </div>
 
-                  <label
-                    className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-purple-300 hover:bg-purple-50/50"
-                    style={{
-                      borderColor: formData.prices_include_vat ? '#9333EA' : '#E5E7EB',
-                      backgroundColor: formData.prices_include_vat ? '#FAF5FF' : 'white',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="prices_include_vat"
-                      checked={!!formData.prices_include_vat}
-                      onChange={() =>
-                        setFormData((prev) => ({ ...prev, prices_include_vat: true }))
-                      }
-                      className="mt-1 w-4 h-4 text-purple-600"
-                    />
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900">{t('pricesGrossLabel')}</div>
-                      <p className="text-sm text-gray-600 mt-1">{t('exampleGrossHint')}</p>
-                    </div>
+              {/* Cijene se uvijek unose bez PDV-a (neto); opcija bruto uklonjena */}
+            </div>
+
+            {/* Jedan kalendar za sve tipove – datumi određuju kada vrijedi Early Bird / Regular / Late */}
+            <div className="md:col-span-2 mb-4">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">{t('pricingCalendarTitle')}</h3>
+              <p className="text-xs text-gray-600 mb-1">{t('pricingCalendarHint')}</p>
+              <p className="text-xs text-blue-700 font-medium mb-4">{t('pricingCalendarOneForAll')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label htmlFor="early_bird_deadline" className="block text-xs font-semibold text-gray-700 mb-1">
+                    {t('earlyBirdDeadline')}
                   </label>
+                  <input
+                    type="date"
+                    id="early_bird_deadline"
+                    name="early_bird_deadline"
+                    value={formData.early_bird_deadline}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">{t('priceExpiryDateLabel')}</p>
+                </div>
+                <div>
+                  <label htmlFor="regular_start_date" className="block text-xs font-semibold text-gray-700 mb-1">
+                    {t('regularPeriodFrom')}
+                  </label>
+                  <input
+                    type="date"
+                    id="regular_start_date"
+                    name="regular_start_date"
+                    value={formData.regular_start_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="regular_end_date" className="block text-xs font-semibold text-gray-700 mb-1">
+                    {t('regularPeriodTo')}
+                  </label>
+                  <input
+                    type="date"
+                    id="regular_end_date"
+                    name="regular_end_date"
+                    value={formData.regular_end_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="late_start_date" className="block text-xs font-semibold text-gray-700 mb-1">
+                    {t('latePeriodFrom')}
+                  </label>
+                  <input
+                    type="date"
+                    id="late_start_date"
+                    name="late_start_date"
+                    value={formData.late_start_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
                 </div>
               </div>
-            </div>
-
-            {/* Display names for fee types (optional) */}
-            <div className="md:col-span-2">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
-                {t('displayNamesFeeTypesOptional')}
-              </h3>
-              <p className="text-xs text-gray-500 mb-3">
-                {t('feeTypeLabelsHint')}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(['early_bird', 'regular', 'late', 'student', 'accompanying_person'] as const).map((key) => (
-                  <div key={key}>
-                    <label htmlFor={`fee_label_${key}`} className="block text-xs font-medium text-gray-600 mb-1">
-                      {key === 'early_bird' && t('earlyBird')}
-                      {key === 'regular' && t('regular')}
-                      {key === 'late' && t('late')}
-                      {key === 'student' && t('student')}
-                      {key === 'accompanying_person' && t('accompanyingPerson')}
-                    </label>
-                    <input
-                      id={`fee_label_${key}`}
-                      type="text"
-                      value={formData.fee_type_labels[key]}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          fee_type_labels: { ...prev.fee_type_labels, [key]: e.target.value },
-                        }))
-                      }
-                      placeholder={
-                        key === 'early_bird'
-                          ? t('placeholderEarlyRate')
-                          : key === 'regular'
-                            ? t('placeholderRegularFee')
-                            : key === 'late'
-                              ? t('placeholderLateRegistration')
-                              : key === 'student'
-                                ? t('placeholderStudent')
-                                : t('placeholderAccompanyingPerson')
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                ))}
+              <div className="mt-4 max-w-xs">
+                <label htmlFor="late_end_date" className="block text-xs font-semibold text-gray-700 mb-1">
+                  {t('latePeriodTo')} <span className="text-gray-500 font-normal">({t('optional')})</span>
+                </label>
+                <input
+                  type="date"
+                  id="late_end_date"
+                  name="late_end_date"
+                  value={formData.late_end_date}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
               </div>
             </div>
 
-            {/* Cijene po periodu (Early Bird / Regular / Late) */}
-            <div className="md:col-span-2 mb-1">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                {t('pricesByPeriod')}
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                {t('pricesByPeriodHint')}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="early_bird_amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('earlyBirdPrice')}
-              </label>
-              <input
-                type="number"
-                id="early_bird_amount"
-                name="early_bird_amount"
-                value={formData.early_bird_amount}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 150.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                {t('earlyBirdPriceHint')}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="early_bird_deadline" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('earlyBirdDeadline')}
-              </label>
-              <input
-                type="date"
-                id="early_bird_deadline"
-                name="early_bird_deadline"
-                value={formData.early_bird_deadline}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                {t('earlyBirdDeadlineHint')}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="regular_amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                Regular Price
-              </label>
-              <input
-                type="number"
-                id="regular_amount"
-                name="regular_amount"
-                value={formData.regular_amount}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 200.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Default price after early bird ends.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="regular_start_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                Regular Start Date <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="date"
-                id="regular_start_date"
-                name="regular_start_date"
-                value={formData.regular_start_date}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                When regular pricing starts. If not set, defaults to the day after Early Bird Deadline.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="late_amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                Late Registration Price
-              </label>
-              <input
-                type="number"
-                id="late_amount"
-                name="late_amount"
-                value={formData.late_amount}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 250.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Applied when late registration is active (after regular period).
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="late_start_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                Late Registration Start Date <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="date"
-                id="late_start_date"
-                name="late_start_date"
-                value={formData.late_start_date}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                When late registration pricing starts. If not set, late pricing applies after regular period ends.
-              </p>
-            </div>
-
-            {/* Student pricing (same periods: Early Bird / Regular / Late) */}
-            <div className="md:col-span-2 mb-2 mt-6">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                Student pricing
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Fixed prices for students by period (Early Bird, Regular, Late).
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="student_early_bird" className="block text-sm font-semibold text-gray-700 mb-2">
-                Student Early Bird
-              </label>
-              <input
-                type="number"
-                id="student_early_bird"
-                name="student_early_bird"
-                value={formData.student_early_bird}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 100.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Fixed student price during early bird (not a discount).
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="student_regular" className="block text-sm font-semibold text-gray-700 mb-2">
-                Student Regular
-              </label>
-              <input
-                type="number"
-                id="student_regular"
-                name="student_regular"
-                value={formData.student_regular}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 150.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Fixed student price for the regular period.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="student_late" className="block text-sm font-semibold text-gray-700 mb-2">
-                Student Late Registration
-              </label>
-              <input
-                type="number"
-                id="student_late"
-                name="student_late"
-                value={formData.student_late}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 200.00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Fixed student price for late registration.
-              </p>
-            </div>
-
+            {/* Samo Custom Fee Types – admin definira tipove kotizacija (naziv, cijena, raspon). */}
             {/* Custom Fee Types */}
             <div className="md:col-span-2 mb-4 mt-6">
               <div className="flex items-center gap-2 mb-4">
@@ -1987,9 +1802,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t('customFeeTypes')}</h3>
                 <div className="h-px flex-1 bg-gradient-to-l from-purple-200 to-transparent"></div>
               </div>
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-900">{t('pricesAutoByCalendar')}</p>
+              </div>
               <div className="flex items-center justify-between mb-4">
                 <p className="text-xs text-gray-500">
-                  Add fee types specific to this conference (e.g. VIP, Senior, speaker). Each type has Early Bird / Regular / Late prices.
+                  {t('customFeeTypesIntro')}
                 </p>
                 <button
                   type="button"
@@ -2010,35 +1828,101 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 <div className="space-y-4">
                   {customFeeTypes.map((feeType, index) => {
                     const isExpanded = expandedFeeTypeId === feeType.id
+                    const isEnabled = feeType.enabled !== false
                     return (
                       <div
                         key={feeType.id}
-                        className="bg-purple-50 rounded-lg border-2 border-purple-200 p-4 hover:border-purple-300 transition-all"
+                        draggable
+                        onDragStart={() => handleFeeTypeDragStart(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleFeeTypeDrop(index)}
+                        onDragEnd={() => setDraggedFeeTypeIndex(null)}
+                        className={`bg-purple-50 rounded-lg border-2 p-4 transition-all cursor-grab active:cursor-grabbing ${
+                          draggedFeeTypeIndex === index
+                            ? 'opacity-50 border-purple-400 scale-[0.98]'
+                            : isEnabled
+                              ? 'border-purple-200 hover:border-purple-300'
+                              : 'border-purple-100 opacity-70'
+                        }`}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-2 flex-shrink-0" title={t('dragToReorder')}>
+                            <GripVertical className="w-5 h-5 text-purple-500" />
+                          </div>
+                          {/* Chevron: otvori/zatvori polja tipa kotizacije */}
+                          <button
+                            type="button"
+                            onClick={() => setExpandedFeeTypeId(isExpanded ? null : feeType.id)}
+                            className="flex-shrink-0 p-1 rounded text-purple-600 hover:bg-purple-100 transition-colors"
+                            title={isExpanded ? t('collapseFeeType') : t('expandFeeType')}
+                            aria-expanded={isExpanded}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-5 h-5" />
+                            ) : (
+                              <ChevronRight className="w-5 h-5" />
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0">
                             <button
                               type="button"
                               onClick={() => setExpandedFeeTypeId(isExpanded ? null : feeType.id)}
                               className="text-left w-full"
                             >
-                              <h4 className="text-sm font-bold text-purple-900">
+                              <h4 className={`text-sm font-bold ${isEnabled ? 'text-purple-900' : 'text-purple-600'}`}>
                                 {feeType.name || `Custom Fee Type #${index + 1}`}
                               </h4>
                               {feeType.description && (
                                 <p className="text-xs text-purple-700 mt-1">{feeType.description}</p>
                               )}
                               {!isExpanded && feeType.name && (
-                                <p className="text-xs text-purple-600 mt-1">
-                                  Early Bird: {feeType.early_bird} {formData.currency} | Regular: {feeType.regular} {formData.currency} | Late: {feeType.late} {formData.currency}
-                                </p>
+                                <>
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    {feeType.amount != null && feeType.amount !== undefined
+                                      ? (() => {
+                                          const { withoutVAT, withVAT } = getAdminNetGross(feeType.amount)
+                                          return `${t('priceNetShort')}: ${formatPriceWithoutZeros(withoutVAT)} ${formData.currency} | ${t('priceGrossShort')}: ${formatPriceWithoutZeros(withVAT)} ${formData.currency}${feeType.valid_from || feeType.valid_to ? ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}` : ''}`
+                                        })()
+                                      : (() => {
+                                          const eb = getAdminNetGross(feeType.early_bird ?? 0)
+                                          const reg = getAdminNetGross(feeType.regular ?? 0)
+                                          const lat = getAdminNetGross(feeType.late ?? 0)
+                                          return `${t('earlyBird')}: ${t('priceNetShort')} ${formatPriceWithoutZeros(eb.withoutVAT)} / ${t('priceGrossShort')} ${formatPriceWithoutZeros(eb.withVAT)} ${formData.currency} | ${t('regular')}: ${formatPriceWithoutZeros(reg.withoutVAT)}/${formatPriceWithoutZeros(reg.withVAT)} | ${t('late')}: ${formatPriceWithoutZeros(lat.withoutVAT)}/${formatPriceWithoutZeros(lat.withVAT)} ${formData.currency}`
+                                        })()}
+                                  </p>
+                                  {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (
+                                    <p className="text-xs text-amber-700 mt-0.5">
+                                      {feeType.amount != null && feeType.amount !== undefined
+                                        ? (() => {
+                                            const gross = getAdminNetGross(feeType.amount).withVAT
+                                            const { margin, vatPayableAmount } = getTravelAgencyMarginVat(gross, feeType.cost)
+                                            return `${t('margin')}: ${formatPriceWithoutZeros(margin)} | ${t('vatOnMargin')}: ${formatPriceWithoutZeros(vatPayableAmount)} ${formData.currency}`
+                                          })()
+                                        : (() => {
+                                            const v1 = getTravelAgencyMarginVat(getAdminNetGross(feeType.early_bird ?? 0).withVAT, feeType.cost).vatPayableAmount
+                                            const v2 = getTravelAgencyMarginVat(getAdminNetGross(feeType.regular ?? 0).withVAT, feeType.cost).vatPayableAmount
+                                            const v3 = getTravelAgencyMarginVat(getAdminNetGross(feeType.late ?? 0).withVAT, feeType.cost).vatPayableAmount
+                                            return `${t('vatOnMargin')}: ${t('earlyBird')} ${formatPriceWithoutZeros(v1)} / ${t('regular')} ${formatPriceWithoutZeros(v2)} / ${t('late')} ${formatPriceWithoutZeros(v3)} ${formData.currency}`
+                                          })()}
+                                    </p>
+                                  )}
+                                </>
                               )}
                             </button>
                           </div>
+                          <label className="flex items-center gap-2 flex-shrink-0 cursor-pointer" title={isEnabled ? t('visibleOnForm') : t('hiddenOnForm')}>
+                            <span className="text-xs font-medium text-purple-700 whitespace-nowrap">{isEnabled ? t('on') : t('off')}</span>
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              onChange={(e) => updateCustomFeeType(feeType.id, { enabled: e.target.checked })}
+                              className="w-4 h-4 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+                            />
+                          </label>
                           <button
                             type="button"
                             onClick={() => removeCustomFeeType(feeType.id)}
-                            className="text-red-600 hover:text-red-700 transition-colors ml-2"
+                            className="text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
                             title={t('removeFeeType')}
                           >
                             <X className="w-5 h-5" />
@@ -2093,10 +1977,81 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               />
                             </div>
 
+                            {/* Jedna cijena za cijelo razdoblje (naziv + cijena + od-do) */}
+                            <div>
+                              <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                {t('priceSingleOptional')}
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={feeType.amount ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  updateCustomFeeType(feeType.id, {
+                                    amount: v === '' ? undefined : parseFloat(v) || 0,
+                                  })
+                                }}
+                                placeholder="e.g. 350.00"
+                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                              />
+                              <p className="mt-1 text-xs text-purple-600">{t('priceSingleHint')}</p>
+                              {feeType.amount != null && feeType.amount !== undefined && (
+                                <p className="mt-1 text-xs font-medium text-purple-800">
+                                  {t('priceNetShort')}: {formatPriceWithoutZeros(getAdminNetGross(feeType.amount).withoutVAT)} {formData.currency} | {t('priceGrossShort')}: {formatPriceWithoutZeros(getAdminNetGross(feeType.amount).withVAT)} {formData.currency}. {t('participantsSeeGrossOnly')}
+                                  {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (() => {
+                                    const gross = getAdminNetGross(feeType.amount!).withVAT
+                                    const { margin, vatPayableAmount } = getTravelAgencyMarginVat(gross, feeType.cost)
+                                    return (
+                                      <span className="block mt-1 text-amber-800">
+                                        {t('costForMargin')}: {formatPriceWithoutZeros(feeType.cost)} {formData.currency} | {t('margin')}: {formatPriceWithoutZeros(margin)} | {t('vatOnMargin')}: {formatPriceWithoutZeros(vatPayableAmount)} {formData.currency}
+                                      </span>
+                                    )
+                                  })()}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Trošak (nabavna cijena) za posebni postupak putničke agencije */}
+                            {travelAgencyVatMode && (
+                              <div>
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  {t('costForMargin')} <span className="text-gray-500 font-normal">({t('optional')})</span>
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={feeType.cost ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                    updateCustomFeeType(feeType.id, {
+                                      cost: v === '' ? undefined : parseFloat(v) || 0,
+                                    })
+                                  }}
+                                  placeholder="e.g. 280.00"
+                                  className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm bg-amber-50/50"
+                                />
+                                <p className="mt-1 text-xs text-amber-700">{t('costForMarginHint')}</p>
+                              </div>
+                            )}
+
+                            {/* Pregled razdoblja (iz Kalendara gore) – nije drugi kalendar, samo referenca */}
+                            <p className="text-xs text-purple-700 font-medium mb-1">
+                              {t('calendarReferenceLabel')}
+                            </p>
+                            <p className="text-xs text-purple-600 mb-3">
+                              {t('calendarSummaryLine', {
+                                earlyBird: formData.early_bird_deadline || '–',
+                                regularFrom: formData.regular_start_date || '–',
+                                regularTo: formData.regular_end_date || '–',
+                              })}
+                            </p>
                             <div className="grid grid-cols-3 gap-3">
                               <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  Early Bird
+                                  {t('earlyBird')}
                                 </label>
                                 <input
                                   type="number"
@@ -2148,6 +2103,48 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 </p>
                               </div>
                             </div>
+                            {/* Dostupnost tipa na obrascu (opcionalno) – kad je ovaj tip vidljiv; nije kalendar cijena */}
+                            <div className="mt-4 pt-4 border-t border-purple-200">
+                              <p className="text-xs font-semibold text-purple-900 mb-1">{t('feeTypeAvailabilityLabel')}</p>
+                              <p className="text-xs text-purple-600 mb-2">{t('feeTypeAvailabilityHint')}</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs text-purple-800 mb-1">{t('validFrom')}</label>
+                                  <input
+                                    type="date"
+                                    value={feeType.valid_from || ''}
+                                    onChange={(e) =>
+                                      updateCustomFeeType(feeType.id, {
+                                        valid_from: e.target.value || undefined,
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-purple-800 mb-1">{t('validTo')}</label>
+                                  <input
+                                    type="date"
+                                    value={feeType.valid_to || ''}
+                                    onChange={(e) =>
+                                      updateCustomFeeType(feeType.id, {
+                                        valid_to: e.target.value || undefined,
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            {/* Net/Gross breakdown for period prices (admin only) */}
+                            <p className="text-xs font-medium text-purple-800 mt-3">
+                              {t('priceNetShort')} / {t('priceGrossShort')}: {t('earlyBird')} {formatPriceWithoutZeros(getAdminNetGross(feeType.early_bird ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.early_bird ?? 0).withVAT)} | {t('regular')} {formatPriceWithoutZeros(getAdminNetGross(feeType.regular ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.regular ?? 0).withVAT)} | {t('late')} {formatPriceWithoutZeros(getAdminNetGross(feeType.late ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.late ?? 0).withVAT)} {formData.currency}
+                            </p>
+                            {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (
+                              <p className="text-xs font-medium text-amber-800 mt-1">
+                                {t('costForMargin')}: {formatPriceWithoutZeros(feeType.cost)} {formData.currency}. {t('margin')} ({t('vatOnMargin')}): {t('earlyBird')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.early_bird ?? 0).withVAT, feeType.cost).vatPayableAmount)} | {t('regular')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.regular ?? 0).withVAT, feeType.cost).vatPayableAmount)} | {t('late')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.late ?? 0).withVAT, feeType.cost).vatPayableAmount)} {formData.currency}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2156,146 +2153,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 </div>
               )}
             </div>
-
-            <div>
-              <label htmlFor="accompanying_person_price" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('accompanyingPerson')} Price
-              </label>
-              <input
-                type="number"
-                id="accompanying_person_price"
-                name="accompanying_person_price"
-                value={formData.accompanying_person_price}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
-              <p className="mt-1 text-xs text-gray-500">{t('accompanyingPersonPriceDesc')}</p>
-            </div>
-          </div>
-
-          {/* Custom Pricing Fields */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Custom Pricing Fields</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Add custom pricing fields with your own labels and descriptions
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={addCustomPricingField}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-md hover:shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                {t('addPricingField')}
-              </button>
-            </div>
-
-            {formData.custom_pricing_fields.length === 0 ? (
-              <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-white rounded-xl border-2 border-dashed border-blue-200">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-gray-700 font-semibold text-sm mb-1">{t('noCustomPricingFieldsYet')}</p>
-                <p className="text-gray-500 text-xs">{t('addPricingFieldClickHint')}</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {formData.custom_pricing_fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <h4 className="text-sm font-semibold text-gray-700">
-                        {t('customFieldNumber', { number: index + 1 })}
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => removeCustomPricingField(field.id)}
-                        className="text-red-600 hover:text-red-700 transition-colors"
-                        title={t('removeField')}
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          {t('fieldNameStar')}
-                        </label>
-                        <input
-                          type="text"
-                          value={field.name}
-                          onChange={(e) =>
-                            updateCustomPricingField(field.id, { name: e.target.value })
-                          }
-                          placeholder={t('customPricingFieldPlaceholder')}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Value (Price) *
-                        </label>
-                        <input
-                          type="number"
-                          value={field.value}
-                          onChange={(e) =>
-                            updateCustomPricingField(field.id, {
-                              value: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Description *
-                      </label>
-                      <textarea
-                        value={field.description}
-                        onChange={(e) =>
-                          updateCustomPricingField(field.id, { description: e.target.value })
-                        }
-                        placeholder={t('describePricingField')}
-                        rows={2}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-
-                    {/* Preview */}
-                    {field.name && field.value > 0 && (
-                      <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">{t('previewLabel')}</p>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {field.name}: {field.value.toFixed(2)} {formData.currency}
-                        </p>
-                        {field.description && (
-                          <p className="text-xs text-gray-600 mt-1">{field.description}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

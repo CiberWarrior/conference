@@ -20,7 +20,9 @@ const stripePromise = stripePublishableKey
 
 interface PaymentFormProps {
   registrationId: string
-  amount: number
+  /** When omitted, API computes amount from registration + conference pricing (Option A: same-page payment) */
+  amount?: number
+  currency?: string
   conferenceName?: string
   conferenceDate?: string
   conferenceLocation?: string
@@ -31,12 +33,14 @@ interface PaymentFormProps {
 function PaymentFormContent({
   registrationId,
   amount,
+  currency: currencyDisplay = 'EUR',
   conferenceName,
   conferenceDate,
   conferenceLocation,
   onSuccess,
   onError,
 }: PaymentFormProps) {
+  const displayAmount = amount ?? 0
   const stripe = useStripe()
   const elements = useElements()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -255,7 +259,7 @@ function PaymentFormContent({
                 d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
               />
             </svg>
-            <span>Pay €{amount.toFixed(2)}</span>
+            <span>Pay {currencyDisplay === 'EUR' ? '€' : currencyDisplay}{displayAmount.toFixed(2)}</span>
           </>
         )}
       </button>
@@ -267,6 +271,7 @@ function PaymentFormContent({
 export default function PaymentForm({
   registrationId,
   amount,
+  currency: currencyProp,
   conferenceName,
   conferenceDate,
   conferenceLocation,
@@ -277,18 +282,24 @@ export default function PaymentForm({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [resolvedAmount, setResolvedAmount] = useState<number | undefined>(amount)
+  const [resolvedCurrency, setResolvedCurrency] = useState<string>(
+    currencyProp ?? 'EUR'
+  )
+
   useEffect(() => {
     const createPaymentIntent = async () => {
       try {
+        const body: { registrationId: string; amount?: number } = { registrationId }
+        if (amount != null && amount > 0) {
+          body.amount = amount
+        }
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            registrationId,
-            amount,
-          }),
+          body: JSON.stringify({ registrationId }),
         })
 
         const data = await response.json()
@@ -298,6 +309,8 @@ export default function PaymentForm({
         }
 
         setClientSecret(data.clientSecret)
+        if (data.amount != null) setResolvedAmount(Number(data.amount))
+        if (data.currency) setResolvedCurrency(String(data.currency))
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'An error occurred'
@@ -308,7 +321,7 @@ export default function PaymentForm({
       }
     }
 
-    if (registrationId && amount > 0) {
+    if (registrationId) {
       createPaymentIntent()
     } else {
       setIsLoading(false)
@@ -397,11 +410,15 @@ export default function PaymentForm({
     },
   }
 
+  const displayAmount = resolvedAmount ?? amount ?? 0
+  const displayCurrency = resolvedCurrency || currencyProp || 'EUR'
+
   return (
     <Elements options={options} stripe={stripePromise}>
       <PaymentFormContent
         registrationId={registrationId}
-        amount={amount}
+        amount={displayAmount}
+        currency={displayCurrency}
         conferenceName={conferenceName}
         conferenceDate={conferenceDate}
         conferenceLocation={conferenceLocation}

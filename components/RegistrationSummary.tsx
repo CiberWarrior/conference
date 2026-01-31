@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { formatPriceWithoutZeros } from '@/utils/pricing'
 import { Calendar, MapPin, User, Users, Bed, Euro, CheckCircle, Mail } from 'lucide-react'
 import type { ConferencePricing } from '@/types/conference'
@@ -10,6 +11,7 @@ interface RegistrationSummaryProps {
   conferenceStartDate?: string
   conferenceEndDate?: string
   selectedFeeLabel: string
+  /** Final price the participant pays (gross / with VAT). Public form must pass only this. */
   selectedFeeAmount: number
   currency: string
   participantsCount: number
@@ -38,6 +40,7 @@ export default function RegistrationSummary({
   vatPercentage,
   pricesIncludeVAT,
 }: RegistrationSummaryProps) {
+  const t = useTranslations('registrationForm')
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return ''
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -105,7 +108,7 @@ export default function RegistrationSummary({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-purple-600" />
-              <span className="font-semibold text-gray-900">Participants</span>
+              <span className="font-semibold text-gray-900">{t('participantsSectionTitle')}</span>
             </div>
             <span className="text-lg font-bold text-gray-900">{participantsCount}</span>
           </div>

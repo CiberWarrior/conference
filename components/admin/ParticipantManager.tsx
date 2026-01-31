@@ -23,11 +23,12 @@ export default function ParticipantManager({
   maxParticipants,
   participantFields,
   customFields = [],
-  participantLabel = 'Participant',
+  participantLabel,
   customFieldsPerParticipant = true,
 }: ParticipantManagerProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
+  const displayLabel = participantLabel ?? t('participantLabel')
   const [expandedParticipant, setExpandedParticipant] = useState<number>(0)
 
   const addParticipant = () => {
@@ -46,7 +47,7 @@ export default function ParticipantManager({
 
   const removeParticipant = (index: number) => {
     if (participants.length <= 1) {
-      alert(`At least one ${participantLabel.toLowerCase()} is required`)
+      alert(t('atLeastOneParticipantRequired'))
       return
     }
 
@@ -84,7 +85,7 @@ export default function ParticipantManager({
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-gray-600" />
           <h3 className="text-lg font-semibold text-gray-900">
-            {participantLabel}s ({participants.length}/{maxParticipants})
+            {t('participantsSectionTitle')} ({participants.length}/{maxParticipants})
           </h3>
         </div>
         {participants.length < maxParticipants && (
@@ -94,7 +95,7 @@ export default function ParticipantManager({
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
-            {t('addParticipant', { label: participantLabel })}
+            {t('addParticipant', { label: displayLabel })}
           </button>
         )}
       </div>
@@ -123,7 +124,7 @@ export default function ParticipantManager({
                       const firstName = participant.customFields?.['first_name'] || participant.customFields?.['firstName'] || ''
                       const lastName = participant.customFields?.['last_name'] || participant.customFields?.['lastName'] || ''
                       const fullName = `${firstName} ${lastName}`.trim()
-                      return fullName || `${participantLabel} ${index + 1}`
+                      return fullName || `${t('participantLabel')} ${index + 1}`
                     })()}
                   </p>
                   {(() => {

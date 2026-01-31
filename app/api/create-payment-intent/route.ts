@@ -8,6 +8,7 @@ import {
   checkRateLimit,
   createRateLimitHeaders,
 } from '@/lib/rate-limit'
+import { getRegistrationChargeAmount } from '@/utils/pricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,11 +43,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { registrationId, amount } = body
+    const { registrationId, amount: clientAmount } = body
 
-    if (!registrationId || !amount) {
+    if (!registrationId) {
       return NextResponse.json(
-        { error: 'Missing registrationId or amount' },
+        { error: 'Missing registrationId' },
         { status: 400 }
       )
     }
@@ -60,10 +61,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerClient()
 
-    // Verify registration exists
+    // Load registration (need conference_id + registration_fee_type when amount not sent)
     const { data: registration, error: regError } = await supabase
       .from('registrations')
-      .select('id, email, first_name, last_name')
+      .select('id, email, first_name, last_name, conference_id, registration_fee_type')
       .eq('id', registrationId)
       .single()
 
@@ -74,13 +75,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Amount: from client (legacy) or server-computed from registration + conference pricing
+    let amountCents: number
+    let currency: string = 'eur'
+    if (
+      clientAmount != null &&
+      typeof clientAmount === 'number' &&
+      clientAmount > 0
+    ) {
+      amountCents = Math.round(clientAmount * 100)
+    } else {
+      const { data: conference } = await supabase
+        .from('conferences')
+        .select('pricing, start_date')
+        .eq('id', registration.conference_id)
+        .single()
+      const { amount, currency: curr } = getRegistrationChargeAmount(
+        {
+          registration_fee_type: registration.registration_fee_type ?? null,
+        },
+        {
+          pricing: conference?.pricing ?? null,
+          start_date: conference?.start_date ?? null,
+        }
+      )
+      if (amount <= 0) {
+        return NextResponse.json(
+          { error: 'No amount to charge for this registration' },
+          { status: 400 }
+        )
+      }
+      amountCents = Math.round(amount * 100)
+      currency = (curr || 'EUR').toLowerCase()
+    }
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'eur',
+      amount: amountCents,
+      currency: currency === 'eur' ? 'eur' : currency,
       metadata: {
         registrationId,
-        email: registration.email,
+        email: registration.email ?? '',
       },
       automatic_payment_methods: {
         enabled: true,
@@ -101,6 +136,8 @@ export async function POST(request: NextRequest) {
       {
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        amount: amountCents / 100,
+        currency: currency.toUpperCase(),
       },
       { headers }
     )

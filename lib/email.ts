@@ -29,6 +29,10 @@ interface SendEmailParams {
   conferenceLocation?: string
   conferenceProgram?: string
   customMessage?: string
+  /** Sažetak prijave za e-mail potvrde (HTML ili plain text) – sudionik vidi što je ispunio */
+  registrationSummary?: string
+  /** Jezik e-maila: 'hr' ili 'en' (za potvrdu prijave) */
+  locale?: 'hr' | 'en'
   // Subscription-related
   loginUrl?: string
   tempPassword?: string
@@ -162,7 +166,7 @@ export async function sendGenericEmail(params: {
 }
 
 /**
- * Send registration confirmation email
+ * Send registration confirmation email to participant (with optional summary of form data)
  */
 export async function sendRegistrationConfirmation(
   registrationId: string,
@@ -170,7 +174,9 @@ export async function sendRegistrationConfirmation(
   firstName: string,
   lastName: string,
   paymentUrl?: string,
-  emailSettings?: EmailSettings
+  emailSettings?: EmailSettings,
+  registrationSummary?: string,
+  locale?: 'hr' | 'en'
 ): Promise<void> {
   return sendEmail({
     emailType: 'registration_confirmation',
@@ -180,6 +186,8 @@ export async function sendRegistrationConfirmation(
     lastName,
     paymentUrl,
     emailSettings,
+    registrationSummary,
+    locale,
   })
 }
 

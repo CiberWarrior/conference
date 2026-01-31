@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -78,13 +78,7 @@ export default function AdminParticipantDetailPage() {
     institution: '',
   })
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchParticipantDetails()
-    }
-  }, [authLoading, user, participantId])
-
-  const fetchParticipantDetails = async () => {
+  const fetchParticipantDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/participants/${participantId}`)
       if (response.ok) {
@@ -107,7 +101,13 @@ export default function AdminParticipantDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [participantId])
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchParticipantDetails()
+    }
+  }, [authLoading, user, fetchParticipantDetails])
 
   const handleSaveEdit = async () => {
     try {

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -32,7 +32,7 @@ function TicketsPageContent() {
   const [submitting, setSubmitting] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<Record<string, string>>({})
 
-  const loadTickets = async () => {
+  const loadTickets = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -49,7 +49,7 @@ function TicketsPageContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterStatus, conferenceIdFromUrl])
 
   useEffect(() => {
     setForm((f) => ({ ...f, conference_id: conferenceIdFromUrl }))
@@ -57,7 +57,7 @@ function TicketsPageContent() {
 
   useEffect(() => {
     loadTickets()
-  }, [filterStatus, conferenceIdFromUrl])
+  }, [loadTickets])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()

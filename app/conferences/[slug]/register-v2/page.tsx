@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, Users, CheckCircle, ArrowRight, UserPlus } from 'lucide-react'
 import type { Conference } from '@/types/conference'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
@@ -158,10 +159,13 @@ export default function EnhancedRegisterPage() {
           <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8">
             <div className="flex items-center gap-6">
               {conference.logo_url && (
-                <img
+                <Image
                   src={conference.logo_url}
                   alt={conference.name}
+                  width={80}
+                  height={80}
                   className="w-20 h-20 object-contain rounded-lg"
+                  unoptimized
                 />
               )}
               <div>

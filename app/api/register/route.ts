@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ZodError } from 'zod'
+import type { ConferencePricing } from '@/types/conference'
 import { createServerClient, createAdminClient } from '@/lib/supabase'
 import { log } from '@/lib/logger'
 import {
@@ -11,6 +12,15 @@ import {
 } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 
 // Payer type and company details (for invoicing / billing)
 const companyDetailsSchema = z
@@ -53,6 +63,8 @@ const registrationSchema = z.object({
   // Payer type: person or company; company_details required when payer_type === 'company'
   payer_type: z.enum(['person', 'company']).optional().default('person'),
   company_details: companyDetailsSchema,
+  // Jezik e-maila potvrde: 'hr' ili 'en'
+  locale: z.enum(['hr', 'en']).optional().default('en'),
 })
 
 export async function POST(request: NextRequest) {
@@ -456,18 +468,93 @@ export async function POST(request: NextRequest) {
     // END PARTICIPANT PROFILE INTEGRATION
     // ============================================
 
-    // TODO: Send confirmation email if email service is configured
-    // if (primaryEmail) {
-    //   try {
-    //     await sendRegistrationConfirmation({
-    //       email: primaryEmail,
-    //       conferenceName: conference.name,
-    //       registrationId: registration.id,
-    //     })
-    //   } catch (emailError) {
-    //     log.warn('Failed to send confirmation email', emailError)
-    //   }
-    // }
+    // Send confirmation email to participant (with summary of what they filled in)
+    if (primaryEmail) {
+      try {
+        const { sendRegistrationConfirmation } = await import('@/lib/email')
+
+        let confirmFirstName = 'Participant'
+        let confirmLastName = ''
+        if (validatedData.participants && validatedData.participants.length > 0) {
+          const first = validatedData.participants[0].customFields
+          for (const [key, value] of Object.entries(first)) {
+            const k = (key as string).toLowerCase()
+            if (k.includes('first') && k.includes('name')) confirmFirstName = String(value ?? 'Participant')
+            if (k.includes('last') && k.includes('name')) confirmLastName = String(value ?? '')
+          }
+        }
+
+        // Build registration summary (HTML) for confirmation email – sve što je ispunio na obrascu
+        const summaryParts: string[] = []
+        if (validatedData.participants && validatedData.participants.length > 0) {
+          validatedData.participants.forEach((p, i) => {
+            const num = validatedData.participants!.length > 1 ? ` ${i + 1}` : ''
+            summaryParts.push(`<p style="margin: 0 0 8px 0;"><strong>Participant${num}</strong></p>`)
+            Object.entries(p.customFields || {}).forEach(([label, value]) => {
+              if (value == null || value === '') return
+              const v = String(value)
+              summaryParts.push(`<p style="margin: 0 0 4px 0; padding-left: 12px;">${escapeHtml(label)}: ${escapeHtml(v)}</p>`)
+            })
+          })
+        }
+        if (validatedData.registration_fee_type) {
+          const feeLabel = validatedData.registration_fee_type.replace(/^fee_type_/, 'Fee type: ')
+          summaryParts.push(`<p style="margin: 10px 0 4px 0;"><strong>Registration fee</strong>: ${escapeHtml(feeLabel)}</p>`)
+        }
+        if (validatedData.payment_preference) {
+          const payLabel = validatedData.payment_preference === 'pay_now_card' ? 'Credit/Debit card' : 'Bank transfer'
+          summaryParts.push(`<p style="margin: 0 0 4px 0;"><strong>Payment</strong>: ${escapeHtml(payLabel)}</p>`)
+        }
+        if (validatedData.accommodation) {
+          const acc = validatedData.accommodation
+          let hotelName = ''
+          if (acc.hotel_id && conference.settings?.hotel_options) {
+            const opts = (conference.settings.hotel_options as { id: string; name?: string }[]) || []
+            hotelName = opts.find((h) => h.id === acc.hotel_id)?.name || acc.hotel_id
+          }
+          summaryParts.push(
+            '<p style="margin: 10px 0 4px 0;"><strong>Accommodation</strong></p>',
+            hotelName ? `<p style="margin: 0 0 4px 0; padding-left: 12px;">Hotel: ${escapeHtml(hotelName)}</p>` : '',
+            `<p style="margin: 0 0 4px 0; padding-left: 12px;">Check-in: ${escapeHtml(new Date(acc.arrival_date).toLocaleDateString())}</p>`,
+            `<p style="margin: 0 0 4px 0; padding-left: 12px;">Check-out: ${escapeHtml(new Date(acc.departure_date).toLocaleDateString())}</p>`,
+            `<p style="margin: 0 0 4px 0; padding-left: 12px;">Nights: ${acc.number_of_nights}</p>`
+          )
+        }
+        if (validatedData.payer_type === 'company' && validatedData.company_details) {
+          const c = validatedData.company_details
+          summaryParts.push(
+            '<p style="margin: 10px 0 4px 0;"><strong>Billing (company)</strong></p>',
+            `<p style="margin: 0 0 4px 0; padding-left: 12px;">${escapeHtml(c.company_name)}</p>`,
+            c.vat_number ? `<p style="margin: 0 0 4px 0; padding-left: 12px;">VAT: ${escapeHtml(c.vat_number)}</p>` : '',
+            `<p style="margin: 0 0 4px 0; padding-left: 12px;">${escapeHtml([c.address, c.postal_code, c.city, c.country].filter(Boolean).join(', '))}</p>`
+          )
+        }
+        const registrationSummary = summaryParts.filter(Boolean).join('')
+
+        await sendRegistrationConfirmation(
+          registration.id,
+          primaryEmail,
+          confirmFirstName,
+          confirmLastName,
+          undefined, // paymentUrl – nije generiran u ovom koraku; korisnik dobiva link kasnije ako treba plaćanje
+          conference.email_settings,
+          registrationSummary || undefined,
+          validatedData.locale === 'hr' ? 'hr' : 'en'
+        )
+        log.info('Registration confirmation email sent to participant', {
+          registrationId: registration.id,
+          email: primaryEmail,
+          action: 'confirmation_email',
+        })
+      } catch (emailError) {
+        log.error('Failed to send registration confirmation email', emailError as Error, {
+          registrationId: registration.id,
+          email: primaryEmail,
+          action: 'confirmation_email',
+        })
+        // Don't fail registration if confirmation email fails
+      }
+    }
 
     // Send notification to conference team (if reply_to email is configured)
     if (conference.email_settings?.reply_to) {
@@ -600,11 +687,39 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
       }
     }
 
+    // Option A: when pay_now_card and amount > 0, return payment_required + amount/currency for same-page payment
+    const isPayNowCard = validatedData.payment_preference === 'pay_now_card'
+    let paymentPayload: {
+      payment_required?: boolean
+      amount?: number
+      currency?: string
+    } = {}
+    if (isPayNowCard) {
+      const { getRegistrationChargeAmount } = await import('@/utils/pricing')
+      const { amount, currency } = getRegistrationChargeAmount(
+        {
+          registration_fee_type: validatedData.registration_fee_type || null,
+        },
+        {
+          pricing: ((conference as { pricing?: ConferencePricing | null }).pricing) ?? null,
+          start_date: (conference as { start_date?: string }).start_date ?? null,
+        }
+      )
+      if (amount > 0) {
+        paymentPayload = {
+          payment_required: true,
+          amount,
+          currency: currency || 'EUR',
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         message: 'Registration submitted successfully',
         registrationId: registration.id,
+        ...paymentPayload,
       },
       { status: 201 }
     )

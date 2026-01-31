@@ -67,11 +67,21 @@ export type StandardFeeTypeKey =
 export interface CustomFeeType {
   id: string
   slug?: string // Interni ključ (npr. "vip_member") – opcionalno; ako nije set, koristi se id
-  name: string // Prikazni naziv (npr. "VIP Member", "Senior Citizen")
+  name: string // Prikazni naziv (npr. "Participant (early)", "Exhibitor")
+  /** Ako false, tip se ne prikazuje na obrascu za registraciju (admin ga može isključiti bez brisanja) */
+  enabled?: boolean
   description?: string // Opcioni opis
-  early_bird: number // Cijena za early bird period
+  /** Jedna cijena za cijelo razdoblje – kad je setirana, koristi se s valid_from/valid_to (jedna kotizacija = jedan naziv, jedna cijena, jedan raspon) */
+  amount?: number
+  early_bird: number // Cijena za early bird period (koristi se ako amount nije setiran)
   regular: number // Cijena za regular period
   late: number // Cijena za late registration
+  /** Od kada vrijedi kotizacija (ISO date) – opcionalno */
+  valid_from?: string
+  /** Do kada vrijedi kotizacija (ISO date) – opcionalno */
+  valid_to?: string
+  /** Nabavna cijena / trošak (za posebni postupak putničke agencije – marža = prodajna − trošak, PDV 20% na maržu). Opcionalno. */
+  cost?: number
 }
 
 /** Tip sobe za smještaj – za filtriranje i izvještaje */
@@ -94,20 +104,25 @@ export interface ConferencePricing {
   currency: string // Default currency
   vat_percentage?: number // PDV postotak (npr. 25 za 25% PDV-a) - opcionalno, ako nije postavljen, ne prikazuje se PDV
   prices_include_vat?: boolean // If true, entered prices are VAT-inclusive (sa PDV-om). Default: false (prices are bez PDV-a).
+  /** Posebni postupak PDV-a za putničke agencije: PDV se obračunava samo na maržu (razlika prodajna – nabavna cijena), preračunata stopa 20%. */
+  travel_agency_vat_mode?: boolean
   currencies?: string[] // Supported currencies (e.g., ['EUR', 'USD', 'GBP'])
   
   // Standard participant pricing
   early_bird: {
     amount: number | Record<string, number> // Single amount or multi-currency: { EUR: 150, USD: 170 }
-    deadline?: string // ISO date string
+    deadline?: string // ISO date string – do kada vrijedi (valid to)
+    start_date?: string // ISO date string – od kada vrijedi (valid from), opcionalno
   }
   regular: {
     amount: number | Record<string, number> // Single amount or multi-currency
-    start_date?: string // ISO date string - when regular pricing starts (default: early_bird.deadline + 1 day)
+    start_date?: string // ISO date string – od kada vrijedi (valid from)
+    end_date?: string // ISO date string – do kada vrijedi (valid to), opcionalno
   }
   late: {
     amount: number | Record<string, number> // Single amount or multi-currency
-    start_date?: string // ISO date string - when late registration pricing starts
+    start_date?: string // ISO date string – od kada vrijedi (valid from)
+    end_date?: string // ISO date string – do kada vrijedi (valid to), opcionalno
   }
   
   // Student pricing (fixed prices per tier)

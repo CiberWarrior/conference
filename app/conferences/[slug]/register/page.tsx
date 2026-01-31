@@ -55,7 +55,7 @@ export default function ConferenceRegisterPage() {
     }
 
     loadConference()
-  }, [slug])
+  }, [slug, t])
 
   if (loading) {
     return (
@@ -205,6 +205,9 @@ export default function ConferenceRegisterPage() {
               abstractSubmissionEnabled={conference.settings?.abstract_submission_enabled}
               paymentSettings={conference.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS}
               hasBankAccount={hasBankAccount}
+              conferenceName={conference.name}
+              conferenceDate={conference.start_date ? new Date(conference.start_date).toLocaleDateString() : undefined}
+              conferenceLocation={conference.location || conference.venue}
             />
           </div>
         </div>

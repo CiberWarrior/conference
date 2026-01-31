@@ -57,7 +57,7 @@ export default function ConferencePage() {
     }
 
     loadConference()
-  }, [slug])
+  }, [slug, t])
 
   if (loading) {
     return (

@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 /**
  * Avatar component – initials or image (Telerik-style).
  * Used in Team table and Recent Registrations.
@@ -32,15 +34,21 @@ const sizeClasses = {
   lg: 'w-12 h-12 text-base',
 }
 
+const sizePx = { sm: 32, md: 40, lg: 48 }
+
 export default function Avatar({ name, email, src, size = 'md', className = '' }: AvatarProps) {
   const initials = getInitials(name, email)
 
   if (src) {
+    const px = sizePx[size]
     return (
-      <img
+      <Image
         src={src}
         alt={name || 'Avatar'}
+        width={px}
+        height={px}
         className={`rounded-full object-cover ${sizeClasses[size]} ${className}`}
+        unoptimized
       />
     )
   }

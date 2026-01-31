@@ -32,24 +32,44 @@ export function getCurrentPricingTier(
   const earlyBirdDeadline = pricing.early_bird?.deadline
     ? new Date(pricing.early_bird.deadline)
     : null
+  const regularStart = pricing.regular?.start_date
+    ? new Date(pricing.regular.start_date)
+    : null
+  const regularEnd = pricing.regular?.end_date
+    ? new Date(pricing.regular.end_date)
+    : null
+  const lateStart = pricing.late?.start_date
+    ? new Date(pricing.late.start_date)
+    : null
 
-  // If early bird deadline exists and hasn't passed, use early bird
+  // 1. Early Bird: do datuma isteka vrijedi Early Bird cijena
   if (earlyBirdDeadline && currentDate <= earlyBirdDeadline) {
     return 'early_bird'
   }
 
-  // If conference start date exists and we're within 14 days of it, use late registration
-  if (conferenceStartDate) {
+  // 2. Late: od late.start_date vrijedi Late cijena (ako je postavljen)
+  if (lateStart && currentDate >= lateStart) {
+    return 'late'
+  }
+
+  // 3. Regular: između early bird isteka i late početka (ili unutar regular.start–end ako su postavljeni)
+  if (regularStart && currentDate >= regularStart) {
+    if (!regularEnd || currentDate <= regularEnd) {
+      return 'regular'
+    }
+    // regular period ended, no late start → still treat as regular unless we have late
+    if (!lateStart) return 'regular'
+  }
+  // Fallback: ako nema explicit regular datuma, nakon early birda je regular do late/14 dana
+  if (conferenceStartDate && !lateStart) {
     const daysUntilConference = Math.ceil(
       (conferenceStartDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)
     )
-    // If conference starts within 14 days, apply late registration pricing
     if (daysUntilConference <= 14 && daysUntilConference >= 0) {
       return 'late'
     }
   }
 
-  // Default to regular pricing if early bird passed and not in late registration period
   return 'regular'
 }
 
@@ -363,4 +383,107 @@ export function getPriceBreakdownFromInput(
 
   // Default behavior: input is net (bez PDV-a)
   return getPriceBreakdown(inputPrice, vatPercentage)
+}
+
+/**
+ * Posebni postupak PDV-a za putničke agencije (čl. 91.–94. ZPDV-a).
+ * Prema literaturi (npr. Cutvarić 2019, mint.gov.hr): marža (bruto) = prodajna cijena (bruto)
+ * − izravni troškovi (iznosi po ulaznim računima, s PDV-om ako ga pružatelj zaračunava).
+ * „Ostvarena razlika predstavlja ukupnu naknadu u kojoj je sadržan i PDV“ → primjenjuje se
+ * preračunata stopa 20% na maržu (bruto). PDV na plaćanje = marža_bruto × 20%.
+ *
+ * @param sellingPriceGross - Prodajna cijena s PDV-om (bruto) – ukupna naknada od kupca
+ * @param costGross - Izravni troškovi (iznosi po ulaznim računima, bruto)
+ */
+export function getTravelAgencyMarginVat(
+  sellingPriceGross: number,
+  costGross: number
+): {
+  margin: number
+  vatPayableRate: number
+  vatPayableAmount: number
+} {
+  const margin = Math.max(0, sellingPriceGross - costGross)
+  const TRAVEL_AGENCY_MARGIN_VAT_RATE = 20 // preračunata stopa (ZPDV)
+  const vatPayableAmount = margin * (TRAVEL_AGENCY_MARGIN_VAT_RATE / 100)
+  return {
+    margin,
+    vatPayableRate: TRAVEL_AGENCY_MARGIN_VAT_RATE,
+    vatPayableAmount,
+  }
+}
+
+/**
+ * Server-side: compute the final amount to charge (gross) for a registration.
+ * Used by register API (pay_now_card response) and create-payment-intent (when amount not sent).
+ *
+ * @param registration - { registration_fee_type: string | null }
+ * @param conference - { pricing: ConferencePricing, start_date?: string }
+ */
+export function getRegistrationChargeAmount(
+  registration: { registration_fee_type: string | null },
+  conference: { pricing?: ConferencePricing | null; start_date?: string | null }
+): { amount: number; currency: string } {
+  const pricing = conference.pricing
+  const currency = pricing?.currency || 'EUR'
+  if (!pricing || !registration.registration_fee_type) {
+    return { amount: 0, currency }
+  }
+
+  const feeType = registration.registration_fee_type
+  const conferenceStartDate = conference.start_date
+    ? new Date(conference.start_date)
+    : undefined
+  const tier = getCurrentPricingTier(
+    pricing,
+    new Date(),
+    conferenceStartDate
+  )
+
+  let netAmount = 0
+  if (feeType === 'early_bird') {
+    netAmount = getPriceAmount(pricing.early_bird?.amount, currency)
+  } else if (feeType === 'regular') {
+    netAmount = getPriceAmount(pricing.regular?.amount, currency)
+  } else if (feeType === 'late') {
+    netAmount = getPriceAmount(pricing.late?.amount, currency)
+  } else if (feeType === 'student') {
+    const reg = getPriceAmount(pricing.regular?.amount, currency)
+    const disc = getPriceAmount(pricing.student_discount, currency)
+    netAmount = pricing.student?.regular ?? Math.max(0, reg - disc)
+  } else if (feeType === 'accompanying_person') {
+    netAmount = getPriceAmount(pricing.accompanying_person_price, currency)
+  } else if (feeType.startsWith('fee_type_')) {
+    const id = feeType.replace('fee_type_', '')
+    const ft = pricing.custom_fee_types?.find((f) => f.id === id)
+    if (ft) {
+      if (ft.amount != null && ft.amount !== undefined) {
+        netAmount = ft.amount
+      } else {
+        netAmount =
+          tier === 'early_bird'
+            ? ft.early_bird
+            : tier === 'regular'
+              ? ft.regular
+              : ft.late
+      }
+    }
+  } else if (feeType.startsWith('custom_')) {
+    const fid = feeType.replace('custom_', '')
+    const cf = pricing.custom_fields?.find((f) => f.id === fid)
+    if (cf) netAmount = getPriceAmount(cf.value, currency)
+  }
+
+  const vatPercentage =
+    pricing.vat_percentage != null && Number.isFinite(pricing.vat_percentage)
+      ? Number(pricing.vat_percentage)
+      : undefined
+  const pricesIncludeVAT = !!pricing.prices_include_vat
+  const { withVAT } = getPriceBreakdownFromInput(
+    netAmount,
+    vatPercentage,
+    pricesIncludeVAT
+  )
+
+  return { amount: Math.round(withVAT * 100) / 100, currency }
 }

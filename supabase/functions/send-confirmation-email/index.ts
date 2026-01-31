@@ -24,6 +24,10 @@ interface EmailRequest {
   conferenceLocation?: string
   conferenceProgram?: string
   customMessage?: string
+  /** Sažetak prijave za e-mail potvrde – sudionik vidi što je ispunio na obrascu */
+  registrationSummary?: string
+  /** Jezik e-maila: 'hr' ili 'en' (default 'en') */
+  locale?: 'hr' | 'en'
   abstractId?: string
   fileName?: string
   conferenceName?: string
@@ -66,6 +70,8 @@ serve(async (req) => {
       conferenceLocation,
       conferenceProgram,
       customMessage,
+      registrationSummary,
+      locale = 'en',
       abstractId,
       fileName,
       conferenceName,
@@ -127,61 +133,87 @@ serve(async (req) => {
       `
 
       switch (type) {
-        case 'registration_confirmation':
+        case 'registration_confirmation': {
+          const isHr = locale === 'hr'
+          const regSubject = isHr ? 'Potvrda prijave na konferenciju' : 'Conference Registration Confirmation'
+          const regTitle = isHr ? 'Prijava je primljena!' : 'Registration Confirmed!'
+          const regDear = isHr ? 'Poštovani/na' : 'Dear'
+          const regThanks = isHr
+            ? 'Hvala vam na prijavi na konferenciju. Vaša prijava je uspješno zaprimljena.'
+            : 'Thank you for registering for the conference. Your registration has been successfully received.'
+          const regIdLabel = isHr ? 'Broj prijave' : 'Registration ID'
+          const regSummaryLabel = isHr ? 'Sažetak vaše prijave:' : 'Summary of your registration:'
+          const regPaymentRequired = isHr ? 'Potrebno je plaćanje' : 'Payment Required'
+          const regPaymentText = isHr
+            ? 'Molimo dovršite plaćanje kako biste potvrdili prijavu:'
+            : 'Please complete your payment to finalize your registration:'
+          const regCompletePayment = isHr ? 'Dovrši plaćanje' : 'Complete Payment'
+          const regFurtherInfo = isHr
+            ? 'Daljnje informacije o konferenciji primit ćete e-mailom.'
+            : 'You will receive further information about the conference via email.'
+          const regQuestions = isHr ? 'Ako imate pitanja, obratite nam se.' : 'If you have any questions, please contact us.'
           return {
-            subject: 'Conference Registration Confirmation',
+            subject: regSubject,
             html: `
               <!DOCTYPE html>
               <html>
                 <head>
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Registration Confirmation</title>
+                  <title>${regSubject}</title>
                 </head>
                 <body style="${baseStyles}">
                   <div style="${containerStyles}">
-                    <h1 style="color: #2563eb; margin-top: 0;">Registration Confirmed!</h1>
-                    <p>Dear ${firstName} ${lastName},</p>
-                    <p>Thank you for registering for the conference. Your registration has been successfully received.</p>
-                    <p><strong>Registration ID:</strong> ${registrationId}</p>
+                    <h1 style="color: #2563eb; margin-top: 0;">${regTitle}</h1>
+                    <p>${regDear} ${firstName} ${lastName},</p>
+                    <p>${regThanks}</p>
+                    <p><strong>${regIdLabel}:</strong> ${registrationId}</p>
+                    ${registrationSummary ? `
+                    <div style="margin: 20px 0; padding: 15px; background-color: #fff; border: 1px solid #e5e7eb; border-radius: 6px;">
+                      <p style="margin: 0 0 10px 0; font-weight: bold;">${regSummaryLabel}</p>
+                      <div style="font-size: 14px; line-height: 1.6;">${registrationSummary}</div>
+                    </div>
+                    ` : ''}
                     ${
                       paymentUrl
                         ? `
                       <div style="margin: 20px 0; padding: 15px; background-color: #fff; border-left: 4px solid #2563eb; border-radius: 4px;">
-                        <p style="margin: 0 0 10px 0;"><strong>Payment Required</strong></p>
-                        <p style="margin: 0 0 15px 0;">Please complete your payment to finalize your registration:</p>
-                        <a href="${paymentUrl}" style="${buttonStyles}">Complete Payment</a>
+                        <p style="margin: 0 0 10px 0;"><strong>${regPaymentRequired}</strong></p>
+                        <p style="margin: 0 0 15px 0;">${regPaymentText}</p>
+                        <a href="${paymentUrl}" style="${buttonStyles}">${regCompletePayment}</a>
                       </div>
                     `
                         : `
-                      <p>You will receive further information about the conference via email.</p>
+                      <p>${regFurtherInfo}</p>
                     `
                     }
                     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
                     <p style="font-size: 12px; color: #6b7280; margin: 0;">
-                      If you have any questions, please contact us.
+                      ${regQuestions}
                     </p>
                   </div>
                 </body>
               </html>
             `,
             text: `
-Registration Confirmed!
+${regTitle}
 
-Dear ${firstName} ${lastName},
+${regDear} ${firstName} ${lastName},
 
-Thank you for registering for the conference. Your registration has been successfully received.
+${regThanks}
 
-Registration ID: ${registrationId}
+${regIdLabel}: ${registrationId}
+${registrationSummary ? `\n${regSummaryLabel}\n${registrationSummary.replace(/<[^>]*>/g, '')}\n` : ''}
 ${
               paymentUrl
-                ? `\nPayment Required\nPlease complete your payment: ${paymentUrl}`
-                : '\nYou will receive further information about the conference via email.'
+                ? `\n${regPaymentRequired}\n${regPaymentText} ${paymentUrl}`
+                : `\n${regFurtherInfo}`
             }
 
-If you have any questions, please contact us.
+${regQuestions}
             `,
           }
+        }
 
         case 'payment_confirmation':
           return {

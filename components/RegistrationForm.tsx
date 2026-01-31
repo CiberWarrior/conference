@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
@@ -8,11 +8,14 @@ import {
   getPriceBreakdownFromInput,
   formatPriceWithoutZeros,
   getPriceAmount,
-  getTierDisplayName,
+  getCurrentPricingTier,
+  getCurrencySymbol,
 } from '@/utils/pricing'
-import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings } from '@/types/conference'
+import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings, StandardFeeTypeKey } from '@/types/conference'
 import type { Participant } from '@/types/participant'
+import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
 import ParticipantManager from '@/components/admin/ParticipantManager'
+import PaymentForm from '@/components/PaymentForm'
 import { AlertCircle, Euro, UserPlus, Bed, Upload } from 'lucide-react'
 import Link from 'next/link'
 
@@ -30,6 +33,9 @@ interface RegistrationFormProps {
   abstractSubmissionEnabled?: boolean // Whether abstract submission is enabled
   paymentSettings?: PaymentSettings // Payment options and preferences (admin-controlled)
   hasBankAccount?: boolean // Whether organizer has configured bank account
+  conferenceName?: string
+  conferenceDate?: string
+  conferenceLocation?: string
 }
 
 export default function RegistrationForm({
@@ -46,6 +52,9 @@ export default function RegistrationForm({
   abstractSubmissionEnabled = false,
   paymentSettings,
   hasBankAccount = false,
+  conferenceName,
+  conferenceDate,
+  conferenceLocation,
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
@@ -54,6 +63,14 @@ export default function RegistrationForm({
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
+
+  // Auto-select first enabled custom fee type when list loads and current selection is empty or invalid
+  useEffect(() => {
+    const list = pricing?.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []
+    if (!list.length) return
+    const valid = list.some((ft) => selectedFee === `fee_type_${ft.id}`)
+    if (!selectedFee || !valid) setSelectedFee(`fee_type_${list[0].id}`)
+  }, [pricing?.custom_fee_types, selectedFee])
   
   // ============================================
   // PDV/VAT display logic (public form)
@@ -74,6 +91,47 @@ export default function RegistrationForm({
   const getDisplayPrice = (inputPrice: number) => {
     // Always show the final (VAT-inclusive) price to participants
     return getPriceBreakdownFromInput(inputPrice, vatPercentage, pricesIncludeVAT).withVAT
+  }
+
+  // Fee type display: standard types use i18n only (Early Bird → Rana prijava etc.). Custom fee types use admin-defined name (feeType.name).
+  const FEE_TYPE_I18N_KEYS: Record<StandardFeeTypeKey, string> = {
+    early_bird: 'feeTypeEarlyBird',
+    regular: 'feeTypeRegular',
+    late: 'feeTypeLate',
+    student: 'feeTypeStudent',
+    accompanying_person: 'feeTypeAccompanyingPerson',
+  }
+  const getFeeTypeDisplayName = (tier: StandardFeeTypeKey) => t(FEE_TYPE_I18N_KEYS[tier])
+
+  // Paleta boja za kartice tipova kotizacija – pojačane nijanse (rub, pozadina, hover)
+  const FEE_TYPE_CARD_COLORS = [
+    { border: 'border-blue-600', borderDefault: 'border-blue-400', bg: 'bg-blue-100', bgDefault: 'bg-blue-50', hover: 'hover:border-blue-500', text: 'text-blue-900', textMuted: 'text-blue-800', divider: 'border-blue-300', price: 'text-blue-800', radio: 'text-blue-600 focus:ring-blue-500' },
+    { border: 'border-indigo-600', borderDefault: 'border-indigo-400', bg: 'bg-indigo-100', bgDefault: 'bg-indigo-50', hover: 'hover:border-indigo-500', text: 'text-indigo-900', textMuted: 'text-indigo-800', divider: 'border-indigo-300', price: 'text-indigo-800', radio: 'text-indigo-600 focus:ring-indigo-500' },
+    { border: 'border-emerald-600', borderDefault: 'border-emerald-400', bg: 'bg-emerald-100', bgDefault: 'bg-emerald-50', hover: 'hover:border-emerald-500', text: 'text-emerald-900', textMuted: 'text-emerald-800', divider: 'border-emerald-300', price: 'text-emerald-800', radio: 'text-emerald-600 focus:ring-emerald-500' },
+    { border: 'border-amber-600', borderDefault: 'border-amber-400', bg: 'bg-amber-100', bgDefault: 'bg-amber-50', hover: 'hover:border-amber-500', text: 'text-amber-900', textMuted: 'text-amber-800', divider: 'border-amber-300', price: 'text-amber-800', radio: 'text-amber-600 focus:ring-amber-500' },
+    { border: 'border-rose-600', borderDefault: 'border-rose-400', bg: 'bg-rose-100', bgDefault: 'bg-rose-50', hover: 'hover:border-rose-500', text: 'text-rose-900', textMuted: 'text-rose-800', divider: 'border-rose-300', price: 'text-rose-800', radio: 'text-rose-600 focus:ring-rose-500' },
+  ] as const
+
+  // Format validity text from admin-entered "od kada / do kada" (valid from / valid to)
+  const formatValidityText = (fromDate?: string | null, toDate?: string | null): string => {
+    if (!fromDate && !toDate) return ''
+    const from = fromDate ? new Date(fromDate).toLocaleDateString(locale) : null
+    const to = toDate ? new Date(toDate).toLocaleDateString(locale) : null
+    if (from && to) return `${t('validFromShort')} ${from} ${t('validToShort')} ${to}`
+    if (to) return `${t('validUntilShort')} ${to}`
+    if (from) return `${t('validFromShort')} ${from}`
+    return ''
+  }
+
+  // "Available from X to Y" – za prikaz kao na referentnim primjerima (EN/HR)
+  const formatAvailabilityText = (fromDate?: string | null, toDate?: string | null): string => {
+    if (!fromDate && !toDate) return ''
+    const from = fromDate ? new Date(fromDate).toLocaleDateString(locale) : null
+    const to = toDate ? new Date(toDate).toLocaleDateString(locale) : null
+    if (from && to) return `${t('availableFrom')} ${from} ${t('availableTo')} ${to}`
+    if (to) return `${t('validUntilShort')} ${to}`
+    if (from) return `${t('availableFrom')} ${from}`
+    return ''
   }
 
   // Determine which payment options are available based on settings
@@ -105,9 +163,41 @@ export default function RegistrationForm({
   )
   const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
   const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
+  // Option A: same-page card payment – after register success when payment_required
+  const [showPaymentStep, setShowPaymentStep] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState<number>(0)
+  const [paymentCurrency, setPaymentCurrency] = useState<string>('EUR')
   
   // Count available options
   const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
+
+  // Iznos odabrane kotizacije (za prikaz "Nije potrebno plaćanje" kad je 0)
+  const selectedFeeAmount = ((): number => {
+    if (!pricing || !selectedFee) return 0
+    if (selectedFee === 'early_bird') return getPriceAmount(pricing.early_bird?.amount, pricing.currency)
+    if (selectedFee === 'regular') return getPriceAmount(pricing.regular?.amount, pricing.currency)
+    if (selectedFee === 'student') {
+      const reg = getPriceAmount(pricing.regular?.amount, pricing.currency)
+      const disc = getPriceAmount(pricing.student_discount, pricing.currency)
+      return pricing.student?.regular ?? (reg - disc)
+    }
+    if (selectedFee === 'late') return getPriceAmount(pricing.late?.amount, pricing.currency)
+    if (selectedFee === 'accompanying_person') return getPriceAmount(pricing.accompanying_person_price, pricing.currency)
+    if (selectedFee.startsWith('fee_type_')) {
+      const id = selectedFee.replace('fee_type_', '')
+      const ft = pricing.custom_fee_types?.find((f) => f.id === id)
+      if (!ft) return 0
+      if (ft.amount != null && ft.amount !== undefined) return ft.amount
+      const tier = getCurrentPricingTier(pricing, new Date(), conferenceStartDate ? new Date(conferenceStartDate) : undefined)
+      return tier === 'early_bird' ? ft.early_bird : tier === 'regular' ? ft.regular : ft.late
+    }
+    if (selectedFee.startsWith('custom_')) {
+      const fid = selectedFee.replace('custom_', '')
+      const cf = pricing.custom_fields?.find((f) => f.id === fid)
+      return cf ? getPriceAmount(cf.value, pricing.currency) : 0
+    }
+    return 0
+  })()
   
   // Accommodation state
   const [arrivalDate, setArrivalDate] = useState<string>('')
@@ -231,7 +321,7 @@ export default function RegistrationForm({
             const displayLabel = labelKey ? tFieldLabels(labelKey) : field.label
             showError(t('participantFieldRequired', { num: i + 1, label: displayLabel }))
             return false
-        }
+          }
         }
       }
     }
@@ -255,6 +345,7 @@ export default function RegistrationForm({
         participants: participants,
         registration_fee_type: selectedFee || null, // Include selected fee type
         payment_preference: paymentPreference, // Payment preference: pay_now_card, pay_now_bank
+        locale: locale === 'hr' ? 'hr' : 'en', // Za e-mail potvrde (HR/EN)
         accommodation: arrivalDate && departureDate ? {
           arrival_date: arrivalDate,
           departure_date: departureDate,
@@ -294,16 +385,51 @@ export default function RegistrationForm({
         throw new Error(errorData.error || t('registrationFailed'))
       }
 
-      await response.json()
+      const data = await response.json()
 
-      setSubmitSuccess(true)
-      showSuccess(t('registrationSuccess'))
+      // Option A: pay_now_card and amount > 0 → show payment step on same page
+      if (data.payment_required && data.registrationId && data.amount != null) {
+        setRegistrationId(data.registrationId)
+        setPaymentAmount(Number(data.amount))
+        setPaymentCurrency(data.currency || 'EUR')
+        setShowPaymentStep(true)
+        showSuccess(t('registrationSuccess'))
+      } else {
+        setSubmitSuccess(true)
+        showSuccess(t('registrationSuccess'))
+      }
     } catch (error: any) {
       console.error('❌ Registration error:', error)
       showError(error.message || t('submitFailed'))
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Option A: same-page card payment – show PaymentForm after successful registration
+  if (showPaymentStep && registrationId) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <p className="text-sm font-medium text-green-800">{t('registrationSuccess')}</p>
+          <p className="text-sm text-green-700 mt-1">{t('payNowCardSamePage')}</p>
+        </div>
+        <PaymentForm
+          registrationId={registrationId}
+          amount={paymentAmount}
+          currency={paymentCurrency}
+          conferenceName={conferenceName}
+          conferenceDate={conferenceDate}
+          conferenceLocation={conferenceLocation}
+          onSuccess={() => {
+            setShowPaymentStep(false)
+            setSubmitSuccess(true)
+            showSuccess(t('paymentSuccess'))
+          }}
+          onError={(err: string) => showError(err)}
+        />
+      </div>
+    )
   }
 
   if (submitSuccess) {
@@ -331,9 +457,9 @@ export default function RegistrationForm({
   }
 
   return (
-    <>
+    <div className="contents">
       {/* Registration Fee Selection - OUTSIDE FORM CONTAINER */}
-      {pricing && customFields.length > 0 && activeTab === 'registration' && (
+      {pricing && customFields.length > 0 && activeTab === 'registration' && (pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 && (
         <div className="w-full -mx-8 px-8 mb-10" style={{ marginLeft: 'calc(-2rem - 1px)', marginRight: 'calc(-2rem - 1px)', width: 'calc(100% + 4rem + 2px)' }}>
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-4 mb-6">
@@ -346,248 +472,16 @@ export default function RegistrationForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {/* Early Bird - 1st */}
-                {pricing.early_bird?.amount && (
-              <label
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === 'early_bird'
-                        ? 'border-blue-600 bg-blue-50 shadow-md'
-                        : 'border-blue-200 bg-blue-50/30 hover:border-blue-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="early_bird"
-                        checked={selectedFee === 'early_bird'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                      />
-                    <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'early_bird' ? 'text-blue-900' : 'text-blue-800'}`}>
-                          {getTierDisplayName('early_bird', pricing.fee_type_labels)}
-                        </div>
-                        <div className="text-xs text-blue-600 leading-relaxed">
-                          {pricing.early_bird.deadline && `Until ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`}
-                    </div>
-                  </div>
-                </div>
-                    <div className="mt-auto pt-4 border-t-2 border-blue-200">
-                      <div className="text-2xl font-bold text-blue-700 mb-1">
-                        {formatPriceWithoutZeros(
-                          getDisplayPrice(getPriceAmount(pricing.early_bird.amount, pricing.currency))
-                        )}
-                      </div>
-                      <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-blue-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-            </div>
-              </label>
-                )}
-
-                {/* Regular - 2nd */}
-                {pricing.regular?.amount && (
-              <label
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === 'regular'
-                        ? 'border-indigo-600 bg-indigo-50 shadow-md'
-                        : 'border-indigo-200 bg-indigo-50/30 hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="regular"
-                        checked={selectedFee === 'regular'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'regular' ? 'text-indigo-900' : 'text-indigo-800'}`}>
-                          {getTierDisplayName('regular', pricing.fee_type_labels)}
-                        </div>
-                        <div className="text-xs text-indigo-600 leading-relaxed">
-                          {pricing.regular?.start_date 
-                            ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
-                            : pricing.early_bird?.deadline 
-                              ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                              : t('standardRegistration')}
-                        </div>
-              </div>
-            </div>
-                    <div className="mt-auto pt-4 border-t-2 border-indigo-200">
-                      <div className="text-2xl font-bold text-indigo-700 mb-1">
-                        {formatPriceWithoutZeros(
-                          getDisplayPrice(getPriceAmount(pricing.regular.amount, pricing.currency))
-                        )}
-                      </div>
-                      <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-indigo-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-          </div>
-              </label>
-                )}
-
-                {/* Student - 3rd */}
-                {(pricing.student || (getPriceAmount(pricing.student_discount, pricing.currency) > 0 && pricing.regular?.amount)) && (
-              <label
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === 'student'
-                        ? 'border-emerald-600 bg-emerald-50 shadow-md'
-                        : 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="student"
-                        checked={selectedFee === 'student'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                />
-                          <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'student' ? 'text-emerald-900' : 'text-emerald-800'}`}>
-                          {getTierDisplayName('student', pricing.fee_type_labels)}
-                        </div>
-                        <div className="text-xs text-emerald-600 leading-relaxed">
-                          {pricing.regular?.start_date 
-                            ? `From ${new Date(pricing.regular.start_date).toLocaleDateString()}${pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}`
-                            : pricing.early_bird?.deadline 
-                              ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                              : t('specialPricingStudents')}
-                        </div>
-              </div>
-            </div>
-                    <div className="mt-auto pt-4 border-t-2 border-emerald-200">
-                      <div className="text-2xl font-bold text-emerald-700 mb-1">
-                        {formatPriceWithoutZeros(
-                          getDisplayPrice(
-                            pricing.student?.regular ||
-                              (getPriceAmount(pricing.regular.amount, pricing.currency) -
-                                getPriceAmount(pricing.student_discount, pricing.currency))
-                          )
-                        )}
-                      </div>
-                      <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-emerald-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-          </div>
-              </label>
-                )}
-
-                {/* Late Registration - 4th */}
-                {pricing.late?.amount && (
-              <label
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === 'late'
-                        ? 'border-amber-600 bg-amber-50 shadow-md'
-                        : 'border-amber-200 bg-amber-50/30 hover:border-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="late"
-                        checked={selectedFee === 'late'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === 'late' ? 'text-amber-900' : 'text-amber-800'}`}>
-                          {getTierDisplayName('late', pricing.fee_type_labels)}
-                        </div>
-                        <div className="text-xs text-amber-600 leading-relaxed">
-                          {pricing.late?.start_date 
-                            ? `From ${new Date(pricing.late.start_date).toLocaleDateString()}`
-                            : pricing.regular?.start_date 
-                              ? `After ${new Date(pricing.regular.start_date).toLocaleDateString()}`
-                              : pricing.early_bird?.deadline 
-                                ? `After ${new Date(pricing.early_bird.deadline).toLocaleDateString()}`
-                                : t('lateRegistrationPeriod')}
-                        </div>
-              </div>
-            </div>
-                    <div className="mt-auto pt-4 border-t-2 border-amber-200">
-                      <div className="text-2xl font-bold text-amber-700 mb-1">
-                        {formatPriceWithoutZeros(
-                          getDisplayPrice(getPriceAmount(pricing.late.amount, pricing.currency))
-                        )}
-                      </div>
-                      <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-amber-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-          </div>
-              </label>
-                )}
-
-                {/* Accompanying Person - 5th */}
-                {getPriceAmount(pricing.accompanying_person_price, pricing.currency) > 0 && (
-              <label
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === 'accompanying_person'
-                        ? 'border-rose-600 bg-rose-50 shadow-md'
-                        : 'border-rose-200 bg-rose-50/30 hover:border-rose-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2 mb-3">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value="accompanying_person"
-                        checked={selectedFee === 'accompanying_person'}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-4 h-4 text-rose-600 focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-xs font-bold mb-1 leading-tight ${selectedFee === 'accompanying_person' ? 'text-rose-900' : 'text-rose-800'}`}>
-                          {getTierDisplayName('accompanying_person', pricing.fee_type_labels)}
-                        </div>
-                        <div className="text-xs text-rose-600 leading-snug">{t('forGuestsAndCompanions')}</div>
-              </div>
-            </div>
-                    <div className="mt-auto pt-4 border-t-2 border-rose-200">
-                      <div className="text-2xl font-bold text-rose-700 mb-1">
-                        {formatPriceWithoutZeros(
-                          getDisplayPrice(
-                            getPriceAmount(pricing.accompanying_person_price, pricing.currency)
-                          )
-                        )}
-                      </div>
-                      <div className="text-xs font-semibold text-rose-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-rose-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-          </div>
-              </label>
-                )}
-
-                {/* Custom Fee Types (e.g., VIP Member, Senior, etc.) */}
-                {pricing.custom_fee_types && pricing.custom_fee_types.map((feeType) => (
+            {/* 3 vrste kotizacije u jednom redu (responsive: 1 na uskom, 3 na širem) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(pricing.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []).map((feeType, index) => {
+                  const c = FEE_TYPE_CARD_COLORS[index % FEE_TYPE_CARD_COLORS.length]
+                  const isSelected = selectedFee === `fee_type_${feeType.id}`
+                  return (
               <label
                     key={feeType.id}
                     className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === `fee_type_${feeType.id}`
-                        ? 'border-purple-600 bg-purple-50 shadow-md'
-                        : 'border-purple-200 bg-purple-50/30 hover:border-purple-300'
+                      isSelected ? `${c.border} ${c.bg} shadow-md` : `${c.borderDefault} ${c.bgDefault} ${c.hover}`
                     }`}
                   >
                     <div className="flex items-start gap-3 mb-4">
@@ -595,89 +489,58 @@ export default function RegistrationForm({
                         type="radio"
                         name="registration_fee"
                         value={`fee_type_${feeType.id}`}
-                        checked={selectedFee === `fee_type_${feeType.id}`}
+                        checked={isSelected}
                         onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
+                        className={`w-5 h-5 focus:ring-2 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0 ${c.radio}`}
                 />
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === `fee_type_${feeType.id}` ? 'text-purple-900' : 'text-purple-800'}`}>
+                        <div className={`text-lg font-bold mb-1.5 leading-tight ${c.text}`}>
                           {feeType.name}
                         </div>
                         {feeType.description && (
-                          <div className="text-xs text-purple-600 leading-relaxed mb-1">{feeType.description}</div>
+                          <div className={`text-xs leading-relaxed mb-1 ${c.textMuted}`}>{feeType.description}</div>
                         )}
-                        {pricing.regular?.start_date ? (
-                          <div className="text-xs text-purple-600 leading-relaxed">
-                            From {new Date(pricing.regular.start_date).toLocaleDateString()}{pricing.late?.start_date ? ` to ${new Date(pricing.late.start_date).toLocaleDateString()}` : ''}
-                          </div>
-                        ) : pricing.early_bird?.deadline && (
-                          <div className="text-xs text-purple-600 leading-relaxed">
-                            After {new Date(pricing.early_bird.deadline).toLocaleDateString()}
+                        {(formatAvailabilityText(feeType.valid_from, feeType.valid_to) ||
+                          (pricing.regular?.start_date
+                            ? `${t('availableFrom')} ${new Date(pricing.regular.start_date).toLocaleDateString(locale)}${pricing.late?.start_date ? ` ${t('availableTo')} ${new Date(pricing.late.start_date).toLocaleDateString(locale)}` : ''}`
+                            : pricing.early_bird?.deadline
+                              ? `${t('after')} ${new Date(pricing.early_bird.deadline).toLocaleDateString(locale)}`
+                              : '')) && (
+                          <div className={`mt-1.5 text-sm font-medium leading-snug ${c.textMuted}`}>
+                            {formatAvailabilityText(feeType.valid_from, feeType.valid_to) ||
+                              (pricing.regular?.start_date
+                                ? `${t('availableFrom')} ${new Date(pricing.regular.start_date).toLocaleDateString(locale)}${pricing.late?.start_date ? ` ${t('availableTo')} ${new Date(pricing.late.start_date).toLocaleDateString(locale)}` : ''}`
+                                : pricing.early_bird?.deadline
+                                  ? `${t('after')} ${new Date(pricing.early_bird.deadline).toLocaleDateString(locale)}`
+                                  : '')}
                           </div>
                         )}
               </div>
             </div>
-                    <div className="mt-auto pt-4 border-t-2 border-purple-200">
-                      <div className="text-2xl font-bold text-purple-700 mb-1">
-                        {formatPriceWithoutZeros(getDisplayPrice(feeType.regular))}
+                    <div className={`mt-auto pt-4 border-t-2 ${c.divider}`}>
+                      {/* Cijena u gridu: iznos s decimalama + simbol valute (kompaktno, bez pune širine) */}
+                      <div className={`inline-grid grid-cols-[auto_auto] gap-x-1 items-baseline ${c.price}`}>
+                        <span className="text-2xl font-bold tabular-nums">
+                          {getDisplayPrice(
+                            feeType.amount != null && feeType.amount !== undefined
+                              ? feeType.amount
+                              : (() => {
+                                  const tier = getCurrentPricingTier(
+                                    pricing,
+                                    new Date(),
+                                    conferenceStartDate ? new Date(conferenceStartDate) : undefined
+                                  )
+                                  return tier === 'early_bird' ? feeType.early_bird : tier === 'regular' ? feeType.regular : feeType.late
+                                })()
+                          ).toFixed(2)}
+                        </span>
+                        <span className="text-xl font-semibold">{getCurrencySymbol(pricing.currency)}</span>
                       </div>
-                      <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-purple-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
           </div>
               </label>
-                ))}
-
-                {/* Custom Pricing Fields (e.g., Exhibitor, VIP, etc.) - Legacy */}
-                {pricing.custom_fields && pricing.custom_fields.map((customField) => (
-              <label
-                    key={customField.id}
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      selectedFee === `custom_${customField.id}`
-                        ? 'border-violet-600 bg-violet-50 shadow-md'
-                        : 'border-violet-200 bg-violet-50/30 hover:border-violet-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value={`custom_${customField.id}`}
-                        checked={selectedFee === `custom_${customField.id}`}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className="w-5 h-5 text-violet-600 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0"
-                />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-bold mb-1.5 leading-tight ${selectedFee === `custom_${customField.id}` ? 'text-violet-900' : 'text-violet-800'}`}>{customField.name}</div>
-                        {customField.description && (
-                          <div className="text-xs text-violet-600 leading-relaxed">{customField.description}</div>
-              )}
-            </div>
+                  )
+                })}
           </div>
-                    <div className="mt-auto pt-4 border-t-2 border-violet-200">
-                      <div className="text-2xl font-bold text-violet-700 mb-1">
-                        {formatPriceWithoutZeros(getDisplayPrice(customField.value))}
-                      </div>
-                      <div className="text-xs font-semibold text-violet-600 uppercase tracking-wide">{pricing.currency}</div>
-                      {vatPercentage && (
-                        <div className="mt-1 text-[10px] font-semibold text-violet-700/80">
-                          {t('vatIncluded', { vat: vatPercentage })}
-                        </div>
-                      )}
-                    </div>
-            </label>
-                ))}
-          </div>
-
-          {/* VAT note (public) */}
-          {vatPercentage && (
-            <div className="mt-5 text-xs text-gray-600">
-              {t('pricesFinal', { vat: vatPercentage })}
-            </div>
-          )}
 
           {!selectedFee && (
             <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
@@ -754,11 +617,11 @@ export default function RegistrationForm({
 
       {/* Registration Tab Content */}
       {activeTab === 'registration' && (
-        <div className="space-y-10">
-          {/* Registration Form Section - Main Focus, No Nesting */}
+        <div className="space-y-8">
+          {/* Kartica: Podaci o sudionicima (polja obrasca) */}
           {customFields.length > 0 && (
-            <div>
-              <div className="flex items-center gap-4 mb-8">
+            <div className="rounded-xl border-2 border-blue-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
                   <UserPlus className="w-6 h-6 text-white" />
                 </div>
@@ -767,7 +630,6 @@ export default function RegistrationForm({
                   <p className="text-sm text-gray-600">{t('formSubtitle')}</p>
                 </div>
               </div>
-              
               <div className="animate-slide-in">
                 <ParticipantManager
                   participants={participants}
@@ -793,7 +655,7 @@ export default function RegistrationForm({
             </div>
           )}
 
-          {/* Payment Preference Section */}
+          {/* Način plaćanja – otvara se kad sudionik odabere kotizaciju */}
           {pricing && selectedFee && paymentSettings?.enabled && availableOptionsCount > 0 && (
             <div className="pt-8 border-t-2 border-gray-100">
               <div className="flex items-center gap-4 mb-6">
@@ -805,14 +667,12 @@ export default function RegistrationForm({
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 mb-1">{t('paymentMethodTitle')}</h2>
                   <p className="text-sm text-gray-600">
-                    {availableOptionsCount === 1 
-                      ? t('paymentMethodTitle') 
-                      : t('choosePaymentSubtitle')}
+                    {availableOptionsCount === 1 ? t('paymentMethodTitle') : t('choosePaymentSubtitle')}
                   </p>
                 </div>
               </div>
 
-                <div className="space-y-4">
+              <div className="space-y-4">
                   {/* Pay Now - Credit Card (conditional) */}
                   {availablePaymentOptions.card && (
                   <label
@@ -1091,7 +951,7 @@ export default function RegistrationForm({
               </div>
           )}
 
-          {/* Submit Button - only visible in Registration tab */}
+          {/* Submit Button */}
           {customFields.length > 0 && (
             <div className="flex justify-end mt-10 pt-8 border-t-2 border-gray-200">
               <button
@@ -1348,6 +1208,6 @@ export default function RegistrationForm({
         </div>
       )}
     </form>
-    </>
+    </div>
   )
 }

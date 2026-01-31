@@ -359,7 +359,7 @@ export default function NewConferencePage() {
               : formData.vat_percentage 
                 ? parseFloat(formData.vat_percentage.toString()) 
                 : null,
-            prices_include_vat: !!formData.prices_include_vat,
+            prices_include_vat: false, // cijene uvijek neto; opcija bruto uklonjena
             early_bird: {
               amount: formData.early_bird_amount,
               deadline: formData.early_bird_deadline || undefined,
@@ -1313,61 +1313,7 @@ export default function NewConferencePage() {
                     </label>
                   </div>
 
-                  {/* Price Input Mode */}
-                  <div className="mt-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Price Input Mode
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <label
-                        className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50/50"
-                        style={{
-                          borderColor: !formData.prices_include_vat ? '#3B82F6' : '#E5E7EB',
-                          backgroundColor: !formData.prices_include_vat ? '#EFF6FF' : 'white',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="prices_include_vat"
-                          checked={!formData.prices_include_vat}
-                          onChange={() =>
-                            setFormData((prev) => ({ ...prev, prices_include_vat: false }))
-                          }
-                          className="mt-1 w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900">Prices are entered without PDV (net)</div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Example: Enter 400 → public shows 500 if PDV is 25%.
-                          </p>
-                        </div>
-                      </label>
-
-                      <label
-                        className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-purple-300 hover:bg-purple-50/50"
-                        style={{
-                          borderColor: formData.prices_include_vat ? '#9333EA' : '#E5E7EB',
-                          backgroundColor: formData.prices_include_vat ? '#FAF5FF' : 'white',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="prices_include_vat"
-                          checked={!!formData.prices_include_vat}
-                          onChange={() =>
-                            setFormData((prev) => ({ ...prev, prices_include_vat: true }))
-                          }
-                          className="mt-1 w-4 h-4 text-purple-600"
-                        />
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900">Prices are entered with PDV included (gross)</div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Example: Enter 400 → public shows 400, admin calculates net from PDV.
-                          </p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
+                  {/* Cijene se uvijek unose bez PDV-a (neto); opcija bruto uklonjena */}
                 </div>
 
                 <div>
