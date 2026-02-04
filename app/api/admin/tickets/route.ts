@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -11,24 +12,11 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    const isSuperAdmin = profile?.role === 'super_admin'
-    const isConferenceAdmin = profile?.role === 'conference_admin'
-    if (!isSuperAdmin && !isConferenceAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const isSuperAdmin = profile.role === 'super_admin'
+    const isConferenceAdmin = profile.role === 'conference_admin'
 
     const { searchParams } = new URL(request.url)
     const statsOnly = searchParams.get('stats_only') === '1'
@@ -119,9 +107,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ tickets: tickets ?? [] })
-  } catch (e) {
-    log.error('Tickets GET error', e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, { action: 'get_tickets' })
   }
 }
 
@@ -131,24 +118,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role, email, full_name')
-      .eq('id', user.id)
-      .single()
-
-    const isSuperAdmin = profile?.role === 'super_admin'
-    const isConferenceAdmin = profile?.role === 'conference_admin'
-    if (!isSuperAdmin && !isConferenceAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
     const body = await request.json()
     const {
@@ -230,8 +201,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ ticket })
-  } catch (e) {
-    log.error('Tickets POST error', e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, { action: 'create_ticket' })
   }
 }

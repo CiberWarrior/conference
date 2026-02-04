@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
-import { createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,13 +10,17 @@ export const dynamic = 'force-dynamic'
  * Get payment history for a registration or all registrations
  */
 export async function GET(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
-  const searchParams = request.nextUrl.searchParams
-  const registrationId = searchParams.get('registrationId')
-  const conferenceId = searchParams.get('conference_id')
-
   try {
-    const supabase = await createServerClient()
+    const searchParams = request.nextUrl.searchParams
+    const registrationId = searchParams.get('registrationId')
+    const conferenceId = searchParams.get('conference_id')
+
+    if (!conferenceId) {
+      throw ApiError.validationError('Conference ID is required')
+    }
+
+    // ✅ Use centralized auth helper
+    const { supabase } = await requireConferencePermission(conferenceId, 'can_manage_payments')
 
     // If conference_id provided, filter through registrations
     if (conferenceId) {
@@ -113,14 +118,7 @@ export async function GET(request: NextRequest) {
       total: history?.length || 0,
     })
   } catch (error) {
-    log.error('Get payment history error', error instanceof Error ? error : undefined, {
-      conferenceId: conferenceId || 'unknown',
-      action: 'payment_history',
-    })
-    return NextResponse.json(
-      { error: 'Failed to get payment history' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_payment_history' })
   }
 }
 

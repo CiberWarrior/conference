@@ -1,36 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { stripe } from '@/lib/stripe'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+interface RefundRequestBody {
+  registrationId: string
+  amount?: number
+  reason?: string
+  processRefund?: boolean
+}
 
 /**
  * POST /api/admin/refunds
  * Process a refund request
  */
 export async function POST(request: NextRequest) {
+  let body: RefundRequestBody | null = null
+  
   try {
-    const body = await request.json()
+    body = await request.json()
+    
+    if (!body) {
+      throw ApiError.validationError('Request body is required')
+    }
+    
     const { registrationId, amount, reason, processRefund = false } = body
 
     if (!registrationId) {
-      return NextResponse.json(
-        { error: 'Registration ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Registration ID is required')
     }
 
-    const supabase = await createServerClient()
+    // First, get registration to check conference_id
+    const tempSupabase = await (await import('@/lib/supabase')).createServerClient()
+    const { data: registration } = await tempSupabase
+      .from('registrations')
+      .select('conference_id')
+      .eq('id', registrationId)
+      .single()
 
-    // Get registration
-    const { data: registration, error: regError } = await supabase
+    if (!registration) {
+      throw ApiError.notFound('Registration')
+    }
+
+    // ✅ Use centralized auth helper (checks can_manage_payments permission)
+    const { supabase } = await requireConferencePermission(
+      registration.conference_id,
+      'can_manage_payments'
+    )
+
+    // Get full registration details
+    const { data: fullRegistration, error: fullRegError } = await supabase
       .from('registrations')
       .select('*')
       .eq('id', registrationId)
       .single()
 
-    if (regError || !registration) {
+    if (fullRegError || !fullRegistration) {
       return NextResponse.json(
         { error: 'Registration not found' },
         { status: 404 }
@@ -38,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if payment was made
-    if (registration.payment_status !== 'paid') {
+    if (fullRegistration.payment_status !== 'paid') {
       return NextResponse.json(
         { error: 'Registration is not paid, cannot process refund' },
         { status: 400 }
@@ -94,7 +122,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!registration.payment_intent_id) {
+    if (!fullRegistration.payment_intent_id) {
       return NextResponse.json(
         { error: 'No payment intent found for this registration' },
         { status: 400 }
@@ -106,7 +134,7 @@ export async function POST(request: NextRequest) {
     try {
       // Create refund in Stripe
       const refund = await stripe.refunds.create({
-        payment_intent: registration.payment_intent_id,
+        payment_intent: fullRegistration.payment_intent_id,
         amount: refundAmount ? Math.round(refundAmount * 100) : undefined, // Convert to cents
         reason: reason ? (reason.toLowerCase().includes('fraud') ? 'fraudulent' : 'requested_by_customer') : undefined,
       })
@@ -117,7 +145,7 @@ export async function POST(request: NextRequest) {
         .update({
           refund_status: 'processed',
           refund_processed_at: new Date().toISOString(),
-          payment_status: refundAmount && refundAmount < (registration.refund_amount || 0) ? 'paid' : 'pending', // Partial refund keeps as paid
+          payment_status: refundAmount && refundAmount < (fullRegistration.refund_amount || 0) ? 'paid' : 'pending', // Partial refund keeps as paid
         })
         .eq('id', registrationId)
         .select()
@@ -157,11 +185,7 @@ export async function POST(request: NextRequest) {
       )
     }
   } catch (error) {
-    console.error('Refund error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process refund' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'process_refund', registrationId: body?.registrationId })
   }
 }
 
@@ -170,20 +194,20 @@ export async function POST(request: NextRequest) {
  * Get refund requests
  */
 export async function GET(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
-  const searchParams = request.nextUrl.searchParams
-  const status = searchParams.get('status') // 'requested', 'approved', 'rejected', 'processed'
-  const conferenceId = searchParams.get('conference_id')
-
   try {
+    const searchParams = request.nextUrl.searchParams
+    const status = searchParams.get('status')
+    const conferenceId = searchParams.get('conference_id')
+
     if (!conferenceId) {
-      return NextResponse.json(
-        { error: 'Conference ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Conference ID is required')
     }
 
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper (checks can_manage_payments permission)
+    const { supabase } = await requireConferencePermission(
+      conferenceId,
+      'can_manage_payments'
+    )
 
     let query = supabase
       .from('registrations')
@@ -211,14 +235,7 @@ export async function GET(request: NextRequest) {
       total: refunds?.length || 0,
     })
   } catch (error) {
-    log.error('Get refunds error', error instanceof Error ? error : undefined, {
-      conferenceId: conferenceId || 'unknown',
-      action: 'get_refunds',
-    })
-    return NextResponse.json(
-      { error: 'Failed to get refunds' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_refunds' })
   }
 }
 
@@ -233,35 +250,35 @@ interface RefundStatusUpdateBody {
  * Update refund status (approve/reject)
  */
 export async function PATCH(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
-  let body: RefundStatusUpdateBody | null = null
   try {
-    body = await request.json()
-    
-    if (!body) {
-      return NextResponse.json(
-        { error: 'Request body is required' },
-        { status: 400 }
-      )
-    }
-    
+    const body: RefundStatusUpdateBody = await request.json()
     const { registrationId, status, reason } = body
 
     if (!registrationId || !status) {
-      return NextResponse.json(
-        { error: 'Registration ID and status are required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Registration ID and status are required')
     }
 
     if (!['approved', 'rejected'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Status must be "approved" or "rejected"' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Status must be "approved" or "rejected"')
     }
 
-    const supabase = await createServerClient()
+    // Get registration to check conference_id
+    const tempSupabase = await (await import('@/lib/supabase')).createServerClient()
+    const { data: registration } = await tempSupabase
+      .from('registrations')
+      .select('conference_id')
+      .eq('id', registrationId)
+      .single()
+
+    if (!registration) {
+      throw ApiError.notFound('Registration')
+    }
+
+    // ✅ Use centralized auth helper (checks can_manage_payments permission)
+    const { supabase } = await requireConferencePermission(
+      registration.conference_id,
+      'can_manage_payments'
+    )
 
     const { data: updated, error } = await supabase
       .from('registrations')
@@ -286,15 +303,7 @@ export async function PATCH(request: NextRequest) {
       refund: updated,
     })
   } catch (error) {
-    log.error('Update refund error', error instanceof Error ? error : undefined, {
-      registrationId: body?.registrationId || 'unknown',
-      status: body?.status || 'unknown',
-      action: 'update_refund',
-    })
-    return NextResponse.json(
-      { error: 'Failed to update refund' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'update_refund' })
   }
 }
 

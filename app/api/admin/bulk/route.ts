@@ -19,49 +19,19 @@ interface BulkUpdateRequest {
   }
 }
 
+import { requireAuth } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
+
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
+
     const body: BulkUpdateRequest = await request.json()
     const { action, registrationIds, newStatus, emailType, emailData } = body
 
     if (!registrationIds || registrationIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No registrations selected' },
-        { status: 400 }
-      )
-    }
-
-    const supabase = await createServerClient()
-
-    // ✅ SECURITY: Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // ✅ SECURITY: Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('role, active')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 403 }
-      )
-    }
-
-    if (!profile.active) {
-      return NextResponse.json(
-        { error: 'Your account is deactivated' },
-        { status: 403 }
-      )
+      throw ApiError.validationError('No registrations selected')
     }
 
     // Get all registrations with their conference email settings
@@ -210,19 +180,10 @@ export async function POST(request: NextRequest) {
         })
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        )
+        throw ApiError.validationError('Invalid action')
     }
   } catch (error) {
-    log.error('Bulk operation error', error instanceof Error ? error : undefined, {
-      action: 'bulk_operation',
-    })
-    return NextResponse.json(
-      { error: 'Failed to process bulk operation' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'bulk_operation' })
   }
 }
 

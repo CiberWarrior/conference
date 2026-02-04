@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { UpdateConferenceInput } from '@/types/conference'
+import { requireAuth, requireCanEditConference } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 import { invalidateConferenceCache } from '@/lib/cache'
 
@@ -16,17 +18,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
-
-    // ✅ SECURITY: Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // ✅ Use centralized auth helper
+    const { supabase } = await requireAuth()
 
     // RLS policies will automatically filter based on user permissions
     // Super admins see all conferences
@@ -38,7 +31,7 @@ export async function GET(
       .single()
 
     if (error || !conference) {
-      return NextResponse.json({ error: 'Conference not found' }, { status: 404 })
+      throw ApiError.notFound('Conference')
     }
 
     // Return with no-cache headers to prevent caching issues
@@ -53,11 +46,7 @@ export async function GET(
       }
     )
   } catch (error) {
-    log.error('Get conference error', error, {
-      conferenceId: params.id,
-      action: 'get',
-    })
-    return NextResponse.json({ error: 'Failed to fetch conference' }, { status: 500 })
+    return handleApiError(error, { action: 'get_conference', conferenceId: params.id })
   }
 }
 
@@ -73,56 +62,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // ✅ SECURITY: First verify user is authenticated using server client
-    const serverSupabase = await createServerClient()
-    const { data: { user }, error: authError } = await serverSupabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // ✅ SECURITY: Get user profile to check permissions
-    const { data: profile, error: profileError } = await serverSupabase
-      .from('user_profiles')
-      .select('role, active')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 403 }
-      )
-    }
-
-    if (!profile.active) {
-      return NextResponse.json(
-        { error: 'Your account is deactivated' },
-        { status: 403 }
-      )
-    }
-
-    // ✅ SECURITY: Check if user has permission to update this conference
-    // Super admins can update any conference
-    // Conference admins can only update their assigned conferences with can_edit_conference permission
-    if (profile.role !== 'super_admin') {
-      const { data: permission } = await serverSupabase
-        .from('conference_permissions')
-        .select('can_edit_conference')
-        .eq('user_id', user.id)
-        .eq('conference_id', params.id)
-        .single()
-      
-      if (!permission || !permission.can_edit_conference) {
-        return NextResponse.json(
-          { error: 'Forbidden. You do not have permission to update this conference.' },
-          { status: 403 }
-        )
-      }
-    }
+    // ✅ Use centralized auth helper (checks can_edit_conference permission)
+    const { user, profile } = await requireCanEditConference(params.id)
 
     // Now safe to use admin client to bypass RLS policies for updates
     const supabase = createAdminClient()
@@ -303,45 +244,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
-
-    // ✅ SECURITY: Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // ✅ SECURITY: Get user profile to check role - only super admins can delete
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('role, active')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 403 }
-      )
-    }
-
-    if (!profile.active) {
-      return NextResponse.json(
-        { error: 'Your account is deactivated' },
-        { status: 403 }
-      )
-    }
-
-    if (profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Forbidden. Only super admins can delete conferences.' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper (only super admins can delete)
+    const { user, supabase } = await requireCanEditConference(params.id)
 
     // Check if conference exists
     const { data: conference, error: fetchError } = await supabase
@@ -351,7 +255,7 @@ export async function DELETE(
       .single()
 
     if (fetchError || !conference) {
-      return NextResponse.json({ error: 'Conference not found' }, { status: 404 })
+      throw ApiError.notFound('Conference')
     }
 
     // Use admin client to delete (bypasses RLS)
@@ -384,11 +288,7 @@ export async function DELETE(
       message: `Conference "${conference.name}" and all related data deleted successfully`,
     })
   } catch (error) {
-    log.error('Conference delete error', error, {
-      conferenceId: params.id,
-      action: 'delete',
-    })
-    return NextResponse.json({ error: 'Failed to delete conference' }, { status: 500 })
+    return handleApiError(error, { action: 'delete_conference', conferenceId: params.id })
   }
 }
 

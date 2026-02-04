@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { sendPaymentReminder } from '@/lib/email'
 import { log } from '@/lib/logger'
 
@@ -16,12 +17,13 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
+
     const searchParams = request.nextUrl.searchParams
     const daysSinceRegistration = parseInt(searchParams.get('daysSinceRegistration') || '3')
     const maxReminders = parseInt(searchParams.get('maxReminders') || '3')
     const dryRun = searchParams.get('dryRun') === 'true'
-
-    const supabase = await createServerClient()
 
     // Find registrations that need reminders
     const cutoffDate = new Date()
@@ -143,7 +145,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
 
     const { data: stats, error } = await supabase
       .from('registrations')
@@ -168,13 +171,7 @@ export async function GET() {
         : 0,
     })
   } catch (error) {
-    log.error('Get payment reminders stats error', error instanceof Error ? error : undefined, {
-      action: 'payment_reminders_stats',
-    })
-    return NextResponse.json(
-      { error: 'Failed to get statistics' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_payment_reminders_stats' })
   }
 }
 

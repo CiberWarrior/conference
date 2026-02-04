@@ -1,5 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -10,29 +11,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError) {
-      log.error('Error fetching user profile', profileError, {
-        userId: user.id,
-        action: 'get_account',
-      })
-      return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
     // Get subscription info
     const { data: subscription } = await supabase
@@ -61,10 +41,7 @@ export async function GET(request: NextRequest) {
       subscription: subscription || null,
     })
   } catch (error) {
-    log.error('Error fetching account', error, {
-      action: 'get_account',
-    })
-    return NextResponse.json({ error: 'Failed to fetch account' }, { status: 500 })
+    return handleApiError(error, { action: 'get_account' })
   }
 }
 
@@ -75,14 +52,8 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, supabase } = await requireAuth()
 
     const body = await request.json()
     const { full_name, phone, organization } = body
@@ -147,10 +118,7 @@ export async function PATCH(request: NextRequest) {
       message: 'Profile updated successfully',
     })
   } catch (error) {
-    log.error('Error updating account', error, {
-      action: 'update_own_profile',
-    })
-    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    return handleApiError(error, { action: 'update_own_profile' })
   }
 }
 

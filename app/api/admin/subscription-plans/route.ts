@@ -1,5 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -11,14 +12,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated (any admin can view plans)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, supabase } = await requireAuth()
 
     // Get all active plans
     const { data: plans, error } = await supabase
@@ -38,10 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ plans })
   } catch (error) {
-    log.error('Error fetching subscription plans', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch subscription plans' 
-    }, { status: 500 })
+    return handleApiError(error, { action: 'get_subscription_plans' })
   }
 }
 

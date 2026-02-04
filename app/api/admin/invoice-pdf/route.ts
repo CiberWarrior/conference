@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
-import { createServerClient } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 
 export const dynamic = 'force-dynamic'
@@ -10,32 +11,41 @@ export const dynamic = 'force-dynamic'
  * Generate PDF invoice for a registration
  */
 export async function GET(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
-  const searchParams = request.nextUrl.searchParams
-  const registrationId = searchParams.get('registrationId')
-
   try {
+    const searchParams = request.nextUrl.searchParams
+    const registrationId = searchParams.get('registrationId')
+
     if (!registrationId) {
-      return NextResponse.json(
-        { error: 'Registration ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Registration ID is required')
     }
 
-    const supabase = await createServerClient()
+    // First get registration to check conference_id
+    const tempSupabase = await (await import('@/lib/supabase')).createServerClient()
+    const { data: registration, error: regError } = await tempSupabase
+      .from('registrations')
+      .select('conference_id')
+      .eq('id', registrationId)
+      .single()
 
-    // Get registration details
-    const { data: registration, error: regError } = await supabase
+    if (regError || !registration) {
+      throw ApiError.notFound('Registration')
+    }
+
+    // ✅ Use centralized auth helper
+    const { supabase } = await requireConferencePermission(
+      registration.conference_id,
+      'can_view_registrations'
+    )
+
+    // Get full registration details
+    const { data: fullRegistration, error: fullRegError } = await supabase
       .from('registrations')
       .select('*')
       .eq('id', registrationId)
       .single()
 
-    if (regError || !registration) {
-      return NextResponse.json(
-        { error: 'Registration not found' },
-        { status: 404 }
-      )
+    if (fullRegError || !fullRegistration) {
+      throw ApiError.notFound('Registration')
     }
 
     // Get payment history for this registration
@@ -62,11 +72,11 @@ export async function GET(request: NextRequest) {
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Invoice #: ${registration.invoice_id || registration.id.substring(0, 8)}`, pageWidth - margin, yPos, {
+    doc.text(`Invoice #: ${fullRegistration.invoice_id || fullRegistration.id.substring(0, 8)}`, pageWidth - margin, yPos, {
       align: 'right',
     })
     yPos += 5
-    doc.text(`Date: ${new Date(registration.created_at).toLocaleDateString()}`, pageWidth - margin, yPos, {
+    doc.text(`Date: ${new Date(fullRegistration.created_at).toLocaleDateString()}`, pageWidth - margin, yPos, {
       align: 'right',
     })
     yPos += 15
@@ -79,16 +89,16 @@ export async function GET(request: NextRequest) {
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${registration.first_name} ${registration.last_name}`, margin, yPos)
+    doc.text(`${fullRegistration.first_name} ${fullRegistration.last_name}`, margin, yPos)
     yPos += 5
-    doc.text(registration.email, margin, yPos)
+    doc.text(fullRegistration.email, margin, yPos)
     yPos += 5
-    if (registration.institution) {
-      doc.text(registration.institution, margin, yPos)
+    if (fullRegistration.institution) {
+      doc.text(fullRegistration.institution, margin, yPos)
       yPos += 5
     }
-    if (registration.country) {
-      doc.text(registration.country, margin, yPos)
+    if (fullRegistration.country) {
+      doc.text(fullRegistration.country, margin, yPos)
       yPos += 5
     }
     yPos += 10
@@ -137,10 +147,10 @@ export async function GET(request: NextRequest) {
     // Payment status
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Payment Status: ${registration.payment_status.toUpperCase()}`, margin, yPos)
+    doc.text(`Payment Status: ${fullRegistration.payment_status?.toUpperCase() || 'PENDING'}`, margin, yPos)
     yPos += 5
 
-    if (registration.payment_status === 'paid' && paymentHistory && paymentHistory.length > 0) {
+    if (fullRegistration.payment_status === 'paid' && paymentHistory && paymentHistory.length > 0) {
       const payment = paymentHistory[0]
       doc.text(`Paid on: ${new Date(payment.created_at).toLocaleDateString()}`, margin, yPos)
     }
@@ -158,18 +168,11 @@ export async function GET(request: NextRequest) {
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${registration.id.substring(0, 8)}.pdf"`,
+        'Content-Disposition': `attachment; filename="invoice-${fullRegistration.id.substring(0, 8)}.pdf"`,
       },
     })
   } catch (error) {
-    log.error('Invoice PDF generation error', error instanceof Error ? error : undefined, {
-      registrationId: registrationId || 'unknown',
-      action: 'invoice_pdf_generation',
-    })
-    return NextResponse.json(
-      { error: 'Failed to generate invoice PDF' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'generate_invoice_pdf' })
   }
 }
 

@@ -106,7 +106,6 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children
   }
 }
-
 /**
  * Hook-based Error Boundary (for functional components)
  * Wraps component with ErrorBoundary
@@ -123,3 +122,4 @@ export function withErrorBoundary<P extends object>(
     )
   }
 }
+

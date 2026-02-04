@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -10,35 +11,27 @@ interface CheckinRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
   let body: CheckinRequestBody | null = null
+
   try {
     body = await request.json()
     
     if (!body) {
-      return NextResponse.json(
-        { error: 'Request body is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Request body is required')
     }
     
     const { registrationId, conferenceId } = body
 
     if (!registrationId) {
-      return NextResponse.json(
-        { error: 'Registration ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Registration ID is required')
     }
 
     if (!conferenceId) {
-      return NextResponse.json(
-        { error: 'Conference ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Conference ID is required')
     }
 
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper (checks can_check_in permission)
+    const { supabase } = await requireConferencePermission(conferenceId, 'can_check_in')
 
     // Check if registration exists and belongs to the conference
     const { data: registration, error: fetchError } = await supabase
@@ -100,41 +93,31 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    log.error('Check-in error', error instanceof Error ? error : undefined, {
-      registrationId: body?.registrationId || 'unknown',
-      conferenceId: body?.conferenceId || 'unknown',
-      action: 'checkin',
+    return handleApiError(error, { 
+      action: 'checkin', 
+      registrationId: body?.registrationId,
+      conferenceId: body?.conferenceId 
     })
-    return NextResponse.json(
-      { error: 'Failed to process check-in' },
-      { status: 500 }
-    )
   }
 }
 
 // GET endpoint to retrieve check-in status
 export async function GET(request: NextRequest) {
-  // NOTE: Defined outside try so we can safely reference it in catch logs
-  const searchParams = request.nextUrl.searchParams
-  const registrationId = searchParams.get('registrationId')
-  const conferenceId = searchParams.get('conferenceId')
-
   try {
+    const searchParams = request.nextUrl.searchParams
+    const registrationId = searchParams.get('registrationId')
+    const conferenceId = searchParams.get('conferenceId')
+
     if (!registrationId) {
-      return NextResponse.json(
-        { error: 'Registration ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Registration ID is required')
     }
 
     if (!conferenceId) {
-      return NextResponse.json(
-        { error: 'Conference ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Conference ID is required')
     }
 
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper (checks can_check_in permission)
+    const { supabase } = await requireConferencePermission(conferenceId, 'can_check_in')
 
     const { data: registration, error } = await supabase
       .from('registrations')
@@ -144,10 +127,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !registration) {
-      return NextResponse.json(
-        { error: 'Registration not found' },
-        { status: 404 }
-      )
+      throw ApiError.notFound('Registration')
     }
 
     return NextResponse.json({
@@ -160,15 +140,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    log.error('Get check-in status error', error instanceof Error ? error : undefined, {
-      registrationId: registrationId || 'unknown',
-      conferenceId: conferenceId || 'unknown',
-      action: 'checkin_status',
-    })
-    return NextResponse.json(
-      { error: 'Failed to get check-in status' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_checkin_status' })
   }
 }
 

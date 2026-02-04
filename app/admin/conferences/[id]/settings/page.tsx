@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Save, Trash2, Upload, Globe, Eye, EyeOff, Plus, X, GripVertical, Ticket, ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Save, Plus, X, GripVertical, Ticket, ChevronDown, ChevronRight, Trash2, Eye, EyeOff, Globe, Upload } from 'lucide-react'
 import type {
   CustomFeeType,
   HotelOption,
@@ -28,6 +28,18 @@ import {
   getCurrentPricingTier,
   getEffectiveFeeTypeAmount,
 } from '@/utils/pricing'
+import {
+  BasicInfoSection,
+  BrandingSection,
+  PricingSection,
+  PaymentSettingsSection,
+  EmailSettingsSection,
+  PublishingSection,
+  GeneralSettingsSection,
+  InfoTextSection,
+  type ConferenceFormData,
+  type OnFormDataChange,
+} from './_components'
 
 export default function ConferenceSettingsPage() {
   const t = useTranslations('admin.conferences')
@@ -325,6 +337,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
     } finally {
       setLoading(false)
     }
+  }
+
+  // Callback for components to update formData
+  const handleFormDataChange: OnFormDataChange = (updates) => {
+    setFormData((prev) => ({ ...prev, ...updates }))
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -894,293 +911,30 @@ Important: Authors who submit abstracts for presentation are not automatically r
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-blue-600" />
-            {t('basicInformation')}
-          </h2>
+        {/* Basic Information - Refactored component */}
+        <BasicInfoSection formData={formData} onChange={handleFormDataChange} />
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                Conference Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        {/* Branding - Refactored component */}
+        <BrandingSection
+          conferenceId={conferenceId as string}
+          formData={formData}
+          currentLogoUrl={conference.logo_url}
+          onChange={handleFormDataChange}
+        />
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('descriptionLabelShort')}
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        {/* Registration Information Text - Refactored component */}
+        <InfoTextSection
+          title={t('registrationInformation')}
+          description={t('registrationInfoDesc')}
+          value={registrationInfoText}
+          onChange={setRegistrationInfoText}
+          placeholder={t('informationTextPlaceholder')}
+          hint={t('informationTextHint')}
+          rows={6}
+        />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="start_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('startDateLabel')}
-                </label>
-                <input
-                  type="date"
-                  id="start_date"
-                  name="start_date"
-                  value={formData.start_date}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="end_date" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('endDateLabel')}
-                </label>
-                <input
-                  type="date"
-                  id="end_date"
-                  name="end_date"
-                  value={formData.end_date}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  id="location"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={t('locationPlaceholder')}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="venue" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('venueLabelShort')}
-                </label>
-                <input
-                  type="text"
-                  id="venue"
-                  name="venue"
-                  value={formData.venue}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="website_url" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('websiteUrlLabelShort')}
-                </label>
-                <input
-                  type="url"
-                  id="website_url"
-                  name="website_url"
-                  value={formData.website_url}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="primary_color" className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('brandColorLabelShort')}
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    id="primary_color"
-                    name="primary_color"
-                    value={formData.primary_color}
-                    onChange={handleChange}
-                    className="w-16 h-12 border border-gray-300 rounded cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Logo Upload */}
-            <div className="mt-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('conferenceLogo')}
-              </label>
-              <div className="flex items-start gap-4">
-                {conference.logo_url && (
-                  <div className="flex-shrink-0">
-                    <Image
-                      src={conference.logo_url}
-                      alt={t('currentLogo')}
-                      width={120}
-                      height={120}
-                      className="w-24 h-24 object-contain border-2 border-gray-200 rounded-lg p-2 bg-gray-50"
-                      unoptimized
-                    />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="logo_upload"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      disabled={uploadingLogo}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    {uploadingLogo && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-sm font-medium">{t('uploading')}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {t('uploadLogoHint')}
-                  </p>
-                  <input
-                    type="url"
-                    placeholder={t('orEnterLogoUrl')}
-                    value={formData.logo_url || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
-                    className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Registration Information Text */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('registrationInformation')}</h2>
-            <p className="text-sm text-gray-600">
-              {t('registrationInfoDesc')}
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {t('informationText')}
-            </label>
-            <textarea
-              value={registrationInfoText}
-              onChange={(e) => setRegistrationInfoText(e.target.value)}
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder={t('informationTextPlaceholder')}
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              {t('informationTextHint')}
-            </p>
-          </div>
-        </div>
-
-        {/* Conference Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('settingsSection')}</h2>
-
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="registration_enabled"
-                checked={formData.registration_enabled}
-                onChange={handleChange}
-                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">{t('enableRegistration')}</p>
-                <p className="text-sm text-gray-600">{t('enableRegistrationDesc')}</p>
-              </div>
-            </label>
-
-            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 mb-1">{t('abstractSubmission')}</p>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {t('abstractSubmissionDesc')}
-                  </p>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="abstract_submission_enabled"
-                      checked={formData.abstract_submission_enabled}
-                      onChange={handleChange}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{t('showAbstractLink')}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="payment_required"
-                checked={formData.payment_required}
-                onChange={handleChange}
-                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <div>
-                <p className="font-semibold text-gray-900">{t('requirePayment')}</p>
-                <p className="text-sm text-gray-600">{t('requirePaymentDesc')}</p>
-              </div>
-            </label>
-
-            <div>
-              <label htmlFor="max_registrations" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('maxRegistrationsOptional')}
-              </label>
-              <input
-                type="number"
-                id="max_registrations"
-                name="max_registrations"
-                value={formData.max_registrations}
-                onChange={handleChange}
-                min="0"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('leaveEmptyUnlimited')}
-              />
-            </div>
-          </div>
-        </div>
+        {/* Conference Settings - Refactored component */}
+        <GeneralSettingsSection formData={formData} onChange={handleFormDataChange} />
 
         {/* Payment Options */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -2703,27 +2457,16 @@ Important: Authors who submit abstracts for presentation are not automatically r
           )}
         </div>
 
-        {/* Abstract Information Text */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('abstractInformation')}</h2>
-            <p className="text-sm text-gray-600">{t('abstractInfoSectionDesc')}</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {t('informationText')}
-            </label>
-            <textarea
-              value={abstractInfoText}
-              onChange={(e) => setAbstractInfoText(e.target.value)}
-              rows={12}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-              placeholder={t('abstractInfoPlaceholder')}
-            />
-            <p className="text-xs text-gray-500 mt-2">{t('abstractInfoFormHint')}</p>
-          </div>
-        </div>
+        {/* Abstract Information Text - Refactored component */}
+        <InfoTextSection
+          title={t('abstractInformation')}
+          description={t('abstractInfoSectionDesc')}
+          value={abstractInfoText}
+          onChange={setAbstractInfoText}
+          placeholder={t('abstractInfoPlaceholder')}
+          hint={t('abstractInfoFormHint')}
+          rows={12}
+        />
 
         {/* Custom Abstract Submission Fields */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-purple-100 p-6">
@@ -2862,57 +2605,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
           )}
         </div>
 
-        {/* Email Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('emailSettings')}</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="from_email" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('fromEmail')}
-              </label>
-              <input
-                type="email"
-                id="from_email"
-                name="from_email"
-                value={formData.from_email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('fromEmailPlaceholder')}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="from_name" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('fromName')}
-              </label>
-              <input
-                type="text"
-                id="from_name"
-                name="from_name"
-                value={formData.from_name}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('fromNamePlaceholder')}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reply_to" className="block text-sm font-semibold text-gray-700 mb-2">
-                {t('replyToEmail')}
-              </label>
-              <input
-                type="email"
-                id="reply_to"
-                name="reply_to"
-                value={formData.reply_to}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t('replyToPlaceholder')}
-              />
-            </div>
-          </div>
-        </div>
+        {/* Email Settings - Refactored component */}
+        <EmailSettingsSection
+          formData={formData}
+          onChange={handleFormDataChange}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-4 pt-6 border-t border-gray-200">

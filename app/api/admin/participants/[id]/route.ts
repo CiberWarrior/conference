@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
-import { isSuperAdmin } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,26 +14,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
-
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check permissions - only Super Admin can view participant details
-    const hasPermission = await isSuperAdmin()
-
-    if (!hasPermission) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
 
     // Get participant profile
     const { data: participant, error: profileError } = await supabase
@@ -87,11 +69,7 @@ export async function GET(
       discounts: discounts || [],
     })
   } catch (error) {
-    log.error('Get participant details error', error as Error)
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_participant', participantId: params.id })
   }
 }
 
@@ -104,26 +82,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
-
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check permissions - only Super Admin can edit
-    const hasPermission = await isSuperAdmin()
-
-    if (!hasPermission) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
 
     // Get request body
     const body = await request.json()
@@ -157,10 +117,6 @@ export async function PATCH(
       participant: updatedParticipant,
     })
   } catch (error) {
-    log.error('Update participant error', error as Error)
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'update_participant', participantId: params.id })
   }
 }

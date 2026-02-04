@@ -1,5 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { stripe } from '@/lib/stripe'
 import { log } from '@/lib/logger'
 import type { CreatePaymentOfferRequest } from '@/types/subscription'
@@ -13,24 +14,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is Super Admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile || profile.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, supabase } = await requireSuperAdmin()
 
     const body: CreatePaymentOfferRequest = await request.json()
     const { inquiryId, planId, billingCycle, customPrice, discountPercent = 0 } = body
@@ -206,12 +191,7 @@ export async function POST(request: NextRequest) {
       message: 'Payment offer created successfully',
     })
   } catch (error) {
-    log.error('Error creating payment offer', error, {
-      action: 'create_payment_offer',
-    })
-    return NextResponse.json({ 
-      error: 'Failed to create payment offer' 
-    }, { status: 500 })
+    return handleApiError(error, { action: 'create_payment_offer' })
   }
 }
 
@@ -221,20 +201,14 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is Super Admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, supabase } = await requireSuperAdmin()
 
     const { searchParams } = new URL(request.url)
     const inquiryId = searchParams.get('inquiryId')
 
     if (!inquiryId) {
-      return NextResponse.json({ error: 'Missing inquiryId parameter' }, { status: 400 })
+      throw ApiError.validationError('Missing inquiryId parameter')
     }
 
     const { data: offers, error } = await supabase
@@ -266,10 +240,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ offers })
   } catch (error) {
-    log.error('Error fetching payment offers', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch payment offers' 
-    }, { status: 500 })
+    return handleApiError(error, { action: 'get_payment_offers' })
   }
 }
 

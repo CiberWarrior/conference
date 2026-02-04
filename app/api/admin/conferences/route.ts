@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { CreateConferenceInput } from '@/types/conference'
+import { requireAuth, requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -12,28 +14,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      log.warn('Unauthorized access attempt to GET /api/admin/conferences', {
-        action: 'get_conferences',
-      })
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 403 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
     log.debug('Fetching conferences for user', {
       userId: user.id,
@@ -108,10 +90,7 @@ export async function GET(request: NextRequest) {
     })
     return NextResponse.json({ conferences })
   } catch (error) {
-    log.error('Get conferences error', error, {
-      action: 'get_conferences',
-    })
-    return NextResponse.json({ error: 'Failed to fetch conferences' }, { status: 500 })
+    return handleApiError(error, { action: 'get_conferences' })
   }
 }
 
@@ -121,31 +100,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized. Only super admins can create conferences.' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper (only super admins can create conferences)
+    const { profile } = await requireSuperAdmin()
 
     const body: CreateConferenceInput = await request.json()
 
@@ -162,8 +118,9 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim()
 
-    // Check if slug already exists
-    const { data: existing, error: slugCheckError } = await supabase
+    // Check if slug already exists (use admin client for bypass RLS on read)
+    const adminSupabase = createAdminClient()
+    const { data: existing, error: slugCheckError } = await adminSupabase
       .from('conferences')
       .select('id')
       .eq('slug', slug)
@@ -178,7 +135,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create conference with generated slug using admin client to bypass RLS
-    const adminSupabase = createAdminClient()
     const { data: conference, error } = await adminSupabase
       .from('conferences')
       .insert({
@@ -253,10 +209,7 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({ conference }, { status: 201 })
   } catch (error) {
-    log.error('Create conference error', error, {
-      action: 'create_conference',
-    })
-    return NextResponse.json({ error: 'Failed to create conference' }, { status: 500 })
+    return handleApiError(error, { action: 'create_conference' })
   }
 }
 

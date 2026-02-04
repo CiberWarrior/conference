@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
-import { isSuperAdmin } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,26 +11,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check permissions - only Super Admin can view all participants
-    const hasPermission = await isSuperAdmin()
-
-    if (!hasPermission) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
 
     // Get search params
     const { searchParams } = new URL(request.url)
@@ -111,10 +93,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    log.error('Get participants error', error as Error)
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'get_participants' })
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -10,36 +12,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      log.warn('Unauthorized access attempt to GET /api/admin/users')
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      log.warn('Unauthorized access attempt to GET /api/admin/users - not super admin', {
-        userId: user.id,
-        role: profile?.role,
-      })
-      return NextResponse.json(
-        { error: 'Unauthorized. Only super admins can view users.' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireSuperAdmin()
 
     log.info('Fetching all users for super admin', {
       userId: user.id,
@@ -86,10 +60,7 @@ export async function GET() {
     
     return NextResponse.json({ users: usersWithConferences })
   } catch (error) {
-    log.error('Get users error', error, {
-      action: 'get_users',
-    })
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+    return handleApiError(error, { action: 'get_users' })
   }
 }
 
@@ -99,31 +70,8 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized. Only super admins can create users.' },
-        { status: 403 }
-      )
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireSuperAdmin()
 
     const body = await request.json()
     const { 
@@ -319,13 +267,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    log.error('Create user error', error, {
-      action: 'create_user',
-    })
-    return NextResponse.json(
-      { error: 'An error occurred while creating the user' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'create_user' })
   }
 }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -13,32 +15,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper
+    const { supabase } = await requireSuperAdmin()
     const { id } = params
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
 
     // Get user profile with permissions
     // Use explicit relationship to avoid ambiguity (user_id foreign key, not granted_by)
@@ -58,21 +37,12 @@ export async function GET(
       .single()
 
     if (error) {
-      log.error('Get user error', error, {
-        userId: id,
-        requestedBy: user.id,
-        action: 'get_user',
-      })
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      throw ApiError.notFound('User', 'User not found')
     }
 
     return NextResponse.json({ user: userData })
   } catch (error) {
-    log.error('Get user error', error, {
-      userId: params.id,
-      action: 'get_user',
-    })
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
+    return handleApiError(error, { action: 'get_user', userId: params.id })
   }
 }
 
@@ -85,32 +55,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireSuperAdmin()
     const { id } = params
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
 
     const body = await request.json()
     const { 
@@ -239,14 +186,7 @@ export async function PATCH(
       message: 'User updated successfully'
     })
   } catch (error) {
-    log.error('Update user error', error, {
-      userId: params.id,
-      action: 'update_user',
-    })
-    return NextResponse.json(
-      { error: 'An error occurred while updating the user' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'update_user', userId: params.id })
   }
 }
 
@@ -259,39 +199,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createServerClient()
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireSuperAdmin()
     const { id } = params
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to check role
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    if (profileError || !profile || profile.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
 
     // Prevent deleting yourself
     if (id === profile.id) {
-      return NextResponse.json(
-        { error: 'Cannot delete your own account' },
-        { status: 400 }
-      )
+      throw ApiError.validationError('Cannot delete your own account')
     }
 
     log.info('Deactivating user', {
@@ -331,14 +245,7 @@ export async function DELETE(
       message: 'User deactivated successfully'
     })
   } catch (error) {
-    log.error('Delete user error', error, {
-      userId: params.id,
-      action: 'deactivate_user',
-    })
-    return NextResponse.json(
-      { error: 'An error occurred while deactivating the user' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'deactivate_user', userId: params.id })
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -12,24 +13,11 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
   try {
-    const { id } = await params
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'super_admin' && profile?.role !== 'conference_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
     const { data: ticket, error } = await supabase
       .from('support_tickets')
@@ -41,10 +29,10 @@ export async function GET(
       .single()
 
     if (error || !ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
+      throw ApiError.notFound('Ticket')
     }
 
-    if (profile?.role === 'conference_admin' && ticket.conference_id) {
+    if (profile.role === 'conference_admin' && ticket.conference_id) {
       const { data: perm } = await supabase
         .from('conference_permissions')
         .select('conference_id')
@@ -52,14 +40,13 @@ export async function GET(
         .eq('conference_id', ticket.conference_id)
         .single()
       if (!perm) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        throw ApiError.forbidden('You do not have access to this ticket')
       }
     }
 
     return NextResponse.json({ ticket })
-  } catch (e) {
-    log.error('Ticket GET error', e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, { action: 'get_ticket', ticketId: id })
   }
 }
 
@@ -71,21 +58,13 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
   try {
-    const { id } = await params
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // ✅ Use centralized auth helper
+    const { user, profile, supabase } = await requireAuth()
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
+    // Check admin role
     if (profile?.role !== 'super_admin' && profile?.role !== 'conference_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -117,8 +96,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ ticket })
-  } catch (e) {
-    log.error('Ticket PATCH error', e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error, { action: 'update_ticket', ticketId: id })
   }
 }

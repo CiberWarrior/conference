@@ -20,6 +20,13 @@ import ParticipantManager from '@/components/admin/ParticipantManager'
 import PaymentForm from '@/components/PaymentForm'
 import { AlertCircle, Euro, UserPlus, Bed, Upload } from 'lucide-react'
 import Link from 'next/link'
+import {
+  FeeTypeSelector,
+  RegistrationSuccess,
+  RegistrationInfoBanner,
+  PaymentSection,
+  AccommodationTab,
+} from '@/components/registration'
 
 interface RegistrationFormProps {
   conferenceId?: string
@@ -108,36 +115,7 @@ export default function RegistrationForm({
   }
   const getFeeTypeDisplayName = (tier: StandardFeeTypeKey) => t(FEE_TYPE_I18N_KEYS[tier])
 
-  // Paleta boja za kartice tipova kotizacija – pojačane nijanse (rub, pozadina, hover)
-  const FEE_TYPE_CARD_COLORS = [
-    { border: 'border-blue-600', borderDefault: 'border-blue-400', bg: 'bg-blue-100', bgDefault: 'bg-blue-50', hover: 'hover:border-blue-500', text: 'text-blue-900', textMuted: 'text-blue-800', divider: 'border-blue-300', price: 'text-blue-800', radio: 'text-blue-600 focus:ring-blue-500' },
-    { border: 'border-indigo-600', borderDefault: 'border-indigo-400', bg: 'bg-indigo-100', bgDefault: 'bg-indigo-50', hover: 'hover:border-indigo-500', text: 'text-indigo-900', textMuted: 'text-indigo-800', divider: 'border-indigo-300', price: 'text-indigo-800', radio: 'text-indigo-600 focus:ring-indigo-500' },
-    { border: 'border-emerald-600', borderDefault: 'border-emerald-400', bg: 'bg-emerald-100', bgDefault: 'bg-emerald-50', hover: 'hover:border-emerald-500', text: 'text-emerald-900', textMuted: 'text-emerald-800', divider: 'border-emerald-300', price: 'text-emerald-800', radio: 'text-emerald-600 focus:ring-emerald-500' },
-    { border: 'border-amber-600', borderDefault: 'border-amber-400', bg: 'bg-amber-100', bgDefault: 'bg-amber-50', hover: 'hover:border-amber-500', text: 'text-amber-900', textMuted: 'text-amber-800', divider: 'border-amber-300', price: 'text-amber-800', radio: 'text-amber-600 focus:ring-amber-500' },
-    { border: 'border-rose-600', borderDefault: 'border-rose-400', bg: 'bg-rose-100', bgDefault: 'bg-rose-50', hover: 'hover:border-rose-500', text: 'text-rose-900', textMuted: 'text-rose-800', divider: 'border-rose-300', price: 'text-rose-800', radio: 'text-rose-600 focus:ring-rose-500' },
-  ] as const
-
-  // Format validity text from admin-entered "od kada / do kada" (valid from / valid to)
-  const formatValidityText = (fromDate?: string | null, toDate?: string | null): string => {
-    if (!fromDate && !toDate) return ''
-    const from = fromDate ? new Date(fromDate).toLocaleDateString(locale) : null
-    const to = toDate ? new Date(toDate).toLocaleDateString(locale) : null
-    if (from && to) return `${t('validFromShort')} ${from} ${t('validToShort')} ${to}`
-    if (to) return `${t('validUntilShort')} ${to}`
-    if (from) return `${t('validFromShort')} ${from}`
-    return ''
-  }
-
-  // "Available from X to Y" – za prikaz kao na referentnim primjerima (EN/HR)
-  const formatAvailabilityText = (fromDate?: string | null, toDate?: string | null): string => {
-    if (!fromDate && !toDate) return ''
-    const from = fromDate ? new Date(fromDate).toLocaleDateString(locale) : null
-    const to = toDate ? new Date(toDate).toLocaleDateString(locale) : null
-    if (from && to) return `${t('availableFrom')} ${from} ${t('availableTo')} ${to}`
-    if (to) return `${t('validUntilShort')} ${to}`
-    if (from) return `${t('availableFrom')} ${from}`
-    return ''
-  }
+  // Note: FEE_TYPE_CARD_COLORS and formatAvailabilityText moved to FeeTypeCard.tsx component
 
   // Determine which payment options are available based on settings
   const availablePaymentOptions = {
@@ -444,163 +422,32 @@ export default function RegistrationForm({
     )
   }
 
+  // Success screen - Refactored component
   if (submitSuccess) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-12 md:p-16 rounded-2xl shadow-xl border-2 border-green-200">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">{t('successTitle')}</h2>
-            <p className="text-lg text-gray-700 mb-6">{t('successMessage')}</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-green-200">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">{t('successCheckEmail')}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <RegistrationSuccess />
   }
 
   return (
     <div className="contents">
-      {/* Registration Fee Selection - OUTSIDE FORM CONTAINER */}
-      {pricing && customFields.length > 0 && activeTab === 'registration' && (pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 && (
-        <div className="w-full -mx-8 px-8 mb-10" style={{ marginLeft: 'calc(-2rem - 1px)', marginRight: 'calc(-2rem - 1px)', width: 'calc(100% + 4rem + 2px)' }}>
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg">
-                <Euro className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">{t('selectFee')}</h2>
-                <p className="text-sm text-gray-600">{t('selectFeeCategory')}</p>
-              </div>
-            </div>
+      {/* Fee Type Selection - Refactored component */}
+      {pricing &&
+        customFields.length > 0 &&
+        activeTab === 'registration' &&
+        (pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 && (
+          <FeeTypeSelector
+            pricing={pricing}
+            selectedFee={selectedFee}
+            onSelectFee={setSelectedFee}
+            getDisplayPrice={getDisplayPrice}
+            feeTypeUsage={feeTypeUsage}
+            conferenceStartDate={conferenceStartDate}
+            showWarning={true}
+          />
+        )}
 
-            {/* 3 vrste kotizacije u jednom redu (responsive: 1 na uskom, 3 na širem) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {(pricing.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []).map((feeType, index) => {
-                  const c = FEE_TYPE_CARD_COLORS[index % FEE_TYPE_CARD_COLORS.length]
-                  const isSelected = selectedFee === `fee_type_${feeType.id}`
-                  return (
-              <label
-                    key={feeType.id}
-                    className={`flex flex-col p-5 rounded-xl border-2 cursor-pointer h-full transition-all ${
-                      isSelected ? `${c.border} ${c.bg} shadow-md` : `${c.borderDefault} ${c.bgDefault} ${c.hover}`
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                <input
-                        type="radio"
-                        name="registration_fee"
-                        value={`fee_type_${feeType.id}`}
-                        checked={isSelected}
-                        onChange={(e) => setSelectedFee(e.target.value)}
-                        className={`w-5 h-5 focus:ring-2 focus:ring-offset-2 mt-0.5 cursor-pointer flex-shrink-0 ${c.radio}`}
-                />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-lg font-bold mb-1.5 leading-tight ${c.text}`}>
-                          {feeType.name}
-                        </div>
-                        {feeType.description && (
-                          <div className={`text-xs leading-relaxed mb-1 ${c.textMuted}`}>{feeType.description}</div>
-                        )}
-                        {/* Helper only for fee type "Osoba u pratnji" – identify by slug (admin sets slug to accompanying_person) */}
-                        {feeType.slug === 'accompanying_person' && (
-                          <p className="text-sm text-gray-600 leading-relaxed mb-1">{t('accompanyingPersonHelpText')}</p>
-                        )}
-                        {(formatAvailabilityText(feeType.valid_from, feeType.valid_to) ||
-                          (pricing.regular?.start_date
-                            ? `${t('availableFrom')} ${new Date(pricing.regular.start_date).toLocaleDateString(locale)}${pricing.late?.start_date ? ` ${t('availableTo')} ${new Date(pricing.late.start_date).toLocaleDateString(locale)}` : ''}`
-                            : pricing.early_bird?.deadline
-                              ? `${t('after')} ${new Date(pricing.early_bird.deadline).toLocaleDateString(locale)}`
-                              : '')) && (
-                          <div className={`mt-1.5 text-sm font-medium leading-snug ${c.textMuted}`}>
-                            {formatAvailabilityText(feeType.valid_from, feeType.valid_to) ||
-                              (pricing.regular?.start_date
-                                ? `${t('availableFrom')} ${new Date(pricing.regular.start_date).toLocaleDateString(locale)}${pricing.late?.start_date ? ` ${t('availableTo')} ${new Date(pricing.late.start_date).toLocaleDateString(locale)}` : ''}`
-                                : pricing.early_bird?.deadline
-                                  ? `${t('after')} ${new Date(pricing.early_bird.deadline).toLocaleDateString(locale)}`
-                                  : '')}
-                          </div>
-                        )}
-              </div>
-            </div>
-                    <div className={`mt-auto pt-4 border-t-2 ${c.divider}`}>
-                      {/* Effective price by mode (tiered/fixed/free); show "Free" when 0 */}
-                      {(() => {
-                        const mode = getFeeTypePricingMode(feeType)
-                        let effective = 0
-                        if (mode === 'free') {
-                          effective = 0
-                        } else {
-                          const usage = feeTypeUsage?.[`fee_type_${feeType.id}`] ?? 0
-                          const atCapacity = typeof feeType.capacity === 'number' && feeType.capacity > 0 && usage >= feeType.capacity
-                          if (atCapacity && (feeType.price_after_capacity_full != null && feeType.price_after_capacity_full !== undefined)) {
-                            effective = feeType.price_after_capacity_full
-                          } else if (atCapacity) {
-                            effective = feeType.late ?? 0
-                          } else {
-                            const tier = getCurrentPricingTier(pricing, new Date(), conferenceStartDate ? new Date(conferenceStartDate) : undefined)
-                            effective = getEffectiveFeeTypeAmount(feeType, tier)
-                          }
-                        }
-                        const displayAmount = getDisplayPrice(effective)
-                        if (displayAmount === 0) {
-                          return <div className={`text-2xl font-bold ${c.price}`}>{t('free')}</div>
-                        }
-                        return (
-                          <div className={`inline-grid grid-cols-[auto_auto] gap-x-1 items-baseline ${c.price}`}>
-                            <span className="text-2xl font-bold tabular-nums">{displayAmount.toFixed(2)}</span>
-                            <span className="text-xl font-semibold">{getCurrencySymbol(pricing.currency)}</span>
-                          </div>
-                        )
-                      })()}
-          </div>
-              </label>
-                  )
-                })}
-          </div>
-
-          {!selectedFee && (
-            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-              <p className="text-sm font-medium text-amber-800">{t('pleaseSelectFee')}</p>
-            </div>
-          )}
-            </div>
-          </div>
-      )}
-
-      <form
-        onSubmit={onSubmit}
-        className="max-w-7xl mx-auto animate-fade-in space-y-8"
-      >
-      {/* Registration Information Text */}
-      {registrationInfoText && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 p-6 rounded-lg shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                <AlertCircle className="w-5 h-5 text-white" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-base font-bold text-gray-900 mb-2">{t('registrationInfoTitle')}</h3>
-              <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                {registrationInfoText}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <form onSubmit={onSubmit} className="max-w-7xl mx-auto animate-fade-in space-y-8">
+        {/* Registration Info Banner - Refactored component */}
+        {registrationInfoText && <RegistrationInfoBanner infoText={registrationInfoText} />}
 
       {/* Tab Navigation */}
       <div className="mb-10">
@@ -688,300 +535,36 @@ export default function RegistrationForm({
               <p className="text-sm font-medium text-green-700">{t('noPaymentRequired')}</p>
             </div>
           )}
-          {/* Payment method – only when there is an amount to pay (skip for free fee types) */}
-          {pricing && selectedFee && selectedFeeAmount > 0 && paymentSettings?.enabled && availableOptionsCount > 0 && (
-            <div className="pt-8 border-t-2 border-gray-100">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">{t('paymentMethodTitle')}</h2>
-                  <p className="text-sm text-gray-600">
-                    {availableOptionsCount === 1 ? t('paymentMethodTitle') : t('choosePaymentSubtitle')}
-                  </p>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                  {/* Pay Now - Credit Card (conditional) */}
-                  {availablePaymentOptions.card && (
-                  <label
-                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
-                      paymentPreference === 'pay_now_card'
-                        ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-100'
-                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_preference"
-                      value="pay_now_card"
-                      checked={paymentPreference === 'pay_now_card'}
-                      onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                          </svg>
-                        </div>
-                        <div className="font-bold text-gray-900">{t('creditDebitCard')}</div>
-                      </div>
-                      <p className="text-sm text-gray-600 ml-11">{t('payWithStripe')}</p>
-                    </div>
-                    <div className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
-                      {t('instant')}
-                    </div>
-                  </label>
-                  )}
-
-                  {/* Pay Now - Bank Transfer (conditional) */}
-                  {availablePaymentOptions.bank && (
-                  <label
-                    className={`flex items-start gap-4 p-6 rounded-xl border-2 cursor-pointer transition-all ${
-                      paymentPreference === 'pay_now_bank'
-                        ? 'border-green-500 bg-green-50 shadow-md ring-2 ring-green-100'
-                        : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_preference"
-                      value="pay_now_bank"
-                      checked={paymentPreference === 'pay_now_bank'}
-                      onChange={(e) => setPaymentPreference(e.target.value as any)}
-                      className="mt-1 w-5 h-5 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                          </svg>
-                        </div>
-                        <div className="font-bold text-gray-900">{t('bankTransfer')}</div>
-                      </div>
-                      <p className="text-sm text-gray-600 ml-11">{t('bankTransferDescription')}</p>
-                    </div>
-                    <div className="bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">
-                      {t('oneTwoDays')}
-                    </div>
-                  </label>
-                  )}
-
-                </div>
-
-                {/* Payer type: Person vs Company (radio) */}
-                <div className="mt-8 pt-6 border-t-2 border-gray-100">
-                  <h3 className="text-base font-bold text-gray-900 mb-3">{t('payerTypeLabel')}</h3>
-                  <div className="flex flex-wrap gap-6">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payer_type"
-                        value="person"
-                        checked={payerType === 'person'}
-                        onChange={() => setPayerType('person')}
-                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      />
-                      <span className="font-medium text-gray-900">{t('payerPerson')}</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payer_type"
-                        value="company"
-                        checked={payerType === 'company'}
-                        onChange={() => setPayerType('company')}
-                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      />
-                      <span className="font-medium text-gray-900">{t('payerCompany')}</span>
-                    </label>
-                  </div>
-
-                  {/* Company details form (when Company selected) */}
-                  {payerType === 'company' && (
-                    <div className="mt-6 p-6 bg-gray-50 rounded-xl border-2 border-gray-200 space-y-4">
-                      <h4 className="text-sm font-bold text-gray-900 mb-4">{t('companyDetailsTitle')}</h4>
-
-                      {/* VAT number + "I don't have a VAT number" */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {t('companyVatNumber')}
-                          {!companyNoVat && <span className="text-red-600 ml-1">*</span>}
-                        </label>
-                        <div className="flex flex-wrap items-center gap-4">
-                          <input
-                            type="text"
-                            value={companyVatNumber}
-                            onChange={(e) => setCompanyVatNumber(e.target.value)}
-                            disabled={companyNoVat}
-                            placeholder={companyNoVat ? '' : t('vatPlaceholder')}
-                            className="flex-1 min-w-[200px] px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
-                          />
-                          <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              checked={companyNoVat}
-                              onChange={(e) => {
-                                setCompanyNoVat(e.target.checked)
-                                if (e.target.checked) setCompanyVatNumber('')
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{t('companyNoVat')}</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Company name */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('companyName')} <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder={t('companyNamePlaceholder')}
-                        />
-                      </div>
-
-                      {/* Country */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('companyCountry')} <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyCountry}
-                          onChange={(e) => setCompanyCountry(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder={t('companyCountryPlaceholder')}
-                        />
-                      </div>
-
-                      {/* City + Postal code */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('companyCity')} <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={companyCity}
-                            onChange={(e) => setCompanyCity(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder={t('companyCityPlaceholder')}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('companyPostalCode')} <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={companyPostalCode}
-                            onChange={(e) => setCompanyPostalCode(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder={t('companyPostalCodePlaceholder')}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Address */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('companyAddress')} <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyAddress}
-                          onChange={(e) => setCompanyAddress(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder={t('companyAddressPlaceholder')}
-                        />
-                      </div>
-
-                      {/* Phone (optional) */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('companyPhone')} <span className="text-gray-500 text-xs">({t('optional')})</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={companyPhone}
-                          onChange={(e) => setCompanyPhone(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder={t('companyPhonePlaceholder')}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bank Transfer Instructions (conditional) */}
-                {paymentPreference === 'pay_now_bank' && availablePaymentOptions.bank && (
-                  <div className="mt-6 p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-sm">
-                    <div className="flex items-start gap-4 mb-5">
-                      <div className="w-10 h-10 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-base font-bold text-gray-900 mb-2">{t('bankTransferInstructions')}</h4>
-                        <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                          {t('bankTransferIntro')}
-                        </p>
-                        <div className="bg-white border border-green-200 rounded-lg p-5">
-                          <p className="font-bold text-gray-900 mb-3">{t('whatHappensNext')}</p>
-                          <ul className="space-y-2.5 text-sm text-gray-700">
-                            <li className="flex items-start gap-3">
-                              <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>{t('bankStep1')}</span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                              <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>{t('bankStep2')}</span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                              <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>{t('bankStep3')}</span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                              <span className="text-green-600 font-bold mt-0.5">✓</span>
-                              <span>{t('bankStep4')}</span>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Optional: File upload for proof of payment */}
-                    <div className="mt-5 pt-5 border-t-2 border-green-200">
-                      <label className="block text-sm font-bold text-gray-900 mb-3">
-                        {t('uploadProofOptional')}
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setBankTransferProofFile(e.target.files?.[0] || null)}
-                        className="block w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 cursor-pointer transition-colors"
-                      />
-                      <p className="text-xs text-gray-600 mt-2">
-                        {t('uploadProofHint')}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Payment Section – refactored component */}
+          {pricing && selectedFee && selectedFeeAmount > 0 && (
+            <PaymentSection
+              paymentSettings={paymentSettings}
+              availablePaymentOptions={availablePaymentOptions}
+              availableOptionsCount={availableOptionsCount}
+              paymentPreference={paymentPreference}
+              onPaymentPreferenceChange={setPaymentPreference}
+              payerType={payerType}
+              onPayerTypeChange={setPayerType}
+              companyVatNumber={companyVatNumber}
+              onCompanyVatNumberChange={setCompanyVatNumber}
+              companyNoVat={companyNoVat}
+              onCompanyNoVatChange={setCompanyNoVat}
+              companyName={companyName}
+              onCompanyNameChange={setCompanyName}
+              companyCountry={companyCountry}
+              onCompanyCountryChange={setCompanyCountry}
+              companyCity={companyCity}
+              onCompanyCityChange={setCompanyCity}
+              companyPostalCode={companyPostalCode}
+              onCompanyPostalCodeChange={setCompanyPostalCode}
+              companyAddress={companyAddress}
+              onCompanyAddressChange={setCompanyAddress}
+              companyPhone={companyPhone}
+              onCompanyPhoneChange={setCompanyPhone}
+              bankTransferProofFile={bankTransferProofFile}
+              onBankTransferProofFileChange={setBankTransferProofFile}
+            />
           )}
 
           {/* Submit Button */}

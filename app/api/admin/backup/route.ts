@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireSuperAdmin } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 /**
@@ -9,7 +10,7 @@ import { log } from '@/lib/logger'
  * GET /api/admin/backup?format=csv
  * GET /api/admin/backup?format=json
  * 
- * Security: Trebalo bi dodati autentifikaciju i autorizaciju!
+ * Security: ✅ Super Admin only
  */
 
 // Force dynamic rendering since we use searchParams
@@ -17,10 +18,11 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    // ✅ Use centralized auth helper (Super Admin only)
+    const { supabase } = await requireSuperAdmin()
+
     const searchParams = request.nextUrl.searchParams
     const format = searchParams.get('format') || 'json' // csv ili json
-
-    const supabase = await createServerClient()
 
     // Dohvati sve registracije
     const { data: registrations, error } = await supabase
@@ -110,13 +112,7 @@ export async function GET(request: NextRequest) {
       )
     }
   } catch (error) {
-    log.error('Backup error', error instanceof Error ? error : undefined, {
-      action: 'admin_backup',
-    })
-    return NextResponse.json(
-      { error: 'Failed to create backup' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'admin_backup' })
   }
 }
 
