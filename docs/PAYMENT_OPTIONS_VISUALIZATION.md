@@ -1,5 +1,7 @@
 # 🎨 Payment Options - Visual Guide
 
+*(Behaviour and defaults: see `PAYMENT_OPTIONS_GUIDE.md` and `types/conference.ts`.)*
+
 ## **User sees this in Registration Form:**
 
 ```

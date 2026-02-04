@@ -1,7 +1,7 @@
 'use client'
 
 import React, { ReactNode } from 'react'
-import ErrorBoundary from './ErrorBoundary'
+import { ErrorBoundary } from './ErrorBoundary'
 import { BarChart3, RefreshCw } from 'lucide-react'
 
 interface ChartErrorBoundaryProps {
@@ -47,7 +47,7 @@ export default function ChartErrorBoundary({ children, chartName }: ChartErrorBo
   )
 
   return (
-    <ErrorBoundary fallback={customFallback} onError={handleError} showDetails={false}>
+    <ErrorBoundary fallback={customFallback} onError={handleError}>
       {children}
     </ErrorBoundary>
   )

@@ -148,10 +148,10 @@ Registration Number: 001
 Random Suffix: 7234 (4-digit random)
 ```
 
-#### **C. Auto-Reminder after 3 days**
-- **Trigger:** Automatically scheduled when `payment_status = 'pending'` and `payment_method = 'bank_transfer'`
-- **Schedule:** `NOW() + INTERVAL '3 days'`
-- **Email Content:** Reminder to complete payment with bank transfer details
+#### **C. Auto-Reminders (3, 7, 14 days)**
+- **Trigger:** Automatically scheduled when `payment_status = 'pending'` (for bank transfer and pay-later).
+- **Schedule:** Reminders at **3, 7, and 14 days** after registration (see `PAYMENT_OPTIONS_GUIDE.md`).
+- **Email Content:** Reminder to complete payment with bank transfer details (when applicable).
 
 ```sql
 -- Trigger on registration INSERT

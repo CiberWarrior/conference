@@ -15,14 +15,14 @@ Implementiran je **Option 1 - Payment kao System-Level Settings** koji omogućav
 // types/conference.ts
 
 export interface PaymentSettings {
-  enabled: boolean // Enable/disable payment for this conference
-  allow_card: boolean // Show "Pay Now - Card" option (Stripe)
-  allow_bank_transfer: boolean // Show "Pay Now - Bank Transfer" option
-  allow_pay_later: boolean // Show "Pay Later" option
-  default_preference: 'card' | 'bank' | 'later' // Default payment preference
-  require_at_registration: boolean // Force payment preference selection
-  bank_transfer_deadline_days: number // Days to complete bank transfer (default: 7)
-  payment_deadline_days: number // Days before conference for "pay later" (default: 30)
+  enabled: boolean
+  allow_card: boolean
+  allow_bank_transfer: boolean
+  allow_pay_later: boolean
+  default_preference: 'pay_now_card' | 'pay_now_bank' | 'pay_later'
+  required_at_registration: boolean // Force payment preference selection
+  bank_transfer_deadline_days: number
+  payment_deadline_days: number // Days before conference for "pay later"
 }
 
 export interface ConferenceSettings {
@@ -44,7 +44,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   allow_bank_transfer: true, // Allow bank transfer
   allow_pay_later: true, // Allow "Pay Later" option
   default_preference: 'later', // Default to "Pay Later" (industry standard)
-  require_at_registration: false, // Payment preference is optional
+  required_at_registration: false, // Payment preference is optional
   bank_transfer_deadline_days: 7, // 7 days to complete bank transfer
   payment_deadline_days: 30, // 30 days before conference
 }
@@ -157,7 +157,7 @@ payment_settings: {
   allow_bank_transfer: true,
   allow_pay_later: false, // ← DISABLED
   default_preference: 'card',
-  require_at_registration: true // ← FORCE SELECTION
+  required_at_registration: true // ← FORCE SELECTION
 }
 ```
 
@@ -272,9 +272,9 @@ Dodati Payment Settings sekciju u **Conference Settings Page**:
       <div className="mb-4">
         <label className="block font-semibold mb-2">Default Payment Preference:</label>
         <select value={formData.payment_settings.default_preference}>
-          <option value="card">Pay Now - Card</option>
-          <option value="bank">Pay Now - Bank Transfer</option>
-          <option value="later">Pay Later (Recommended)</option>
+          <option value="pay_now_card">Pay Now - Card</option>
+          <option value="pay_now_bank">Pay Now - Bank Transfer</option>
+          <option value="pay_later">Pay Later (Recommended)</option>
         </select>
       </div>
       
@@ -342,7 +342,7 @@ await supabase
         allow_bank_transfer: true,
         allow_pay_later: true,
         default_preference: 'later',
-        require_at_registration: false,
+        required_at_registration: false,
         bank_transfer_deadline_days: 7,
         payment_deadline_days: 30,
       }

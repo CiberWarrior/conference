@@ -74,6 +74,7 @@ export default function RegistrationForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
+  const [feeConfirmed, setFeeConfirmed] = useState(false) // User has confirmed fee selection
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
 
   // Auto-select first enabled custom fee type when list loads and current selection is empty or invalid
@@ -81,8 +82,18 @@ export default function RegistrationForm({
     const list = pricing?.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []
     if (!list.length) return
     const valid = list.some((ft) => selectedFee === `fee_type_${ft.id}`)
-    if (!selectedFee || !valid) setSelectedFee(`fee_type_${list[0].id}`)
+    if (!selectedFee || !valid) {
+      setSelectedFee(`fee_type_${list[0].id}`)
+      setFeeConfirmed(false)
+    }
   }, [pricing?.custom_fee_types, selectedFee])
+
+  // Reset fee confirmation when tab changes
+  useEffect(() => {
+    if (activeTab === 'accommodation') {
+      setFeeConfirmed(false)
+    }
+  }, [activeTab])
   
   // ============================================
   // PDV/VAT display logic (public form)
@@ -125,25 +136,8 @@ export default function RegistrationForm({
     later: false,
   }
 
-  // Payment preference state - default based on payment settings (and constrained by available options)
-  const defaultPaymentPreference: 'pay_now_card' | 'pay_now_bank' = (() => {
-    const configured = paymentSettings?.default_preference ?? 'pay_now_card'
-
-    const isAllowed =
-      (configured === 'pay_now_card' && availablePaymentOptions.card) ||
-      (configured === 'pay_now_bank' && availablePaymentOptions.bank)
-
-    if (isAllowed) return configured
-
-    // Fallback to first available option
-    if (availablePaymentOptions.card) return 'pay_now_card'
-    if (availablePaymentOptions.bank) return 'pay_now_bank'
-    return 'pay_now_card'
-  })()
-  
-  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank'>(
-    defaultPaymentPreference
-  )
+  // Payment preference state - NO default, user must select
+  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | ''>('')
   const [bankTransferProofFile, setBankTransferProofFile] = useState<File | null>(null)
   const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
   // Option A: same-page card payment – after register success when payment_required
@@ -195,8 +189,8 @@ export default function RegistrationForm({
   const [numberOfNights, setNumberOfNights] = useState<number>(0)
   const [selectedHotel, setSelectedHotel] = useState<string>('') // Selected hotel ID
 
-  // Payer type: Person vs Company (for invoicing / billing)
-  const [payerType, setPayerType] = useState<'person' | 'company'>('person')
+  // Payer type: Person vs Company (for invoicing / billing) - NO default, user must select
+  const [payerType, setPayerType] = useState<'person' | 'company' | ''>('')
   const [companyNoVat, setCompanyNoVat] = useState(false)
   const [companyVatNumber, setCompanyVatNumber] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -261,6 +255,18 @@ export default function RegistrationForm({
     // Check if registration fee is selected (if pricing is available)
     if (pricing && !selectedFee) {
       showError(t('pleaseSelectFee'))
+      return false
+    }
+
+    // Check if payment method is selected when payment is required
+    if (pricing && selectedFeeAmount > 0 && !paymentPreference) {
+      showError(t('pleaseSelectPaymentMethod'))
+      return false
+    }
+
+    // Check if payer type is selected when payment is required
+    if (pricing && selectedFeeAmount > 0 && !payerType) {
+      showError(t('pleaseSelectPayerType'))
       return false
     }
 
@@ -429,25 +435,49 @@ export default function RegistrationForm({
 
   return (
     <div className="contents">
-      {/* Fee Type Selection - Refactored component */}
-      {pricing &&
-        customFields.length > 0 &&
-        activeTab === 'registration' &&
-        (pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 && (
-          <FeeTypeSelector
-            pricing={pricing}
-            selectedFee={selectedFee}
-            onSelectFee={setSelectedFee}
-            getDisplayPrice={getDisplayPrice}
-            feeTypeUsage={feeTypeUsage}
-            conferenceStartDate={conferenceStartDate}
-            showWarning={true}
-          />
-        )}
-
       <form onSubmit={onSubmit} className="max-w-7xl mx-auto animate-fade-in space-y-8">
         {/* Registration Info Banner - Refactored component */}
         {registrationInfoText && <RegistrationInfoBanner infoText={registrationInfoText} />}
+
+        {/* Fee Type Selection - Show FIRST, before form fields */}
+        {pricing && activeTab === 'registration' && !feeConfirmed && (
+          <div className="space-y-6">
+            {(pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 ? (
+              <>
+                <FeeTypeSelector
+                  pricing={pricing}
+                  selectedFee={selectedFee}
+                  onSelectFee={setSelectedFee}
+                  getDisplayPrice={getDisplayPrice}
+                  feeTypeUsage={feeTypeUsage}
+                  conferenceStartDate={conferenceStartDate}
+                  showWarning={true}
+                />
+                {/* Confirm Fee Selection Button */}
+                {selectedFee && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setFeeConfirmed(true)}
+                      className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3 text-base"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>{t('confirmFeeSelection')}</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-700 mb-2">{t('noFeesConfigured')}</p>
+                <p className="text-sm text-gray-500">{t('contactAdministrator')}</p>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Tab Navigation */}
       <div className="mb-10">
@@ -489,9 +519,42 @@ export default function RegistrationForm({
         </nav>
       </div>
 
-      {/* Registration Tab Content */}
-      {activeTab === 'registration' && (
+      {/* Registration Tab Content - Only show after fee is confirmed */}
+      {activeTab === 'registration' && feeConfirmed && (
         <div className="space-y-8">
+          {/* Show selected fee with option to change */}
+          {pricing && selectedFee && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t('selectedFeeType')}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(() => {
+                      const feeId = selectedFee
+                      if (feeId.startsWith('fee_type_')) {
+                        const id = feeId.replace('fee_type_', '')
+                        const ft = pricing.custom_fee_types?.find((f) => f.id === id)
+                        return ft?.name || selectedFee
+                      }
+                      return selectedFee
+                    })()}
+                    {' - '}
+                    {selectedFeeAmount === 0
+                      ? t('free')
+                      : `${formatPriceWithoutZeros(getDisplayPrice(selectedFeeAmount))} ${pricing.currency}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFeeConfirmed(false)}
+                  className="px-4 py-2 bg-white text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm border-2 border-blue-300"
+                >
+                  {t('changeFeeType')}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Kartica: Podaci o sudionicima (polja obrasca) */}
           {customFields.length > 0 && (
             <div className="rounded-xl border-2 border-blue-100 bg-white p-6 shadow-sm">

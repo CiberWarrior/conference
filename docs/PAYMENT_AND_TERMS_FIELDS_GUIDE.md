@@ -1,44 +1,24 @@
 # Payment & Terms Fields Guide
 
-This guide shows you exactly how to create the payment and terms/agreement fields for your registration form.
+This guide shows you how to create **terms/agreement** and **payer type** fields in the Form Builder.
+
+> **Important:** **Payment method** (Pay Now – Card, Pay Now – Bank Transfer, Pay Later) is **not** a custom field. It is configured in **Conference Settings → Payment** (system-level). See `docs/PAYMENT_OPTIONS_GUIDE.md` and `docs/PAYMENT_SETTINGS_IMPLEMENTATION.md`. Do **not** add a "Payment Method" custom field for that.
 
 ---
 
-## 🎯 Fields to Create
+## 🎯 Fields to Create (Form Builder)
 
-You need to create **4 custom fields** in the Form Builder:
+You can create these **custom fields** in the Form Builder when needed:
 
-1. **Payment Method** (Radio buttons)
-2. **Payer Type** (Radio buttons)
-3. **Terms & Privacy Policy Agreement** (Checkbox with links)
-4. **Conference Terms Agreement** (Checkbox with links)
+1. **Payer Type** (Radio buttons) – Person / Company
+2. **Terms & Privacy Policy Agreement** (Checkbox with links)
+3. **Conference Terms Agreement** (Checkbox with links)
 
----
-
-## 📝 Field 1: Payment Method
-
-### Settings:
-```
-Field Name:      payment_method
-Field Type:      Radio Buttons
-Label:           Payment Method
-Placeholder:     (leave empty)
-Description:     (optional)
-Options:         Bank transfer
-                 Credit/debit card
-Required:        ✅ Yes
-```
-
-### How it looks:
-```
-Payment Method *
-○ Bank transfer
-○ Credit/debit card
-```
+*(Previously this guide listed "Payment Method" as a custom field; that is deprecated – use Conference Payment Settings instead.)*
 
 ---
 
-## 📝 Field 2: Payer Type
+## 📝 Field 1: Payer Type (optional)
 
 ### Settings:
 ```
@@ -61,7 +41,7 @@ Payer *
 
 ---
 
-## 📝 Field 3: Terms of Service & Privacy Policy
+## 📝 Field 2: Terms of Service & Privacy Policy
 
 ### Settings:
 ```
@@ -87,7 +67,7 @@ Required:        ✅ Yes
 
 ---
 
-## 📝 Field 4: Conference Terms Agreement
+## 📝 Field 3: Conference Terms Agreement
 
 ### Settings:
 ```

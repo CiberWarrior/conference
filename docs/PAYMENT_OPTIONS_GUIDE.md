@@ -1,5 +1,7 @@
 # 💳 Payment Options Guide - "Pay Now" vs "Pay Later"
 
+> **Source of truth:** Payment behaviour is defined by `PaymentSettings` in `types/conference.ts` and defaults in `constants/defaultPaymentSettings.ts`. Keep this guide and those in sync.
+
 ## 📋 Overview
 
 Kompletni **flexible payment system** koji omogućava korisnicima da odaberu **kada i kako** žele platiti:
@@ -351,19 +353,23 @@ Best regards,
 
 ### **Conference Settings (Admin Panel)**
 
-Admins can customize payment behavior per conference:
+Admins customize payment via **Conference Settings → Payment** (type `PaymentSettings` in `types/conference.ts`):
 
 ```tsx
-// Conference Settings → Payment
+// Conference Settings → Payment (single source of truth)
 {
-  payment_required: boolean // Enable/disable payment
-  payment_deadline_days: number // Days before conference (default: 30)
-  auto_reminders: boolean // Enable/disable auto-reminders
-  reminder_schedule: [3, 7, 14] // Days after registration
-  allow_pay_later: boolean // Allow "Pay Later" option
-  allow_bank_transfer: boolean // Allow bank transfer option
+  enabled: boolean              // Enable/disable payment for this conference
+  allow_card: boolean           // Show "Pay Now - Card" (Stripe)
+  allow_bank_transfer: boolean  // Show "Pay Now - Bank Transfer"
+  allow_pay_later: boolean      // Show "Pay Later"
+  default_preference: 'pay_now_card' | 'pay_now_bank' | 'pay_later'
+  required_at_registration: boolean  // Force user to choose a payment option
+  bank_transfer_deadline_days: number  // Days to complete bank transfer (default: 7)
+  payment_deadline_days: number  // Days before conference for "pay later" deadline (default: 30)
 }
 ```
+
+**Payment reminders:** System sends reminders at **3, 7, and 14 days** after registration (fixed schedule; not configurable per conference in current implementation).
 
 ---
 
