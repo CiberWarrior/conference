@@ -1396,7 +1396,7 @@ export default function NewConferencePage() {
 
                 <div>
                   <label htmlFor="accompanying_person_price" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Accompanying Person Price
+                    {t('accompanyingPersonPriceLabel')}
                   </label>
                   <input
                     type="number"
@@ -1409,6 +1409,8 @@ export default function NewConferencePage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0.00"
                   />
+                  <p className="text-xs text-gray-500 mt-1">{t('accompanyingPersonPriceDesc')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('accompanyingPersonHelpText')}</p>
                 </div>
               </div>
 

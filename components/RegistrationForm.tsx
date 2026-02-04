@@ -500,6 +500,10 @@ export default function RegistrationForm({
                         {feeType.description && (
                           <div className={`text-xs leading-relaxed mb-1 ${c.textMuted}`}>{feeType.description}</div>
                         )}
+                        {/* Helper only for fee type "Osoba u pratnji" – identify by slug (admin sets slug to accompanying_person) */}
+                        {feeType.slug === 'accompanying_person' && (
+                          <p className="text-sm text-gray-600 leading-relaxed mb-1">{t('accompanyingPersonHelpText')}</p>
+                        )}
                         {(formatAvailabilityText(feeType.valid_from, feeType.valid_to) ||
                           (pricing.regular?.start_date
                             ? `${t('availableFrom')} ${new Date(pricing.regular.start_date).toLocaleDateString(locale)}${pricing.late?.start_date ? ` ${t('availableTo')} ${new Date(pricing.late.start_date).toLocaleDateString(locale)}` : ''}`
