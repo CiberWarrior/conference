@@ -696,6 +696,21 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
     } = {}
     if (isPayNowCard) {
       const { getRegistrationChargeAmount } = await import('@/utils/pricing')
+      // Fee-type usage for capacity / price-after-capacity-full (count includes this registration)
+      let feeTypeUsage: Record<string, number> = {}
+      try {
+        const { data: regs } = await supabase
+          .from('registrations')
+          .select('registration_fee_type')
+          .eq('conference_id', validatedData.conference_id)
+          .not('registration_fee_type', 'is', null)
+        for (const row of regs || []) {
+          const ft = row.registration_fee_type as string
+          if (ft) feeTypeUsage[ft] = (feeTypeUsage[ft] || 0) + 1
+        }
+      } catch {
+        // ignore; proceed without usage
+      }
       const { amount, currency } = getRegistrationChargeAmount(
         {
           registration_fee_type: validatedData.registration_fee_type || null,
@@ -703,7 +718,8 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
         {
           pricing: ((conference as { pricing?: ConferencePricing | null }).pricing) ?? null,
           start_date: (conference as { start_date?: string }).start_date ?? null,
-        }
+        },
+        feeTypeUsage
       )
       if (amount > 0) {
         paymentPayload = {

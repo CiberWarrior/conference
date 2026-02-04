@@ -90,6 +90,20 @@ export async function POST(request: NextRequest) {
         .select('pricing, start_date')
         .eq('id', registration.conference_id)
         .single()
+      let feeTypeUsage: Record<string, number> = {}
+      try {
+        const { data: regs } = await supabase
+          .from('registrations')
+          .select('registration_fee_type')
+          .eq('conference_id', registration.conference_id)
+          .not('registration_fee_type', 'is', null)
+        for (const row of regs || []) {
+          const ft = row.registration_fee_type as string
+          if (ft) feeTypeUsage[ft] = (feeTypeUsage[ft] || 0) + 1
+        }
+      } catch {
+        // ignore
+      }
       const { amount, currency: curr } = getRegistrationChargeAmount(
         {
           registration_fee_type: registration.registration_fee_type ?? null,
@@ -97,7 +111,8 @@ export async function POST(request: NextRequest) {
         {
           pricing: conference?.pricing ?? null,
           start_date: conference?.start_date ?? null,
-        }
+        },
+        feeTypeUsage
       )
       if (amount <= 0) {
         return NextResponse.json(

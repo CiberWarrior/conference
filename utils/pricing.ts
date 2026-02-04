@@ -3,7 +3,12 @@
  * Handles dynamic pricing calculation based on dates and tiers
  */
 
-import type { ConferencePricing, StandardFeeTypeKey } from '@/types/conference'
+import type {
+  ConferencePricing,
+  CustomFeeType,
+  CustomFeeTypePricingMode,
+  StandardFeeTypeKey,
+} from '@/types/conference'
 
 export type PricingTier = 'early_bird' | 'regular' | 'late'
 
@@ -125,6 +130,41 @@ export function getCurrentPricing(
     nextTier,
     nextTierDate,
   }
+}
+
+/**
+ * Fee type pricing mode for UI and logic. Matches CustomFeeTypePricingMode.
+ */
+export type FeeTypePricingMode = CustomFeeTypePricingMode
+
+/**
+ * Resolve effective pricing mode: use explicit pricing_mode or derive from data (backward compat).
+ * free is only when explicitly set; otherwise fixed if amount set, else tiered.
+ */
+export function getFeeTypePricingMode(ft: CustomFeeType): FeeTypePricingMode {
+  if (ft.pricing_mode === 'free' || ft.pricing_mode === 'fixed' || ft.pricing_mode === 'tiered') {
+    return ft.pricing_mode
+  }
+  const a = ft.amount
+  if (a != null && Number.isFinite(a)) return 'fixed'
+  return 'tiered'
+}
+
+/**
+ * Get the effective price for a custom fee type (for display / charge).
+ * free => 0; fixed => amount; tiered => price for given tier. Capacity/price_after_capacity_full
+ * is applied in getRegistrationChargeAmount separately.
+ */
+export function getEffectiveFeeTypeAmount(
+  ft: CustomFeeType,
+  tier: PricingTier
+): number {
+  const mode = getFeeTypePricingMode(ft)
+  if (mode === 'free') return 0
+  if (mode === 'fixed') return ft.amount != null && Number.isFinite(ft.amount) ? ft.amount : 0
+  if (tier === 'early_bird') return ft.early_bird ?? 0
+  if (tier === 'regular') return ft.regular ?? 0
+  return ft.late ?? 0
 }
 
 /**
@@ -386,43 +426,17 @@ export function getPriceBreakdownFromInput(
 }
 
 /**
- * Posebni postupak PDV-a za putničke agencije (čl. 91.–94. ZPDV-a).
- * Prema literaturi (npr. Cutvarić 2019, mint.gov.hr): marža (bruto) = prodajna cijena (bruto)
- * − izravni troškovi (iznosi po ulaznim računima, s PDV-om ako ga pružatelj zaračunava).
- * „Ostvarena razlika predstavlja ukupnu naknadu u kojoj je sadržan i PDV“ → primjenjuje se
- * preračunata stopa 20% na maržu (bruto). PDV na plaćanje = marža_bruto × 20%.
- *
- * @param sellingPriceGross - Prodajna cijena s PDV-om (bruto) – ukupna naknada od kupca
- * @param costGross - Izravni troškovi (iznosi po ulaznim računima, bruto)
- */
-export function getTravelAgencyMarginVat(
-  sellingPriceGross: number,
-  costGross: number
-): {
-  margin: number
-  vatPayableRate: number
-  vatPayableAmount: number
-} {
-  const margin = Math.max(0, sellingPriceGross - costGross)
-  const TRAVEL_AGENCY_MARGIN_VAT_RATE = 20 // preračunata stopa (ZPDV)
-  const vatPayableAmount = margin * (TRAVEL_AGENCY_MARGIN_VAT_RATE / 100)
-  return {
-    margin,
-    vatPayableRate: TRAVEL_AGENCY_MARGIN_VAT_RATE,
-    vatPayableAmount,
-  }
-}
-
-/**
  * Server-side: compute the final amount to charge (gross) for a registration.
  * Used by register API (pay_now_card response) and create-payment-intent (when amount not sent).
  *
  * @param registration - { registration_fee_type: string | null }
  * @param conference - { pricing: ConferencePricing, start_date?: string }
+ * @param feeTypeUsage - optional counts per registration_fee_type; when capacity is reached, price_after_capacity_full applies
  */
 export function getRegistrationChargeAmount(
   registration: { registration_fee_type: string | null },
-  conference: { pricing?: ConferencePricing | null; start_date?: string | null }
+  conference: { pricing?: ConferencePricing | null; start_date?: string | null },
+  feeTypeUsage?: Record<string, number>
 ): { amount: number; currency: string } {
   const pricing = conference.pricing
   const currency = pricing?.currency || 'EUR'
@@ -457,15 +471,27 @@ export function getRegistrationChargeAmount(
     const id = feeType.replace('fee_type_', '')
     const ft = pricing.custom_fee_types?.find((f) => f.id === id)
     if (ft) {
-      if (ft.amount != null && ft.amount !== undefined) {
-        netAmount = ft.amount
+      const mode = getFeeTypePricingMode(ft)
+      if (mode === 'free') {
+        netAmount = 0
       } else {
-        netAmount =
-          tier === 'early_bird'
-            ? ft.early_bird
-            : tier === 'regular'
-              ? ft.regular
-              : ft.late
+        const usage = feeTypeUsage?.[feeType] ?? 0
+        const atCapacity =
+          typeof ft.capacity === 'number' && ft.capacity > 0 && usage >= ft.capacity
+        if (atCapacity && ft.price_after_capacity_full != null && ft.price_after_capacity_full !== undefined) {
+          netAmount = ft.price_after_capacity_full
+        } else if (atCapacity) {
+          netAmount = ft.late
+        } else if (mode === 'fixed' && ft.amount != null && ft.amount !== undefined) {
+          netAmount = ft.amount
+        } else {
+          netAmount =
+            tier === 'early_bird'
+              ? ft.early_bird ?? 0
+              : tier === 'regular'
+                ? ft.regular ?? 0
+                : ft.late ?? 0
+        }
       }
     }
   } else if (feeType.startsWith('custom_')) {

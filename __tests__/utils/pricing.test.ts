@@ -17,8 +17,10 @@ import {
   getEffectiveVAT,
   getPriceBreakdown,
   getPriceBreakdownFromInput,
+  getFeeTypePricingMode,
+  getEffectiveFeeTypeAmount,
 } from '@/utils/pricing'
-import type { ConferencePricing } from '@/types/conference'
+import type { ConferencePricing, CustomFeeType } from '@/types/conference'
 
 describe('Pricing Utilities', () => {
   // Sample pricing configuration for tests
@@ -287,6 +289,135 @@ describe('Pricing Utilities', () => {
         expect(breakdown.withVAT).toBe(100)
         expect(breakdown.vatAmount).toBe(0)
       })
+    })
+  })
+
+  describe('getFeeTypePricingMode', () => {
+    it('should return "fixed" when amount is set and finite', () => {
+      const ft: CustomFeeType = {
+        id: 'ft1',
+        name: 'VIP',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+        amount: 300,
+      }
+      expect(getFeeTypePricingMode(ft)).toBe('fixed')
+    })
+
+    it('should return "tiered" when amount is undefined', () => {
+      const ft: CustomFeeType = {
+        id: 'ft2',
+        name: 'Standard',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+      }
+      expect(getFeeTypePricingMode(ft)).toBe('tiered')
+    })
+
+    it('should return "tiered" when amount is null or NaN', () => {
+      expect(getFeeTypePricingMode({
+        id: 'a',
+        name: 'X',
+        early_bird: 0,
+        regular: 0,
+        late: 0,
+        amount: undefined,
+      })).toBe('tiered')
+      expect(getFeeTypePricingMode({
+        id: 'a',
+        name: 'X',
+        early_bird: 0,
+        regular: 0,
+        late: 0,
+        amount: NaN,
+      })).toBe('tiered')
+    })
+
+    it('should return "free" when pricing_mode is free', () => {
+      expect(getFeeTypePricingMode({
+        id: 'a',
+        name: 'Invited',
+        early_bird: 0,
+        regular: 0,
+        late: 0,
+        pricing_mode: 'free',
+      })).toBe('free')
+    })
+
+    it('should return explicit fixed/tiered when pricing_mode is set', () => {
+      expect(getFeeTypePricingMode({
+        id: 'a',
+        name: 'X',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+        pricing_mode: 'fixed',
+        amount: 50,
+      })).toBe('fixed')
+      expect(getFeeTypePricingMode({
+        id: 'a',
+        name: 'X',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+        pricing_mode: 'tiered',
+      })).toBe('tiered')
+    })
+  })
+
+  describe('getEffectiveFeeTypeAmount', () => {
+    it('should return amount when fee type is fixed', () => {
+      const ft: CustomFeeType = {
+        id: 'ft1',
+        name: 'VIP',
+        amount: 350,
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+      }
+      expect(getEffectiveFeeTypeAmount(ft, 'early_bird')).toBe(350)
+      expect(getEffectiveFeeTypeAmount(ft, 'regular')).toBe(350)
+      expect(getEffectiveFeeTypeAmount(ft, 'late')).toBe(350)
+    })
+
+    it('should return tier price when fee type is tiered', () => {
+      const ft: CustomFeeType = {
+        id: 'ft2',
+        name: 'Standard',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+      }
+      expect(getEffectiveFeeTypeAmount(ft, 'early_bird')).toBe(100)
+      expect(getEffectiveFeeTypeAmount(ft, 'regular')).toBe(200)
+      expect(getEffectiveFeeTypeAmount(ft, 'late')).toBe(250)
+    })
+
+    it('should treat missing amount as tiered', () => {
+      const ft: CustomFeeType = {
+        id: 'ft3',
+        name: 'X',
+        early_bird: 50,
+        regular: 75,
+        late: 100,
+      }
+      expect(getEffectiveFeeTypeAmount(ft, 'early_bird')).toBe(50)
+    })
+
+    it('should return 0 when pricing_mode is free', () => {
+      const ft: CustomFeeType = {
+        id: 'ft4',
+        name: 'Invited',
+        early_bird: 100,
+        regular: 200,
+        late: 250,
+        pricing_mode: 'free',
+      }
+      expect(getEffectiveFeeTypeAmount(ft, 'early_bird')).toBe(0)
+      expect(getEffectiveFeeTypeAmount(ft, 'regular')).toBe(0)
+      expect(getEffectiveFeeTypeAmount(ft, 'late')).toBe(0)
     })
   })
 })

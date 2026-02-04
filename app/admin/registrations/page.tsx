@@ -117,6 +117,8 @@ function RegistrationsPageContent() {
             arrivalDate: r.arrival_date || r.accommodation?.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In']),
             departureDate: r.departure_date || r.accommodation?.departure_date || findField(['Departure Date', 'departure_date', 'Check Out']),
             accommodation: r.accommodation || null, // Store accommodation data
+            registrationFeeType: r.registration_fee_type ?? null,
+            paymentMethod: r.payment_method ?? null,
             paymentRequired: r.payment_required,
             paymentByCard: r.payment_by_card || false,
             accompanyingPersons: r.accompanying_persons || false,
@@ -174,6 +176,10 @@ function RegistrationsPageContent() {
       t('exportInstitution'),
       t('exportArrivalDate'),
       t('exportDepartureDate'),
+      t('exportRegistrationFeeType'),
+      t('exportPaymentMethod'),
+      t('exportPayerType'),
+      t('exportCompanyName'),
       t('exportPaymentRequired'),
       t('exportPaymentByCard'),
       t('exportPaymentStatus'),
@@ -202,6 +208,10 @@ function RegistrationsPageContent() {
         r.institution || '',
         r.arrivalDate || '',
         r.departureDate || '',
+        r.registrationFeeType ?? '',
+        r.paymentMethod === 'card' ? 'Card' : r.paymentMethod === 'bank_transfer' ? 'Bank transfer' : '',
+        (r.customFields?.payer_type as string) || '',
+        (r.customFields?.company_details as { company_name?: string } | null)?.company_name ?? '',
         r.paymentRequired ? 'Yes' : 'No',
         r.paymentByCard ? 'Yes' : 'No',
         r.paymentStatus,
@@ -209,12 +219,14 @@ function RegistrationsPageContent() {
         new Date(r.createdAt).toLocaleString(),
       ]
       
-      // Add custom field values
+      // Add custom field values (from first participant's form data, then custom_data e.g. payer/company)
       const customData = customFieldDefs.map(field => {
-        const value = r.customFields?.[field.name]
+        const value =
+          r.participants?.[0]?.customFields?.[field.name] ?? r.customFields?.[field.name]
         if (value === undefined || value === null) return ''
         if (typeof value === 'boolean') return value ? t('yes') : t('no')
         if (Array.isArray(value)) return value.join(', ')
+        if (typeof value === 'object') return JSON.stringify(value)
         return String(value)
       })
       
@@ -964,7 +976,7 @@ function RegistrationsPageContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.checkedIn ? (
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 flex items-center gap-1">
+                        <span className="px-2 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>

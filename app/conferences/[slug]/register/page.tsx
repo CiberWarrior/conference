@@ -19,6 +19,7 @@ export default function ConferenceRegisterPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasBankAccount, setHasBankAccount] = useState(false)
+  const [feeTypeUsage, setFeeTypeUsage] = useState<Record<string, number>>({})
 
   useEffect(() => {
     if (!slug) return
@@ -56,6 +57,20 @@ export default function ConferenceRegisterPage() {
 
     loadConference()
   }, [slug, t])
+
+  useEffect(() => {
+    if (!slug) return
+    const loadFeeTypeUsage = async () => {
+      try {
+        const res = await fetch(`/api/conferences/${slug}/fee-type-usage`)
+        const data = await res.json()
+        if (res.ok && data.usage) setFeeTypeUsage(data.usage)
+      } catch {
+        // ignore
+      }
+    }
+    loadFeeTypeUsage()
+  }, [slug])
 
   if (loading) {
     return (
@@ -208,6 +223,7 @@ export default function ConferenceRegisterPage() {
               conferenceName={conference.name}
               conferenceDate={conference.start_date ? new Date(conference.start_date).toLocaleDateString() : undefined}
               conferenceLocation={conference.location || conference.venue}
+              feeTypeUsage={feeTypeUsage}
             />
           </div>
         </div>

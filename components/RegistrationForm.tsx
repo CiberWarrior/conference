@@ -10,6 +10,8 @@ import {
   getPriceAmount,
   getCurrentPricingTier,
   getCurrencySymbol,
+  getFeeTypePricingMode,
+  getEffectiveFeeTypeAmount,
 } from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings, StandardFeeTypeKey } from '@/types/conference'
 import type { Participant } from '@/types/participant'
@@ -36,6 +38,8 @@ interface RegistrationFormProps {
   conferenceName?: string
   conferenceDate?: string
   conferenceLocation?: string
+  /** Count of registrations per registration_fee_type; used for capacity / price-after-capacity-full */
+  feeTypeUsage?: Record<string, number>
 }
 
 export default function RegistrationForm({
@@ -55,6 +59,7 @@ export default function RegistrationForm({
   conferenceName,
   conferenceDate,
   conferenceLocation,
+  feeTypeUsage,
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
@@ -187,9 +192,16 @@ export default function RegistrationForm({
       const id = selectedFee.replace('fee_type_', '')
       const ft = pricing.custom_fee_types?.find((f) => f.id === id)
       if (!ft) return 0
-      if (ft.amount != null && ft.amount !== undefined) return ft.amount
+      if (getFeeTypePricingMode(ft) === 'free') return 0
+      const usage = feeTypeUsage?.[selectedFee] ?? 0
+      const atCapacity =
+        typeof ft.capacity === 'number' && ft.capacity > 0 && usage >= ft.capacity
+      if (atCapacity && ft.price_after_capacity_full != null && ft.price_after_capacity_full !== undefined) {
+        return ft.price_after_capacity_full
+      }
+      if (atCapacity) return ft.late ?? 0
       const tier = getCurrentPricingTier(pricing, new Date(), conferenceStartDate ? new Date(conferenceStartDate) : undefined)
-      return tier === 'early_bird' ? ft.early_bird : tier === 'regular' ? ft.regular : ft.late
+      return getEffectiveFeeTypeAmount(ft, tier)
     }
     if (selectedFee.startsWith('custom_')) {
       const fid = selectedFee.replace('custom_', '')
@@ -522,24 +534,35 @@ export default function RegistrationForm({
               </div>
             </div>
                     <div className={`mt-auto pt-4 border-t-2 ${c.divider}`}>
-                      {/* Cijena u gridu: iznos s decimalama + simbol valute (kompaktno, bez pune širine) */}
-                      <div className={`inline-grid grid-cols-[auto_auto] gap-x-1 items-baseline ${c.price}`}>
-                        <span className="text-2xl font-bold tabular-nums">
-                          {getDisplayPrice(
-                            feeType.amount != null && feeType.amount !== undefined
-                              ? feeType.amount
-                              : (() => {
-                                  const tier = getCurrentPricingTier(
-                                    pricing,
-                                    new Date(),
-                                    conferenceStartDate ? new Date(conferenceStartDate) : undefined
-                                  )
-                                  return tier === 'early_bird' ? feeType.early_bird : tier === 'regular' ? feeType.regular : feeType.late
-                                })()
-                          ).toFixed(2)}
-                        </span>
-                        <span className="text-xl font-semibold">{getCurrencySymbol(pricing.currency)}</span>
-                      </div>
+                      {/* Effective price by mode (tiered/fixed/free); show "Free" when 0 */}
+                      {(() => {
+                        const mode = getFeeTypePricingMode(feeType)
+                        let effective = 0
+                        if (mode === 'free') {
+                          effective = 0
+                        } else {
+                          const usage = feeTypeUsage?.[`fee_type_${feeType.id}`] ?? 0
+                          const atCapacity = typeof feeType.capacity === 'number' && feeType.capacity > 0 && usage >= feeType.capacity
+                          if (atCapacity && (feeType.price_after_capacity_full != null && feeType.price_after_capacity_full !== undefined)) {
+                            effective = feeType.price_after_capacity_full
+                          } else if (atCapacity) {
+                            effective = feeType.late ?? 0
+                          } else {
+                            const tier = getCurrentPricingTier(pricing, new Date(), conferenceStartDate ? new Date(conferenceStartDate) : undefined)
+                            effective = getEffectiveFeeTypeAmount(feeType, tier)
+                          }
+                        }
+                        const displayAmount = getDisplayPrice(effective)
+                        if (displayAmount === 0) {
+                          return <div className={`text-2xl font-bold ${c.price}`}>{t('free')}</div>
+                        }
+                        return (
+                          <div className={`inline-grid grid-cols-[auto_auto] gap-x-1 items-baseline ${c.price}`}>
+                            <span className="text-2xl font-bold tabular-nums">{displayAmount.toFixed(2)}</span>
+                            <span className="text-xl font-semibold">{getCurrencySymbol(pricing.currency)}</span>
+                          </div>
+                        )
+                      })()}
           </div>
               </label>
                   )
@@ -659,8 +682,14 @@ export default function RegistrationForm({
             </div>
           )}
 
-          {/* Način plaćanja – otvara se kad sudionik odabere kotizaciju */}
-          {pricing && selectedFee && paymentSettings?.enabled && availableOptionsCount > 0 && (
+          {/* When selected fee is free, show message and skip payment block */}
+          {pricing && selectedFee && selectedFeeAmount === 0 && (
+            <div className="pt-6 border-t-2 border-gray-100">
+              <p className="text-sm font-medium text-green-700">{t('noPaymentRequired')}</p>
+            </div>
+          )}
+          {/* Payment method – only when there is an amount to pay (skip for free fee types) */}
+          {pricing && selectedFee && selectedFeeAmount > 0 && paymentSettings?.enabled && availableOptionsCount > 0 && (
             <div className="pt-8 border-t-2 border-gray-100">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center shadow-lg">

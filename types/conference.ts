@@ -60,6 +60,9 @@ export type StandardFeeTypeKey =
   | 'student'
   | 'accompanying_person'
 
+/** Explicit pricing mode for custom fee types. Default (when missing) is derived from amount. */
+export type CustomFeeTypePricingMode = 'tiered' | 'fixed' | 'free'
+
 /**
  * Custom tip kotizacije – admin definiše po konferenciji (npr. VIP, Senior, Prateća osoba).
  * slug: interni identifikator (lowercase, underscores); name: prikazni naziv u formi.
@@ -71,17 +74,21 @@ export interface CustomFeeType {
   /** Ako false, tip se ne prikazuje na obrascu za registraciju (admin ga može isključiti bez brisanja) */
   enabled?: boolean
   description?: string // Opcioni opis
-  /** Jedna cijena za cijelo razdoblje – kad je setirana, koristi se s valid_from/valid_to (jedna kotizacija = jedan naziv, jedna cijena, jedan raspon) */
+  /** Explicit mode: tiered (Early/Regular/Late by calendar), fixed (single amount), free (0). Default tiered. */
+  pricing_mode?: CustomFeeTypePricingMode
+  /** Jedna cijena za cijelo razdoblje – koristi se kad je pricing_mode === 'fixed' */
   amount?: number
-  early_bird: number // Cijena za early bird period (koristi se ako amount nije setiran)
-  regular: number // Cijena za regular period
-  late: number // Cijena za late registration
+  early_bird: number // Koristi se kad je pricing_mode === 'tiered' (early bird period)
+  regular: number // Koristi se kad je pricing_mode === 'tiered'
+  late: number // Koristi se kad je pricing_mode === 'tiered'
   /** Od kada vrijedi kotizacija (ISO date) – opcionalno */
   valid_from?: string
   /** Do kada vrijedi kotizacija (ISO date) – opcionalno */
   valid_to?: string
-  /** Nabavna cijena / trošak (za posebni postupak putničke agencije – marža = prodajna − trošak, PDV 20% na maržu). Opcionalno. */
-  cost?: number
+  /** Maksimalni broj prijava za ovaj tip; kad se dosegne, primjenjuje se price_after_capacity_full */
+  capacity?: number
+  /** Cijena kad je kapacitet popunjen (opcionalno; ako nije setirana, koristi se late cijena) */
+  price_after_capacity_full?: number
 }
 
 /** Tip sobe za smještaj – za filtriranje i izvještaje */
@@ -104,8 +111,6 @@ export interface ConferencePricing {
   currency: string // Default currency
   vat_percentage?: number // PDV postotak (npr. 25 za 25% PDV-a) - opcionalno, ako nije postavljen, ne prikazuje se PDV
   prices_include_vat?: boolean // If true, entered prices are VAT-inclusive (sa PDV-om). Default: false (prices are bez PDV-a).
-  /** Posebni postupak PDV-a za putničke agencije: PDV se obračunava samo na maržu (razlika prodajna – nabavna cijena), preračunata stopa 20%. */
-  travel_agency_vat_mode?: boolean
   currencies?: string[] // Supported currencies (e.g., ['EUR', 'USD', 'GBP'])
   
   // Standard participant pricing

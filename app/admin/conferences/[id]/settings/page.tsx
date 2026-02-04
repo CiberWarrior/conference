@@ -24,7 +24,9 @@ import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 import {
   formatPriceWithoutZeros,
   getPriceBreakdownFromInput,
-  getTravelAgencyMarginVat,
+  getFeeTypePricingMode,
+  getCurrentPricingTier,
+  getEffectiveFeeTypeAmount,
 } from '@/utils/pricing'
 
 export default function ConferenceSettingsPage() {
@@ -52,15 +54,20 @@ export default function ConferenceSettingsPage() {
   const [draggedHotelIndex, setDraggedHotelIndex] = useState<number | null>(null)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [useDefaultVAT, setUseDefaultVAT] = useState(true) // Whether to use organization default VAT
-  const [travelAgencyVatMode, setTravelAgencyVatMode] = useState(false) // Posebni postupak PDV-a za putničke agencije (marža)
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
   const [customFeeTypes, setCustomFeeTypes] = useState<CustomFeeType[]>([])
   const [expandedFeeTypeId, setExpandedFeeTypeId] = useState<string | null>(null)
   const [draggedFeeTypeIndex, setDraggedFeeTypeIndex] = useState<number | null>(null)
+  // Display strings for fee type price inputs so user can clear field and type (avoids 0 sticking)
+  const [feeTypePriceDisplay, setFeeTypePriceDisplay] = useState<
+    Record<string, { early_bird?: string; regular?: string; late?: string }>
+  >({})
   const [conferenceTickets, setConferenceTickets] = useState<{ id: string; subject: string; status: string; description?: string | null }[]>([])
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [hotelUsage, setHotelUsage] = useState<Record<string, number>>({})
   const [loadingHotelUsage, setLoadingHotelUsage] = useState(false)
+  const [feeTypeUsage, setFeeTypeUsage] = useState<Record<string, number>>({})
+  const [loadingFeeTypeUsage, setLoadingFeeTypeUsage] = useState(false)
   const [creatingTicketForHotel, setCreatingTicketForHotel] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -157,6 +164,24 @@ export default function ConferenceSettingsPage() {
     }
   }, [conferenceId])
 
+  const loadFeeTypeUsage = useCallback(async () => {
+    if (!conferenceId) return
+    setLoadingFeeTypeUsage(true)
+    try {
+      const res = await fetch(`/api/admin/conferences/${conferenceId}/fee-type-usage`)
+      const data = await res.json()
+      if (res.ok && data.usage) {
+        setFeeTypeUsage(data.usage)
+      } else {
+        setFeeTypeUsage({})
+      }
+    } catch {
+      setFeeTypeUsage({})
+    } finally {
+      setLoadingFeeTypeUsage(false)
+    }
+  }, [conferenceId])
+
   useEffect(() => {
     loadConferenceTickets()
   }, [loadConferenceTickets])
@@ -164,6 +189,10 @@ export default function ConferenceSettingsPage() {
   useEffect(() => {
     loadHotelUsage()
   }, [loadHotelUsage])
+
+  useEffect(() => {
+    loadFeeTypeUsage()
+  }, [loadFeeTypeUsage])
 
   const hasTicketForHotel = (hotelId: string) =>
     conferenceTickets.some(
@@ -269,7 +298,6 @@ export default function ConferenceSettingsPage() {
         // Load participant settings, payment settings, custom fee types, and info texts
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
         setPaymentSettings(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS)
-        setTravelAgencyVatMode(!!conf.pricing?.travel_agency_vat_mode)
         setCustomFeeTypes(conf.pricing?.custom_fee_types || [])
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
         setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
@@ -316,6 +344,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
       name: '',
       description: '',
       enabled: true,
+      pricing_mode: 'tiered',
       early_bird: 0,
       regular: 0,
       late: 0,
@@ -646,7 +675,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 ? parseFloat(formData.vat_percentage.toString()) 
                 : null,
             prices_include_vat: false, // Cijene se uvijek unose kao neto; opcija bruto uklonjena
-            travel_agency_vat_mode: travelAgencyVatMode,
             early_bird: {
               amount: formData.early_bird_amount,
               deadline: formData.early_bird_deadline || undefined,
@@ -1692,30 +1720,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                 </p>
               </div>
 
-              {/* Putnička agencija – posebni postupak PDV-a (marža) */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-amber-300 hover:bg-amber-50/50" style={{
-                  borderColor: travelAgencyVatMode ? '#D97706' : '#E5E7EB',
-                  backgroundColor: travelAgencyVatMode ? '#FFFBEB' : 'white',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={travelAgencyVatMode}
-                    onChange={(e) => setTravelAgencyVatMode(e.target.checked)}
-                    className="mt-1 w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{t('travelAgencyVatMode')}</div>
-                    <p className="text-sm text-gray-600 mt-1">{t('travelAgencyVatModeDesc')}</p>
-                  </div>
-                </label>
-                {travelAgencyVatMode && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-900">{t('travelAgencyVatModeTip')}</p>
-                  </div>
-                )}
-              </div>
-
               {/* Cijene se uvijek unose bez PDV-a (neto); opcija bruto uklonjena */}
             </div>
 
@@ -1875,39 +1879,33 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               {feeType.description && (
                                 <p className="text-xs text-purple-700 mt-1">{feeType.description}</p>
                               )}
-                              {!isExpanded && feeType.name && (
-                                <>
-                                  <p className="text-xs text-purple-600 mt-1">
-                                    {feeType.amount != null && feeType.amount !== undefined
-                                      ? (() => {
-                                          const { withoutVAT, withVAT } = getAdminNetGross(feeType.amount)
-                                          return `${t('priceNetShort')}: ${formatPriceWithoutZeros(withoutVAT)} ${formData.currency} | ${t('priceGrossShort')}: ${formatPriceWithoutZeros(withVAT)} ${formData.currency}${feeType.valid_from || feeType.valid_to ? ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}` : ''}`
-                                        })()
-                                      : (() => {
-                                          const eb = getAdminNetGross(feeType.early_bird ?? 0)
-                                          const reg = getAdminNetGross(feeType.regular ?? 0)
-                                          const lat = getAdminNetGross(feeType.late ?? 0)
-                                          return `${t('earlyBird')}: ${t('priceNetShort')} ${formatPriceWithoutZeros(eb.withoutVAT)} / ${t('priceGrossShort')} ${formatPriceWithoutZeros(eb.withVAT)} ${formData.currency} | ${t('regular')}: ${formatPriceWithoutZeros(reg.withoutVAT)}/${formatPriceWithoutZeros(reg.withVAT)} | ${t('late')}: ${formatPriceWithoutZeros(lat.withoutVAT)}/${formatPriceWithoutZeros(lat.withVAT)} ${formData.currency}`
-                                        })()}
-                                  </p>
-                                  {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (
-                                    <p className="text-xs text-amber-700 mt-0.5">
-                                      {feeType.amount != null && feeType.amount !== undefined
-                                        ? (() => {
-                                            const gross = getAdminNetGross(feeType.amount).withVAT
-                                            const { margin, vatPayableAmount } = getTravelAgencyMarginVat(gross, feeType.cost)
-                                            return `${t('margin')}: ${formatPriceWithoutZeros(margin)} | ${t('vatOnMargin')}: ${formatPriceWithoutZeros(vatPayableAmount)} ${formData.currency}`
-                                          })()
-                                        : (() => {
-                                            const v1 = getTravelAgencyMarginVat(getAdminNetGross(feeType.early_bird ?? 0).withVAT, feeType.cost).vatPayableAmount
-                                            const v2 = getTravelAgencyMarginVat(getAdminNetGross(feeType.regular ?? 0).withVAT, feeType.cost).vatPayableAmount
-                                            const v3 = getTravelAgencyMarginVat(getAdminNetGross(feeType.late ?? 0).withVAT, feeType.cost).vatPayableAmount
-                                            return `${t('vatOnMargin')}: ${t('earlyBird')} ${formatPriceWithoutZeros(v1)} / ${t('regular')} ${formatPriceWithoutZeros(v2)} / ${t('late')} ${formatPriceWithoutZeros(v3)} ${formData.currency}`
-                                          })()}
+                              {!isExpanded && feeType.name && (() => {
+                                const mode = getFeeTypePricingMode(feeType)
+                                if (mode === 'free') {
+                                  return (
+                                    <p className="text-xs text-purple-600 mt-1">
+                                      {t('pricingModeFree')}
+                                      {(feeType.valid_from || feeType.valid_to) && ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}`}
                                     </p>
-                                  )}
-                                </>
-                              )}
+                                  )
+                                }
+                                const tier = getCurrentPricingTier(
+                                  { early_bird: { amount: formData.early_bird_amount, deadline: formData.early_bird_deadline || undefined },
+                                    regular: { amount: formData.regular_amount },
+                                    late: { amount: formData.late_amount },
+                                    currency: formData.currency },
+                                  new Date(),
+                                  formData.start_date ? new Date(formData.start_date) : undefined
+                                )
+                                const effective = getEffectiveFeeTypeAmount(feeType, tier)
+                                const { withVAT } = getAdminNetGross(effective)
+                                return (
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    {mode === 'fixed' ? t('pricingModeFixed') : t('pricingModeTiered')}: {formatPriceWithoutZeros(withVAT)} {formData.currency}
+                                    {(feeType.valid_from || feeType.valid_to) && ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}`}
+                                  </p>
+                                )
+                              })()}
                             </button>
                           </div>
                           <label className="flex items-center gap-2 flex-shrink-0 cursor-pointer" title={isEnabled ? t('visibleOnForm') : t('hiddenOnForm')}>
@@ -1977,89 +1975,138 @@ Important: Authors who submit abstracts for presentation are not automatically r
                               />
                             </div>
 
-                            {/* Jedna cijena za cijelo razdoblje (naziv + cijena + od-do) */}
-                            <div>
-                              <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                {t('priceSingleOptional')}
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={feeType.amount ?? ''}
-                                onChange={(e) => {
-                                  const v = e.target.value
-                                  updateCustomFeeType(feeType.id, {
-                                    amount: v === '' ? undefined : parseFloat(v) || 0,
-                                  })
-                                }}
-                                placeholder="e.g. 350.00"
-                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                              />
-                              <p className="mt-1 text-xs text-purple-600">{t('priceSingleHint')}</p>
-                              {feeType.amount != null && feeType.amount !== undefined && (
-                                <p className="mt-1 text-xs font-medium text-purple-800">
-                                  {t('priceNetShort')}: {formatPriceWithoutZeros(getAdminNetGross(feeType.amount).withoutVAT)} {formData.currency} | {t('priceGrossShort')}: {formatPriceWithoutZeros(getAdminNetGross(feeType.amount).withVAT)} {formData.currency}. {t('participantsSeeGrossOnly')}
-                                  {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (() => {
-                                    const gross = getAdminNetGross(feeType.amount!).withVAT
-                                    const { margin, vatPayableAmount } = getTravelAgencyMarginVat(gross, feeType.cost)
-                                    return (
-                                      <span className="block mt-1 text-amber-800">
-                                        {t('costForMargin')}: {formatPriceWithoutZeros(feeType.cost)} {formData.currency} | {t('margin')}: {formatPriceWithoutZeros(margin)} | {t('vatOnMargin')}: {formatPriceWithoutZeros(vatPayableAmount)} {formData.currency}
-                                      </span>
-                                    )
-                                  })()}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Trošak (nabavna cijena) za posebni postupak putničke agencije */}
-                            {travelAgencyVatMode && (
-                              <div>
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('costForMargin')} <span className="text-gray-500 font-normal">({t('optional')})</span>
+                            {/* — Pricing: mode (fixed vs tiered) + VAT badge + one set of fields — */}
+                            <div className="space-y-3 pt-2 border-t border-purple-200">
+                              <p className="text-xs font-semibold text-purple-900">{t('pricingMode')}</p>
+                              {/* VAT read-only badge (global) */}
+                              {(() => {
+                                const vatPct = useDefaultVAT && profile?.default_vat_percentage != null
+                                  ? Number(profile.default_vat_percentage)
+                                  : (formData.vat_percentage !== '' && formData.vat_percentage != null)
+                                    ? Number(formData.vat_percentage)
+                                    : null
+                                if (vatPct != null && Number.isFinite(vatPct)) {
+                                  return (
+                                    <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded inline-block">
+                                      {formData.prices_include_vat
+                                        ? t('vatBadgeInclude', { vat: vatPct })
+                                        : t('vatBadgeExclude', { vat: vatPct })}
+                                    </p>
+                                  )
+                                }
+                                return null
+                              })()}
+                              {/* Mode: Tiered | Fixed | Free */}
+                              <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`fee-mode-${feeType.id}`}
+                                    checked={getFeeTypePricingMode(feeType) === 'tiered'}
+                                    onChange={() => {
+                                      updateCustomFeeType(feeType.id, { pricing_mode: 'tiered', amount: undefined })
+                                    }}
+                                    className="text-purple-600 focus:ring-purple-500"
+                                  />
+                                  <span className="text-sm text-purple-900">{t('pricingModeTiered')}</span>
                                 </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={feeType.cost ?? ''}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                    updateCustomFeeType(feeType.id, {
-                                      cost: v === '' ? undefined : parseFloat(v) || 0,
-                                    })
-                                  }}
-                                  placeholder="e.g. 280.00"
-                                  className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm bg-amber-50/50"
-                                />
-                                <p className="mt-1 text-xs text-amber-700">{t('costForMarginHint')}</p>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`fee-mode-${feeType.id}`}
+                                    checked={getFeeTypePricingMode(feeType) === 'fixed'}
+                                    onChange={() => {
+                                      const val = feeType.amount ?? feeType.early_bird ?? 0
+                                      updateCustomFeeType(feeType.id, { pricing_mode: 'fixed', amount: val })
+                                    }}
+                                    className="text-purple-600 focus:ring-purple-500"
+                                  />
+                                  <span className="text-sm text-purple-900">{t('pricingModeFixed')}</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`fee-mode-${feeType.id}`}
+                                    checked={getFeeTypePricingMode(feeType) === 'free'}
+                                    onChange={() => {
+                                      updateCustomFeeType(feeType.id, { pricing_mode: 'free' })
+                                    }}
+                                    className="text-purple-600 focus:ring-purple-500"
+                                  />
+                                  <span className="text-sm text-purple-900">{t('pricingModeFree')}</span>
+                                </label>
                               </div>
-                            )}
 
-                            {/* Pregled razdoblja (iz Kalendara gore) – nije drugi kalendar, samo referenca */}
-                            <p className="text-xs text-purple-700 font-medium mb-1">
-                              {t('calendarReferenceLabel')}
-                            </p>
-                            <p className="text-xs text-purple-600 mb-3">
-                              {t('calendarSummaryLine', {
-                                earlyBird: formData.early_bird_deadline || '–',
-                                regularFrom: formData.regular_start_date || '–',
-                                regularTo: formData.regular_end_date || '–',
-                              })}
-                            </p>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div>
+                              {getFeeTypePricingMode(feeType) === 'free' ? (
+                                <p className="text-xs text-purple-600">{t('pricingModeFreeHint')}</p>
+                              ) : getFeeTypePricingMode(feeType) === 'fixed' ? (
+                                <div>
+                                  <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                    {t('priceSingleOptional')}
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={feeType.amount ?? ''}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      updateCustomFeeType(feeType.id, {
+                                        amount: v === '' ? undefined : parseFloat(v) || 0,
+                                      })
+                                    }}
+                                    placeholder={`e.g. 350 ${formData.currency}`}
+                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                  />
+                                  <p className="mt-1 text-xs text-purple-600">{t('priceSingleHint')}</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-xs text-purple-600">{t('tieredUsesGlobalPeriods')}</p>
+                                  <div className="grid grid-cols-3 gap-3">
+                                    {/* Rana registracija */}
+                                    <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
                                   {t('earlyBird')}
                                 </label>
                                 <input
                                   type="number"
-                                  value={feeType.early_bird}
-                                  onChange={(e) => updateCustomFeeType(feeType.id, { early_bird: parseFloat(e.target.value) || 0 })}
+                                  value={
+                                    feeTypePriceDisplay[feeType.id]?.early_bird !== undefined
+                                      ? feeTypePriceDisplay[feeType.id].early_bird
+                                      : feeType.early_bird === 0
+                                        ? ''
+                                        : String(feeType.early_bird)
+                                  }
+                                  onChange={(e) =>
+                                    setFeeTypePriceDisplay((prev) => ({
+                                      ...prev,
+                                      [feeType.id]: {
+                                        ...prev[feeType.id],
+                                        early_bird: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  onBlur={() => {
+                                    const raw = feeTypePriceDisplay[feeType.id]?.early_bird ?? ''
+                                    const num = parseFloat(raw)
+                                    updateCustomFeeType(feeType.id, {
+                                      early_bird: raw === '' || Number.isNaN(num) ? 0 : num,
+                                    })
+                                    setFeeTypePriceDisplay((prev) => {
+                                      const next = { ...prev }
+                                      const block = next[feeType.id]
+                                      if (!block) return prev
+                                      const nextBlock = { ...block }
+                                      delete nextBlock.early_bird
+                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
+                                      else next[feeType.id] = nextBlock
+                                      return next
+                                    })
+                                  }}
                                   min="0"
                                   step="0.01"
-                                  placeholder="e.g. 300.00"
+                                  placeholder={`0–∞ ${formData.currency}`}
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
@@ -2067,17 +2114,49 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 </p>
                               </div>
 
+                              {/* Redovna registracija */}
                               <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
                                   {t('regular')}
                                 </label>
                                 <input
                                   type="number"
-                                  value={feeType.regular}
-                                  onChange={(e) => updateCustomFeeType(feeType.id, { regular: parseFloat(e.target.value) || 0 })}
+                                  value={
+                                    feeTypePriceDisplay[feeType.id]?.regular !== undefined
+                                      ? feeTypePriceDisplay[feeType.id].regular
+                                      : feeType.regular === 0
+                                        ? ''
+                                        : String(feeType.regular)
+                                  }
+                                  onChange={(e) =>
+                                    setFeeTypePriceDisplay((prev) => ({
+                                      ...prev,
+                                      [feeType.id]: {
+                                        ...prev[feeType.id],
+                                        regular: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  onBlur={() => {
+                                    const raw = feeTypePriceDisplay[feeType.id]?.regular ?? ''
+                                    const num = parseFloat(raw)
+                                    updateCustomFeeType(feeType.id, {
+                                      regular: raw === '' || Number.isNaN(num) ? 0 : num,
+                                    })
+                                    setFeeTypePriceDisplay((prev) => {
+                                      const next = { ...prev }
+                                      const block = next[feeType.id]
+                                      if (!block) return prev
+                                      const nextBlock = { ...block }
+                                      delete nextBlock.regular
+                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
+                                      else next[feeType.id] = nextBlock
+                                      return next
+                                    })
+                                  }}
                                   min="0"
                                   step="0.01"
-                                  placeholder="e.g. 400.00"
+                                  placeholder={`0–∞ ${formData.currency}`}
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
@@ -2085,25 +2164,146 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 </p>
                               </div>
 
+                              {/* Kasna registracija */}
                               <div>
                                 <label className="block text-xs font-semibold text-purple-900 mb-1">
                                   {t('late')}
                                 </label>
                                 <input
                                   type="number"
-                                  value={feeType.late}
-                                  onChange={(e) => updateCustomFeeType(feeType.id, { late: parseFloat(e.target.value) || 0 })}
+                                  value={
+                                    feeTypePriceDisplay[feeType.id]?.late !== undefined
+                                      ? feeTypePriceDisplay[feeType.id].late
+                                      : feeType.late === 0
+                                        ? ''
+                                        : String(feeType.late)
+                                  }
+                                  onChange={(e) =>
+                                    setFeeTypePriceDisplay((prev) => ({
+                                      ...prev,
+                                      [feeType.id]: {
+                                        ...prev[feeType.id],
+                                        late: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  onBlur={() => {
+                                    const raw = feeTypePriceDisplay[feeType.id]?.late ?? ''
+                                    const num = parseFloat(raw)
+                                    updateCustomFeeType(feeType.id, {
+                                      late: raw === '' || Number.isNaN(num) ? 0 : num,
+                                    })
+                                    setFeeTypePriceDisplay((prev) => {
+                                      const next = { ...prev }
+                                      const block = next[feeType.id]
+                                      if (!block) return prev
+                                      const nextBlock = { ...block }
+                                      delete nextBlock.late
+                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
+                                      else next[feeType.id] = nextBlock
+                                      return next
+                                    })
+                                  }}
                                   min="0"
                                   step="0.01"
-                                  placeholder="e.g. 500.00"
+                                  placeholder={`0–∞ ${formData.currency}`}
                                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-purple-600">
                                   {t('priceForLateRegistration')}
                                 </p>
                               </div>
+                                  </div>
+                                </>
+                              )}
+                              {/* Warning when fixed/tiered has 0: treated as free, no payment */}
+                              {(() => {
+                                const mode = getFeeTypePricingMode(feeType)
+                                if (mode === 'free') return null
+                                const isZero =
+                                  mode === 'fixed'
+                                    ? feeType.amount == null || feeType.amount === 0
+                                    : (feeType.early_bird ?? 0) === 0 &&
+                                      (feeType.regular ?? 0) === 0 &&
+                                      (feeType.late ?? 0) === 0
+                                if (!isZero) return null
+                                return (
+                                  <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                                    {t('zeroTreatedAsFreeWarning')}
+                                  </div>
+                                )
+                              })()}
                             </div>
-                            {/* Dostupnost tipa na obrascu (opcionalno) – kad je ovaj tip vidljiv; nije kalendar cijena */}
+
+                            {/* — Capacity: own section — */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-purple-200">
+                              <div>
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  {t('capacity')}
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={feeType.capacity ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                    updateCustomFeeType(feeType.id, {
+                                      capacity:
+                                        v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0),
+                                    })
+                                  }}
+                                  placeholder="npr. 50"
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                />
+                                <p className="mt-1 text-xs text-purple-600">
+                                  {t('capacityHint')}
+                                </p>
+                              </div>
+                              {typeof feeType.capacity === 'number' && feeType.capacity > 0 && (
+                                <div>
+                                  <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                    {t('remaining')}
+                                  </label>
+                                  <div className="px-3 py-2 border border-purple-200 rounded-lg bg-purple-50/50 text-sm text-purple-800">
+                                    {loadingFeeTypeUsage
+                                      ? '…'
+                                      : `${Math.max(
+                                          0,
+                                          feeType.capacity -
+                                            (feeTypeUsage[`fee_type_${feeType.id}`] ?? 0)
+                                        )} / ${feeType.capacity}`}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {typeof feeType.capacity === 'number' && feeType.capacity > 0 && (
+                              <div className="pt-3">
+                                <label className="block text-xs font-semibold text-purple-900 mb-1">
+                                  {t('priceAfterCapacityFull')}
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={feeType.price_after_capacity_full ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                    updateCustomFeeType(feeType.id, {
+                                      price_after_capacity_full:
+                                        v === '' ? undefined : parseFloat(v) || 0,
+                                    })
+                                  }}
+                                  placeholder={`npr. ${formData.currency} (${t('priceForLateRegistration')})`}
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                />
+                                <p className="mt-1 text-xs text-purple-600">
+                                  {t('priceAfterCapacityFullHint')}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* — Availability (visibility on form) — */}
                             <div className="mt-4 pt-4 border-t border-purple-200">
                               <p className="text-xs font-semibold text-purple-900 mb-1">{t('feeTypeAvailabilityLabel')}</p>
                               <p className="text-xs text-purple-600 mb-2">{t('feeTypeAvailabilityHint')}</p>
@@ -2136,15 +2336,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
                                 </div>
                               </div>
                             </div>
-                            {/* Net/Gross breakdown for period prices (admin only) */}
-                            <p className="text-xs font-medium text-purple-800 mt-3">
-                              {t('priceNetShort')} / {t('priceGrossShort')}: {t('earlyBird')} {formatPriceWithoutZeros(getAdminNetGross(feeType.early_bird ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.early_bird ?? 0).withVAT)} | {t('regular')} {formatPriceWithoutZeros(getAdminNetGross(feeType.regular ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.regular ?? 0).withVAT)} | {t('late')} {formatPriceWithoutZeros(getAdminNetGross(feeType.late ?? 0).withoutVAT)}/{formatPriceWithoutZeros(getAdminNetGross(feeType.late ?? 0).withVAT)} {formData.currency}
-                            </p>
-                            {travelAgencyVatMode && feeType.cost != null && feeType.cost !== undefined && (
-                              <p className="text-xs font-medium text-amber-800 mt-1">
-                                {t('costForMargin')}: {formatPriceWithoutZeros(feeType.cost)} {formData.currency}. {t('margin')} ({t('vatOnMargin')}): {t('earlyBird')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.early_bird ?? 0).withVAT, feeType.cost).vatPayableAmount)} | {t('regular')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.regular ?? 0).withVAT, feeType.cost).vatPayableAmount)} | {t('late')} {formatPriceWithoutZeros(getTravelAgencyMarginVat(getAdminNetGross(feeType.late ?? 0).withVAT, feeType.cost).vatPayableAmount)} {formData.currency}
-                              </p>
-                            )}
                           </div>
                         )}
                       </div>

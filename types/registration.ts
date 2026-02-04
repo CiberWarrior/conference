@@ -40,7 +40,8 @@ export interface Registration extends RegistrationData {
   checkedInAt?: string | null
   customFields?: Record<string, any>
   participants?: Participant[] // Multiple participants support
-  registrationFeeType?: string | null // Type of registration fee: early_bird, regular, late, student, accompanying_person
+  registrationFeeType?: string | null // Type of registration fee: early_bird, regular, late, student, fee_type_{id}, etc.
+  paymentMethod?: 'card' | 'bank_transfer' | null // How they chose to pay (card vs bank transfer)
   accommodation?: {
     arrival_date: string
     departure_date: string
