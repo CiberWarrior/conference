@@ -1,3 +1,18 @@
+---
+## Docs Navigation
+
+### Active (single source of truth)
+- docs/00_ACTIVE/PROJECT_CONTEXT.md
+- docs/00_ACTIVE/START_HERE.md
+- docs/00_ACTIVE/FINAL_VERIFICATION.md
+
+### Reference (read only when needed)
+- docs/01_REFERENCE/
+
+### Archive (history / AI reports)
+- docs/99_ARCHIVE/
+---
+
 ## Docs index (canonical)
 
 Ovaj folder sadrži samo **aktualnu** dokumentaciju. Ako nešto ne radi kako piše ovdje, tretiraj dokument kao bug i ažuriraj ga.
