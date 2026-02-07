@@ -28,9 +28,8 @@
 6. ✅ `/api/admin/conferences/[id]/pages` (Conference CMS pages)
 7. ✅ `/api/admin/conferences/[id]/pages/[pageId]` (Page operations)
 8. ✅ `/api/admin/conferences/[id]/registration-form` (Form builder)
-9. ✅ `/api/admin/conferences/[id]/fee-type-usage` (Statistics)
-10. ✅ `/api/admin/conferences/[id]/hotel-usage` (Statistics)
-11. ✅ `/api/admin/conferences/upload-logo` (Logo upload)
+9. ✅ `/api/admin/conferences/[id]/hotel-usage` (Statistics)
+10. ✅ `/api/admin/conferences/upload-logo` (Logo upload)
 
 ### Registrations & Participants (3)
 12. ✅ `/api/admin/participants` (GET)
@@ -181,14 +180,12 @@ const { user, profile, supabase } = await requireAuth()
 ### 4. Consistency ↑
 - **Standardizirani** error responses
 - **Predvidljiv** API behaviour
-- **Dokumentirano** u `AUTH_REFACTOR_SUMMARY.md`
+- **Dokumentirano** u ovoj datoteci i u `lib/api-auth.ts` / `lib/api-error.ts`
 
 ## 📚 Dokumentacija:
 
-1. **`AUTH_REFACTOR_SUMMARY.md`** - Pattern & best practices
-2. **`AUTH_REFACTOR_COMPLETED.md`** - Ova datoteka
-3. **`lib/api-auth.ts`** - Centralizirani auth helperi (dobro dokumentirani)
-4. **`lib/api-error.ts`** - Error handling utilities
+1. **`lib/api-auth.ts`** - Centralizirani auth helperi (dobro dokumentirani)
+2. **`lib/api-error.ts`** - Error handling utilities
 
 ## 🚀 Next Steps (opciono):
 

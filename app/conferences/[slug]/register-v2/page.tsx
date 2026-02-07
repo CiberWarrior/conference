@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Users, CheckCircle, ArrowRight, UserPlus } from 'lucide-react'
 import type { Conference } from '@/types/conference'
+import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 
 // New enhanced components
@@ -23,7 +24,11 @@ export default function EnhancedRegisterPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasBankAccount, setHasBankAccount] = useState(false)
-  
+  const [registrationFees, setRegistrationFees] = useState<{
+    fees: RegistrationFeeOption[]
+    currency: string
+  } | null>(null)
+
   // Multi-step wizard state
   const [currentStep, setCurrentStep] = useState(1)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -82,6 +87,27 @@ export default function EnhancedRegisterPage() {
     }
 
     loadConference()
+  }, [slug])
+
+  useEffect(() => {
+    if (!slug) return
+    const loadFees = async () => {
+      try {
+        const res = await fetch(`/api/conferences/${slug}/registration-fees`)
+        const data = await res.json()
+        if (res.ok && data.fees && Array.isArray(data.fees) && data.fees.length > 0) {
+          setRegistrationFees({
+            fees: data.fees as RegistrationFeeOption[],
+            currency: data.currency ?? 'EUR',
+          })
+        } else {
+          setRegistrationFees(null)
+        }
+      } catch {
+        setRegistrationFees(null)
+      }
+    }
+    loadFees()
   }, [slug])
 
   const handleRegistrationSuccess = () => {
@@ -203,14 +229,14 @@ export default function EnhancedRegisterPage() {
                   customFields={conference.settings?.custom_registration_fields || []}
                   participantSettings={conference.settings?.participant_settings}
                   registrationInfoText={conference.settings?.registration_info_text}
-                  pricing={conference.pricing}
                   hotelOptions={conference.settings?.hotel_options || []}
-                  currency={conference.pricing?.currency || 'EUR'}
+                  currency={registrationFees?.currency ?? 'EUR'}
                   conferenceStartDate={conference.start_date}
                   conferenceEndDate={conference.end_date}
                   abstractSubmissionEnabled={conference.settings?.abstract_submission_enabled}
                   paymentSettings={conference.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS}
                   hasBankAccount={hasBankAccount}
+                  registrationFees={registrationFees?.fees ?? null}
                 />
               </div>
             </div>

@@ -8,8 +8,6 @@ import {
   checkRateLimit,
   createRateLimitHeaders,
 } from '@/lib/rate-limit'
-import { getRegistrationChargeAmount } from '@/utils/pricing'
-
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
@@ -61,10 +59,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerClient()
 
-    // Load registration (need conference_id + registration_fee_type when amount not sent)
+    // Load registration (conference_id, registration_fee_id for amount)
     const { data: registration, error: regError } = await supabase
       .from('registrations')
-      .select('id, email, first_name, last_name, conference_id, registration_fee_type')
+      .select('id, email, conference_id, registration_fee_id')
       .eq('id', registrationId)
       .single()
 
@@ -75,7 +73,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Amount: from client (legacy) or server-computed from registration + conference pricing
+    // Amount: from client or from custom_registration_fees (registration_fee_id only)
     let amountCents: number
     let currency: string = 'eur'
     if (
@@ -85,35 +83,22 @@ export async function POST(request: NextRequest) {
     ) {
       amountCents = Math.round(clientAmount * 100)
     } else {
-      const { data: conference } = await supabase
-        .from('conferences')
-        .select('pricing, start_date')
-        .eq('id', registration.conference_id)
-        .single()
-      let feeTypeUsage: Record<string, number> = {}
-      try {
-        const { data: regs } = await supabase
-          .from('registrations')
-          .select('registration_fee_type')
+      let amount = 0
+      let curr = 'EUR'
+      const registrationFeeId = (registration as { registration_fee_id?: string | null })
+        .registration_fee_id
+      if (registrationFeeId) {
+        const { data: feeRow, error: feeErr } = await supabase
+          .from('custom_registration_fees')
+          .select('id, price_gross, currency')
+          .eq('id', registrationFeeId)
           .eq('conference_id', registration.conference_id)
-          .not('registration_fee_type', 'is', null)
-        for (const row of regs || []) {
-          const ft = row.registration_fee_type as string
-          if (ft) feeTypeUsage[ft] = (feeTypeUsage[ft] || 0) + 1
+          .single()
+        if (!feeErr && feeRow && Number(feeRow.price_gross) > 0) {
+          amount = Number(feeRow.price_gross)
+          curr = (feeRow.currency as string) || 'EUR'
         }
-      } catch {
-        // ignore
       }
-      const { amount, currency: curr } = getRegistrationChargeAmount(
-        {
-          registration_fee_type: registration.registration_fee_type ?? null,
-        },
-        {
-          pricing: conference?.pricing ?? null,
-          start_date: conference?.start_date ?? null,
-        },
-        feeTypeUsage
-      )
       if (amount <= 0) {
         return NextResponse.json(
           { error: 'No amount to charge for this registration' },
@@ -121,7 +106,7 @@ export async function POST(request: NextRequest) {
         )
       }
       amountCents = Math.round(amount * 100)
-      currency = (curr || 'EUR').toLowerCase()
+      currency = curr.toLowerCase()
     }
 
     // Create payment intent

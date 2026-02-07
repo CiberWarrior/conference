@@ -10,13 +10,14 @@ npm install
 2. **Postavi environment varijable:**
 ```bash
 cp .env.local.example .env.local
-# Zatim uredi .env.local i dodaj svoje Supabase i Resend ključeve
+# Zatim uredi .env.local i dodaj svoje Supabase/Stripe/Resend ključeve
 ```
 
 3. **Postavi Supabase bazu:**
    - Kreiraj Supabase projekt na [supabase.com](https://supabase.com)
-   - Pokreni SQL migraciju iz `supabase/migrations/001_create_registrations_table.sql` u Supabase SQL Editor
-   - Vidi detaljne upute u `SUPABASE_SETUP.md`
+   - Primijeni migracije (preporučeno: Supabase CLI `supabase db push`, ili ručno kroz Supabase SQL Editor)
+   - Ključeve pronađi u `docs/GDE_NACI_SUPABASE_KLJUCEVE.md`
+   - Za brzu provjeru lokalno vidi `docs/LOCALHOST_TESTING_CHECKLIST.md`
 
 4. **Pokreni development server:**
 ```bash
@@ -30,18 +31,16 @@ npm run dev
 ## Važne napomene
 
 ### Plaćanje
-- Default iznos za plaćanje je 50 EUR (može se promijeniti u `app/api/register/route.ts`)
-- Stripe integracija je opcionalna - aplikacija radi i bez nje
+- Iznos se računa prema odabranoj kotizaciji (custom fees); Stripe je opcionalan
 - Za testiranje plaćanja koristi Stripe test mode
 
 ### Email potvrde
 - Email se šalje asinkrono nakon uspješne prijave
 - Potrebno je postaviti Resend API key i verificirati domain
-- Vidi `SUPABASE_SETUP.md` za detalje
+- Vidi `docs/DEPLOYMENT_CHECKLIST.md` za produkcijske postavke
 
 ### Admin panel
-- Trenutno nema autentifikacije - dodaj autentifikaciju za production!
-- Za production, koristi Supabase Auth za zaštitu admin panela
+- Admin panel je zaštićen autentifikacijom; za produkciju obavezno postavi env varijable i RLS
 
 ## Struktura
 
@@ -52,12 +51,6 @@ npm run dev
 - `/api/stripe-webhook` - Webhook za Stripe događaje
 
 ## Customizacija
-
-### Promjena iznosa plaćanja
-Uredi `app/api/register/route.ts` i promijeni:
-```typescript
-const amount = 50 // Promijeni na željeni iznos
-```
 
 ### Promjena email template
 Uredi `supabase/functions/send-confirmation-email/index.ts`

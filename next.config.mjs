@@ -19,6 +19,8 @@ const nextConfig = {
       config.externals.push({
         'https://deno.land/std@0.168.0/http/server.ts': 'commonjs https://deno.land/std@0.168.0/http/server.ts',
       })
+      // Resolve winston from node_modules at runtime instead of bundling (avoids missing vendor-chunks/winston.js)
+      config.externals.push('winston')
     } else {
       // Exclude winston from client bundle
       config.resolve.fallback = {

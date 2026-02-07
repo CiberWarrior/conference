@@ -85,26 +85,6 @@ export const createServerClient = async () => {
 }
 
 /**
- * Create Supabase Admin client with SERVICE_ROLE_KEY
- * Use this ONLY for admin operations like creating users
- * NEVER expose this client to the browser!
+ * NOTE: Admin (service role) client is intentionally NOT exported from this module.
+ * Use `createAdminClient` from `lib/supabase-admin.ts` (server-only) instead.
  */
-export const createAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Supabase admin environment variables are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
-  }
-
-  return createClient(
-    supabaseUrl,
-    serviceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  )
-}

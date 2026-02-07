@@ -1,0 +1,16 @@
+Context:
+This is the MeetFlow project.
+Read and follow PROJECT_CONTEXT.md strictly.
+
+Rules:
+- Do NOT change architecture
+- Do NOT disable RLS
+- Use admin Supabase client for all writes
+- If fee amount is 0, treat it as free (no payment)
+
+Task:
+(opiši JEDAN zadatak)
+
+Constraints:
+- Minimal changes only
+- Prefer explanation over large refactors

@@ -7,11 +7,9 @@ import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Save, Plus, X, GripVertical, Ticket, ChevronDown, ChevronRight, Trash2, Eye, EyeOff, Globe, Upload } from 'lucide-react'
 import type {
-  CustomFeeType,
   HotelOption,
   PaymentSettings,
   RoomType,
-  StandardFeeTypeKey,
 } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -21,17 +19,11 @@ import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
-import {
-  formatPriceWithoutZeros,
-  getPriceBreakdownFromInput,
-  getFeeTypePricingMode,
-  getCurrentPricingTier,
-  getEffectiveFeeTypeAmount,
-} from '@/utils/pricing'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
 import {
   BasicInfoSection,
   BrandingSection,
-  PricingSection,
+  CustomRegistrationFeesSection,
   PaymentSettingsSection,
   EmailSettingsSection,
   PublishingSection,
@@ -43,6 +35,7 @@ import {
 
 export default function ConferenceSettingsPage() {
   const t = useTranslations('admin.conferences')
+  const tCommon = useTranslations('admin.common')
   const router = useRouter()
   const params = useParams()
   const { refreshConferences } = useConference()
@@ -65,21 +58,11 @@ export default function ConferenceSettingsPage() {
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([])
   const [draggedHotelIndex, setDraggedHotelIndex] = useState<number | null>(null)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
-  const [useDefaultVAT, setUseDefaultVAT] = useState(true) // Whether to use organization default VAT
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
-  const [customFeeTypes, setCustomFeeTypes] = useState<CustomFeeType[]>([])
-  const [expandedFeeTypeId, setExpandedFeeTypeId] = useState<string | null>(null)
-  const [draggedFeeTypeIndex, setDraggedFeeTypeIndex] = useState<number | null>(null)
-  // Display strings for fee type price inputs so user can clear field and type (avoids 0 sticking)
-  const [feeTypePriceDisplay, setFeeTypePriceDisplay] = useState<
-    Record<string, { early_bird?: string; regular?: string; late?: string }>
-  >({})
   const [conferenceTickets, setConferenceTickets] = useState<{ id: string; subject: string; status: string; description?: string | null }[]>([])
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [hotelUsage, setHotelUsage] = useState<Record<string, number>>({})
   const [loadingHotelUsage, setLoadingHotelUsage] = useState(false)
-  const [feeTypeUsage, setFeeTypeUsage] = useState<Record<string, number>>({})
-  const [loadingFeeTypeUsage, setLoadingFeeTypeUsage] = useState(false)
   const [creatingTicketForHotel, setCreatingTicketForHotel] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -92,25 +75,10 @@ export default function ConferenceSettingsPage() {
     website_url: '',
     logo_url: '' as string | undefined,
     primary_color: '#3B82F6',
-    // Pricing
+    // Pricing (currency + VAT only; fees are in custom_registration_fees table)
     currency: 'EUR',
-    vat_percentage: '' as string | number, // PDV postotak (npr. 25 za 25%)
-    prices_include_vat: false, // If true, entered prices are VAT-inclusive (sa PDV-om)
-    early_bird_amount: 150,
-    early_bird_deadline: '',
-    early_bird_start_date: '', // Optional - od kada vrijedi early bird (valid from)
-    regular_amount: 200,
-    regular_start_date: '',
-    regular_end_date: '', // Optional - do kada vrijedi regular (valid to)
-    late_amount: 250,
-    late_start_date: '',
-    late_end_date: '', // Optional - do kada vrijedi late (valid to)
-    student_discount: 50, // Legacy - kept for backward compatibility
-    // Student pricing (fixed prices per tier)
-    student_early_bird: 100,
-    student_regular: 150,
-    student_late: 200,
-    accompanying_person_price: 140,
+    vat_percentage: '' as string | number,
+    prices_include_vat: false,
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
@@ -176,24 +144,6 @@ export default function ConferenceSettingsPage() {
     }
   }, [conferenceId])
 
-  const loadFeeTypeUsage = useCallback(async () => {
-    if (!conferenceId) return
-    setLoadingFeeTypeUsage(true)
-    try {
-      const res = await fetch(`/api/admin/conferences/${conferenceId}/fee-type-usage`)
-      const data = await res.json()
-      if (res.ok && data.usage) {
-        setFeeTypeUsage(data.usage)
-      } else {
-        setFeeTypeUsage({})
-      }
-    } catch {
-      setFeeTypeUsage({})
-    } finally {
-      setLoadingFeeTypeUsage(false)
-    }
-  }, [conferenceId])
-
   useEffect(() => {
     loadConferenceTickets()
   }, [loadConferenceTickets])
@@ -201,10 +151,6 @@ export default function ConferenceSettingsPage() {
   useEffect(() => {
     loadHotelUsage()
   }, [loadHotelUsage])
-
-  useEffect(() => {
-    loadFeeTypeUsage()
-  }, [loadFeeTypeUsage])
 
   const hasTicketForHotel = (hotelId: string) =>
     conferenceTickets.some(
@@ -257,10 +203,6 @@ export default function ConferenceSettingsPage() {
         const conf = data.conference
         setConference(conf)
         
-        // Determine if using default VAT or custom
-        const hasCustomVAT = conf.pricing?.vat_percentage !== null && conf.pricing?.vat_percentage !== undefined
-        setUseDefaultVAT(!hasCustomVAT)
-        
         setFormData({
           name: conf.name || '',
           description: conf.description || '',
@@ -271,25 +213,13 @@ export default function ConferenceSettingsPage() {
           website_url: conf.website_url || '',
           logo_url: conf.logo_url || '',
           primary_color: conf.primary_color || '#3B82F6',
-          // Pricing
+          // Pricing (currency + single PDV %; default 25 e.g. Croatia)
           currency: conf.pricing?.currency || 'EUR',
-          vat_percentage: conf.pricing?.vat_percentage || '',
+          vat_percentage:
+            conf.pricing?.vat_percentage != null && conf.pricing?.vat_percentage !== ''
+              ? conf.pricing.vat_percentage
+              : (profile?.default_vat_percentage ?? 25),
           prices_include_vat: !!conf.pricing?.prices_include_vat,
-          early_bird_amount: conf.pricing?.early_bird?.amount || 150,
-          early_bird_deadline: conf.pricing?.early_bird?.deadline || '',
-          early_bird_start_date: conf.pricing?.early_bird?.start_date || '',
-          regular_amount: conf.pricing?.regular?.amount || 200,
-          regular_start_date: conf.pricing?.regular?.start_date || '',
-          regular_end_date: conf.pricing?.regular?.end_date || '',
-          late_amount: conf.pricing?.late?.amount || 250,
-          late_start_date: conf.pricing?.late?.start_date || '',
-          late_end_date: conf.pricing?.late?.end_date || '',
-          student_discount: conf.pricing?.student_discount || 50,
-          // Student pricing (use new structure if available, otherwise fallback to discount-based)
-          student_early_bird: conf.pricing?.student?.early_bird || (conf.pricing?.early_bird?.amount || 150) - (conf.pricing?.student_discount || 50),
-          student_regular: conf.pricing?.student?.regular || (conf.pricing?.regular?.amount || 200) - (conf.pricing?.student_discount || 50),
-          student_late: conf.pricing?.student?.late || (conf.pricing?.late?.amount || 250) - (conf.pricing?.student_discount || 50),
-          accompanying_person_price: conf.pricing?.accompanying_person_price || 0,
           // Settings
           registration_enabled: conf.settings?.registration_enabled ?? true,
           abstract_submission_enabled: conf.settings?.abstract_submission_enabled ?? true,
@@ -310,7 +240,6 @@ export default function ConferenceSettingsPage() {
         // Load participant settings, payment settings, custom fee types, and info texts
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
         setPaymentSettings(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS)
-        setCustomFeeTypes(conf.pricing?.custom_fee_types || [])
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
         setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
 
@@ -352,47 +281,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
       ...prev,
       [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value,
     }))
-  }
-
-  // Custom Fee Types Management
-  const addCustomFeeType = () => {
-    const newFeeType: CustomFeeType = {
-      id: `fee_type_${Date.now()}`,
-      name: '',
-      description: '',
-      enabled: true,
-      pricing_mode: 'tiered',
-      early_bird: 0,
-      regular: 0,
-      late: 0,
-      valid_from: '',
-      valid_to: '',
-    }
-    setCustomFeeTypes([...customFeeTypes, newFeeType])
-    setExpandedFeeTypeId(newFeeType.id)
-  }
-
-  const removeCustomFeeType = (id: string) => {
-    setCustomFeeTypes(customFeeTypes.filter((ft) => ft.id !== id))
-  }
-
-  const updateCustomFeeType = (id: string, updates: Partial<CustomFeeType>) => {
-    setCustomFeeTypes(customFeeTypes.map((ft) =>
-      ft.id === id ? { ...ft, ...updates } : ft
-    ))
-  }
-
-  const handleFeeTypeDragStart = (index: number) => {
-    setDraggedFeeTypeIndex(index)
-  }
-
-  const handleFeeTypeDrop = (targetIndex: number) => {
-    if (draggedFeeTypeIndex === null) return
-    const newList = [...customFeeTypes]
-    const [dragged] = newList.splice(draggedFeeTypeIndex, 1)
-    newList.splice(targetIndex, 0, dragged)
-    setCustomFeeTypes(newList)
-    setDraggedFeeTypeIndex(null)
   }
 
   // Room type – oznake za UI (prevedeno)
@@ -666,10 +554,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const saveConference = async () => {
     setSaving(true)
-
     try {
       const response = await fetch(`/api/admin/conferences/${conferenceId}`, {
         method: 'PATCH',
@@ -686,40 +572,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
           primary_color: formData.primary_color,
           pricing: {
             currency: formData.currency,
-            vat_percentage: useDefaultVAT 
-              ? null  // Use organization default (null means fallback to user profile)
-              : formData.vat_percentage 
-                ? parseFloat(formData.vat_percentage.toString()) 
+            vat_percentage:
+              formData.vat_percentage !== '' && formData.vat_percentage != null
+                ? parseFloat(formData.vat_percentage.toString())
                 : null,
-            prices_include_vat: false, // Cijene se uvijek unose kao neto; opcija bruto uklonjena
-            early_bird: {
-              amount: formData.early_bird_amount,
-              deadline: formData.early_bird_deadline || undefined,
-              start_date: formData.early_bird_start_date || undefined,
-            },
-            regular: {
-              amount: formData.regular_amount,
-              start_date: formData.regular_start_date || undefined,
-              end_date: formData.regular_end_date || undefined,
-            },
-            late: {
-              amount: formData.late_amount,
-              start_date: formData.late_start_date || undefined,
-              end_date: formData.late_end_date || undefined,
-            },
-            // Student pricing (new structure)
-            student: {
-              early_bird: formData.student_early_bird,
-              regular: formData.student_regular,
-              late: formData.student_late,
-            },
-            student_discount: formData.student_discount, // Keep for backward compatibility
-            accompanying_person_price: formData.accompanying_person_price || undefined,
-            // Legacy custom_fields removed – koriste se samo Custom Fee Types
-            custom_fields: undefined,
-            custom_fee_types: customFeeTypes.length > 0 ? customFeeTypes : undefined,
-            // Display names for standard fee types removed – form uses i18n defaults; only custom fee types have admin-defined names
-            fee_type_labels: undefined,
+            prices_include_vat: formData.prices_include_vat,
+            // Tier-based pricing removed; fees are in custom_registration_fees table
           },
           settings: {
             registration_enabled: formData.registration_enabled,
@@ -762,6 +620,11 @@ Important: Authors who submit abstracts for presentation are not automatically r
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await saveConference()
   }
 
   const handleDelete = async () => {
@@ -820,24 +683,6 @@ Important: Authors who submit abstracts for presentation are not automatically r
         </div>
       </div>
     )
-  }
-
-  // Admin dashboard: net + gross must use the same VAT as PDV settings (linked)
-  // – "Use organization default" → profile.default_vat_percentage (e.g. 25%)
-  // – "Set custom VAT" → formData.vat_percentage
-  const adminVatNum = (() => {
-    if (useDefaultVAT && profile?.default_vat_percentage != null) {
-      const n = Number(profile.default_vat_percentage)
-      return Number.isFinite(n) && n >= 0 ? n : 0
-    }
-    const raw = formData.vat_percentage
-    if (raw === null || raw === undefined || raw === '') return 0
-    const n = typeof raw === 'number' ? raw : parseFloat(String(raw))
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  })()
-  const getAdminNetGross = (amount: number) => {
-    if (!adminVatNum) return { withoutVAT: amount, withVAT: amount }
-    return getPriceBreakdownFromInput(amount, adminVatNum, false) // cijene uvijek neto
   }
 
   return (
@@ -1289,14 +1134,25 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <div className="text-sm text-gray-600">
               {t('fieldsConfigured', { count: formData.custom_registration_fields.length })}
             </div>
-            <button
-              type="button"
-              onClick={addCustomRegistrationField}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              {t('addField')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={saveConference}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? `${tCommon('loading') || 'Loading'}…` : tCommon('save')}
+              </button>
+              <button
+                type="button"
+                onClick={addCustomRegistrationField}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                {t('addField')}
+              </button>
+            </div>
           </div>
 
           {formData.custom_registration_fields.length === 0 ? (
@@ -1350,7 +1206,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="currency" className="block text-sm font-semibold text-gray-700 mb-2">
-                Currency
+                {t('currency')}
               </label>
               <select
                 id="currency"
@@ -1394,709 +1250,17 @@ Important: Authors who submit abstracts for presentation are not automatically r
               </select>
             </div>
 
-            {/* VAT Settings */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                PDV / VAT Settings
-              </label>
-              
-              <div className="space-y-3">
-                {/* Radio: Use organization default */}
-                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 hover:bg-blue-50/50" style={{
-                  borderColor: useDefaultVAT ? '#3B82F6' : '#E5E7EB',
-                  backgroundColor: useDefaultVAT ? '#EFF6FF' : 'white'
-                }}>
-                  <input
-                    type="radio"
-                    name="vat_option"
-                    checked={useDefaultVAT}
-                    onChange={() => setUseDefaultVAT(true)}
-                    className="mt-1 w-4 h-4 text-blue-600"
-                  />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
-                      Use organization default
-                      {profile?.default_vat_percentage && (
-                        <span className="ml-2 text-blue-600">
-                          ({profile.default_vat_percentage}% 
-                          {profile.vat_label && ` - ${profile.vat_label}`})
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {profile?.default_vat_percentage
-                        ? t('vatUseDefaultRecommended')
-                        : t('vatNoDefaultSet')}
-                    </p>
-                  </div>
-                </label>
-
-                {/* Radio: Custom VAT */}
-                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-purple-300 hover:bg-purple-50/50" style={{
-                  borderColor: !useDefaultVAT ? '#9333EA' : '#E5E7EB',
-                  backgroundColor: !useDefaultVAT ? '#FAF5FF' : 'white'
-                }}>
-                  <input
-                    type="radio"
-                    name="vat_option"
-                    checked={!useDefaultVAT}
-                    onChange={() => setUseDefaultVAT(false)}
-                    className="mt-1 w-4 h-4 text-purple-600"
-                  />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
-                      Set custom VAT for this conference
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1 mb-3">
-                      Override the organization default (e.g., for conferences in different countries)
-                    </p>
-                    
-                    {/* Custom VAT input (only enabled when custom selected) */}
-                    <input
-                      type="number"
-                      value={formData.vat_percentage}
-                      onChange={(e) => setFormData(prev => ({ ...prev, vat_percentage: e.target.value }))}
-                      disabled={useDefaultVAT}
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      placeholder={t('vatPlaceholderPercent')}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </label>
-              </div>
-
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-900">
-<strong>Tip:</strong> VAT will be shown in the admin dashboard as "excluding VAT" and "including VAT". 
-                On the registration form users will only see the final price including VAT.
-                </p>
-              </div>
-
-              {/* Cijene se uvijek unose bez PDV-a (neto); opcija bruto uklonjena */}
-            </div>
-
-            {/* Jedan kalendar za sve tipove – datumi određuju kada vrijedi Early Bird / Regular / Late */}
-            <div className="md:col-span-2 mb-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">{t('pricingCalendarTitle')}</h3>
-              <p className="text-xs text-gray-600 mb-1">{t('pricingCalendarHint')}</p>
-              <p className="text-xs text-blue-700 font-medium mb-4">{t('pricingCalendarOneForAll')}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label htmlFor="early_bird_deadline" className="block text-xs font-semibold text-gray-700 mb-1">
-                    {t('earlyBirdDeadline')}
-                  </label>
-                  <input
-                    type="date"
-                    id="early_bird_deadline"
-                    name="early_bird_deadline"
-                    value={formData.early_bird_deadline}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{t('priceExpiryDateLabel')}</p>
-                </div>
-                <div>
-                  <label htmlFor="regular_start_date" className="block text-xs font-semibold text-gray-700 mb-1">
-                    {t('regularPeriodFrom')}
-                  </label>
-                  <input
-                    type="date"
-                    id="regular_start_date"
-                    name="regular_start_date"
-                    value={formData.regular_start_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="regular_end_date" className="block text-xs font-semibold text-gray-700 mb-1">
-                    {t('regularPeriodTo')}
-                  </label>
-                  <input
-                    type="date"
-                    id="regular_end_date"
-                    name="regular_end_date"
-                    value={formData.regular_end_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="late_start_date" className="block text-xs font-semibold text-gray-700 mb-1">
-                    {t('latePeriodFrom')}
-                  </label>
-                  <input
-                    type="date"
-                    id="late_start_date"
-                    name="late_start_date"
-                    value={formData.late_start_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 max-w-xs">
-                <label htmlFor="late_end_date" className="block text-xs font-semibold text-gray-700 mb-1">
-                  {t('latePeriodTo')} <span className="text-gray-500 font-normal">({t('optional')})</span>
-                </label>
-                <input
-                  type="date"
-                  id="late_end_date"
-                  name="late_end_date"
-                  value={formData.late_end_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Samo Custom Fee Types – admin definira tipove kotizacija (naziv, cijena, raspon). */}
-            {/* Custom Fee Types */}
-            <div className="md:col-span-2 mb-4 mt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-gradient-to-r from-purple-200 to-transparent"></div>
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t('customFeeTypes')}</h3>
-                <div className="h-px flex-1 bg-gradient-to-l from-purple-200 to-transparent"></div>
-              </div>
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-900">{t('pricesAutoByCalendar')}</p>
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-xs text-gray-500">
-                  {t('customFeeTypesIntro')}
-                </p>
-                <button
-                  type="button"
-                  onClick={addCustomFeeType}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('addFeeType')}
-                </button>
-              </div>
-
-              {customFeeTypes.length === 0 ? (
-                <div className="text-center py-8 bg-purple-50 rounded-lg border-2 border-dashed border-purple-200">
-                  <p className="text-gray-500 text-sm">{t('noCustomFeeTypes')}</p>
-                  <p className="text-gray-400 text-xs mt-1">{t('addFeeTypeHint')}</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {customFeeTypes.map((feeType, index) => {
-                    const isExpanded = expandedFeeTypeId === feeType.id
-                    const isEnabled = feeType.enabled !== false
-                    return (
-                      <div
-                        key={feeType.id}
-                        draggable
-                        onDragStart={() => handleFeeTypeDragStart(index)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleFeeTypeDrop(index)}
-                        onDragEnd={() => setDraggedFeeTypeIndex(null)}
-                        className={`bg-purple-50 rounded-lg border-2 p-4 transition-all cursor-grab active:cursor-grabbing ${
-                          draggedFeeTypeIndex === index
-                            ? 'opacity-50 border-purple-400 scale-[0.98]'
-                            : isEnabled
-                              ? 'border-purple-200 hover:border-purple-300'
-                              : 'border-purple-100 opacity-70'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-2 flex-shrink-0" title={t('dragToReorder')}>
-                            <GripVertical className="w-5 h-5 text-purple-500" />
-                          </div>
-                          {/* Chevron: otvori/zatvori polja tipa kotizacije */}
-                          <button
-                            type="button"
-                            onClick={() => setExpandedFeeTypeId(isExpanded ? null : feeType.id)}
-                            className="flex-shrink-0 p-1 rounded text-purple-600 hover:bg-purple-100 transition-colors"
-                            title={isExpanded ? t('collapseFeeType') : t('expandFeeType')}
-                            aria-expanded={isExpanded}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-5 h-5" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5" />
-                            )}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedFeeTypeId(isExpanded ? null : feeType.id)}
-                              className="text-left w-full"
-                            >
-                              <h4 className={`text-sm font-bold ${isEnabled ? 'text-purple-900' : 'text-purple-600'}`}>
-                                {feeType.name || `Custom Fee Type #${index + 1}`}
-                              </h4>
-                              {feeType.description && (
-                                <p className="text-xs text-purple-700 mt-1">{feeType.description}</p>
-                              )}
-                              {!isExpanded && feeType.name && (() => {
-                                const mode = getFeeTypePricingMode(feeType)
-                                if (mode === 'free') {
-                                  return (
-                                    <p className="text-xs text-purple-600 mt-1">
-                                      {t('pricingModeFree')}
-                                      {(feeType.valid_from || feeType.valid_to) && ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}`}
-                                    </p>
-                                  )
-                                }
-                                const tier = getCurrentPricingTier(
-                                  { early_bird: { amount: formData.early_bird_amount, deadline: formData.early_bird_deadline || undefined },
-                                    regular: { amount: formData.regular_amount },
-                                    late: { amount: formData.late_amount },
-                                    currency: formData.currency },
-                                  new Date(),
-                                  formData.start_date ? new Date(formData.start_date) : undefined
-                                )
-                                const effective = getEffectiveFeeTypeAmount(feeType, tier)
-                                const { withVAT } = getAdminNetGross(effective)
-                                return (
-                                  <p className="text-xs text-purple-600 mt-1">
-                                    {mode === 'fixed' ? t('pricingModeFixed') : t('pricingModeTiered')}: {formatPriceWithoutZeros(withVAT)} {formData.currency}
-                                    {(feeType.valid_from || feeType.valid_to) && ` · ${t('validFrom')} ${feeType.valid_from || '–'} ${t('validTo')} ${feeType.valid_to || '–'}`}
-                                  </p>
-                                )
-                              })()}
-                            </button>
-                          </div>
-                          <label className="flex items-center gap-2 flex-shrink-0 cursor-pointer" title={isEnabled ? t('visibleOnForm') : t('hiddenOnForm')}>
-                            <span className="text-xs font-medium text-purple-700 whitespace-nowrap">{isEnabled ? t('on') : t('off')}</span>
-                            <input
-                              type="checkbox"
-                              checked={isEnabled}
-                              onChange={(e) => updateCustomFeeType(feeType.id, { enabled: e.target.checked })}
-                              className="w-4 h-4 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => removeCustomFeeType(feeType.id)}
-                            className="text-red-600 hover:text-red-700 transition-colors flex-shrink-0"
-                            title={t('removeFeeType')}
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="space-y-3 pt-3 border-t border-purple-200">
-                            <div>
-                              <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                Display name *
-                              </label>
-                              <input
-                                type="text"
-                                value={feeType.name}
-                                onChange={(e) => updateCustomFeeType(feeType.id, { name: e.target.value })}
-                                placeholder="e.g. VIP member, Senior, Speaker"
-                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                              />
-                              <p className="mt-1 text-xs text-purple-600">{t('whatParticipantsSee')}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                {t('internalKeySlugOptional')}
-                              </label>
-                              <input
-                                type="text"
-                                value={feeType.slug ?? ''}
-                                onChange={(e) =>
-                                  updateCustomFeeType(feeType.id, {
-                                    slug: e.target.value
-                                      .toLowerCase()
-                                      .replace(/\s+/g, '_')
-                                      .replace(/[^a-z0-9_]/g, '') || undefined,
-                                  })
-                                }
-                                placeholder="e.g. vip_member (lowercase, underscores)"
-                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                              />
-                              <p className="mt-1 text-xs text-purple-600">{t('forExportApi')}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                {t('descriptionOptional')}
-                              </label>
-                              <input
-                                type="text"
-                                value={feeType.description || ''}
-                                onChange={(e) => updateCustomFeeType(feeType.id, { description: e.target.value })}
-                                placeholder={t('briefDescriptionFeeType')}
-                                className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                              />
-                            </div>
-
-                            {/* — Pricing: mode (fixed vs tiered) + VAT badge + one set of fields — */}
-                            <div className="space-y-3 pt-2 border-t border-purple-200">
-                              <p className="text-xs font-semibold text-purple-900">{t('pricingMode')}</p>
-                              {/* VAT read-only badge (global) */}
-                              {(() => {
-                                const vatPct = useDefaultVAT && profile?.default_vat_percentage != null
-                                  ? Number(profile.default_vat_percentage)
-                                  : (formData.vat_percentage !== '' && formData.vat_percentage != null)
-                                    ? Number(formData.vat_percentage)
-                                    : null
-                                if (vatPct != null && Number.isFinite(vatPct)) {
-                                  return (
-                                    <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded inline-block">
-                                      {formData.prices_include_vat
-                                        ? t('vatBadgeInclude', { vat: vatPct })
-                                        : t('vatBadgeExclude', { vat: vatPct })}
-                                    </p>
-                                  )
-                                }
-                                return null
-                              })()}
-                              {/* Mode: Tiered | Fixed | Free */}
-                              <div className="flex flex-wrap gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`fee-mode-${feeType.id}`}
-                                    checked={getFeeTypePricingMode(feeType) === 'tiered'}
-                                    onChange={() => {
-                                      updateCustomFeeType(feeType.id, { pricing_mode: 'tiered', amount: undefined })
-                                    }}
-                                    className="text-purple-600 focus:ring-purple-500"
-                                  />
-                                  <span className="text-sm text-purple-900">{t('pricingModeTiered')}</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`fee-mode-${feeType.id}`}
-                                    checked={getFeeTypePricingMode(feeType) === 'fixed'}
-                                    onChange={() => {
-                                      const val = feeType.amount ?? feeType.early_bird ?? 0
-                                      updateCustomFeeType(feeType.id, { pricing_mode: 'fixed', amount: val })
-                                    }}
-                                    className="text-purple-600 focus:ring-purple-500"
-                                  />
-                                  <span className="text-sm text-purple-900">{t('pricingModeFixed')}</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`fee-mode-${feeType.id}`}
-                                    checked={getFeeTypePricingMode(feeType) === 'free'}
-                                    onChange={() => {
-                                      updateCustomFeeType(feeType.id, { pricing_mode: 'free' })
-                                    }}
-                                    className="text-purple-600 focus:ring-purple-500"
-                                  />
-                                  <span className="text-sm text-purple-900">{t('pricingModeFree')}</span>
-                                </label>
-                              </div>
-
-                              {getFeeTypePricingMode(feeType) === 'free' ? (
-                                <p className="text-xs text-purple-600">{t('pricingModeFreeHint')}</p>
-                              ) : getFeeTypePricingMode(feeType) === 'fixed' ? (
-                                <div>
-                                  <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                    {t('priceSingleOptional')}
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={feeType.amount ?? ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value
-                                      updateCustomFeeType(feeType.id, {
-                                        amount: v === '' ? undefined : parseFloat(v) || 0,
-                                      })
-                                    }}
-                                    placeholder={`e.g. 350 ${formData.currency}`}
-                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                  />
-                                  <p className="mt-1 text-xs text-purple-600">{t('priceSingleHint')}</p>
-                                </div>
-                              ) : (
-                                <>
-                                  <p className="text-xs text-purple-600">{t('tieredUsesGlobalPeriods')}</p>
-                                  <div className="grid grid-cols-3 gap-3">
-                                    {/* Rana registracija */}
-                                    <div>
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('earlyBird')}
-                                </label>
-                                <input
-                                  type="number"
-                                  value={
-                                    feeTypePriceDisplay[feeType.id]?.early_bird !== undefined
-                                      ? feeTypePriceDisplay[feeType.id].early_bird
-                                      : feeType.early_bird === 0
-                                        ? ''
-                                        : String(feeType.early_bird)
-                                  }
-                                  onChange={(e) =>
-                                    setFeeTypePriceDisplay((prev) => ({
-                                      ...prev,
-                                      [feeType.id]: {
-                                        ...prev[feeType.id],
-                                        early_bird: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  onBlur={() => {
-                                    const raw = feeTypePriceDisplay[feeType.id]?.early_bird ?? ''
-                                    const num = parseFloat(raw)
-                                    updateCustomFeeType(feeType.id, {
-                                      early_bird: raw === '' || Number.isNaN(num) ? 0 : num,
-                                    })
-                                    setFeeTypePriceDisplay((prev) => {
-                                      const next = { ...prev }
-                                      const block = next[feeType.id]
-                                      if (!block) return prev
-                                      const nextBlock = { ...block }
-                                      delete nextBlock.early_bird
-                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
-                                      else next[feeType.id] = nextBlock
-                                      return next
-                                    })
-                                  }}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder={`0–∞ ${formData.currency}`}
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <p className="mt-1 text-xs text-purple-600">
-                                  {t('priceDuringEarlyBird')}
-                                </p>
-                              </div>
-
-                              {/* Redovna registracija */}
-                              <div>
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('regular')}
-                                </label>
-                                <input
-                                  type="number"
-                                  value={
-                                    feeTypePriceDisplay[feeType.id]?.regular !== undefined
-                                      ? feeTypePriceDisplay[feeType.id].regular
-                                      : feeType.regular === 0
-                                        ? ''
-                                        : String(feeType.regular)
-                                  }
-                                  onChange={(e) =>
-                                    setFeeTypePriceDisplay((prev) => ({
-                                      ...prev,
-                                      [feeType.id]: {
-                                        ...prev[feeType.id],
-                                        regular: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  onBlur={() => {
-                                    const raw = feeTypePriceDisplay[feeType.id]?.regular ?? ''
-                                    const num = parseFloat(raw)
-                                    updateCustomFeeType(feeType.id, {
-                                      regular: raw === '' || Number.isNaN(num) ? 0 : num,
-                                    })
-                                    setFeeTypePriceDisplay((prev) => {
-                                      const next = { ...prev }
-                                      const block = next[feeType.id]
-                                      if (!block) return prev
-                                      const nextBlock = { ...block }
-                                      delete nextBlock.regular
-                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
-                                      else next[feeType.id] = nextBlock
-                                      return next
-                                    })
-                                  }}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder={`0–∞ ${formData.currency}`}
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <p className="mt-1 text-xs text-purple-600">
-                                  {t('defaultPriceAfterEarlyBird')}
-                                </p>
-                              </div>
-
-                              {/* Kasna registracija */}
-                              <div>
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('late')}
-                                </label>
-                                <input
-                                  type="number"
-                                  value={
-                                    feeTypePriceDisplay[feeType.id]?.late !== undefined
-                                      ? feeTypePriceDisplay[feeType.id].late
-                                      : feeType.late === 0
-                                        ? ''
-                                        : String(feeType.late)
-                                  }
-                                  onChange={(e) =>
-                                    setFeeTypePriceDisplay((prev) => ({
-                                      ...prev,
-                                      [feeType.id]: {
-                                        ...prev[feeType.id],
-                                        late: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  onBlur={() => {
-                                    const raw = feeTypePriceDisplay[feeType.id]?.late ?? ''
-                                    const num = parseFloat(raw)
-                                    updateCustomFeeType(feeType.id, {
-                                      late: raw === '' || Number.isNaN(num) ? 0 : num,
-                                    })
-                                    setFeeTypePriceDisplay((prev) => {
-                                      const next = { ...prev }
-                                      const block = next[feeType.id]
-                                      if (!block) return prev
-                                      const nextBlock = { ...block }
-                                      delete nextBlock.late
-                                      if (Object.keys(nextBlock).length === 0) delete next[feeType.id]
-                                      else next[feeType.id] = nextBlock
-                                      return next
-                                    })
-                                  }}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder={`0–∞ ${formData.currency}`}
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <p className="mt-1 text-xs text-purple-600">
-                                  {t('priceForLateRegistration')}
-                                </p>
-                              </div>
-                                  </div>
-                                </>
-                              )}
-                              {/* Warning when fixed/tiered has 0: treated as free, no payment */}
-                              {(() => {
-                                const mode = getFeeTypePricingMode(feeType)
-                                if (mode === 'free') return null
-                                const isZero =
-                                  mode === 'fixed'
-                                    ? feeType.amount == null || feeType.amount === 0
-                                    : (feeType.early_bird ?? 0) === 0 &&
-                                      (feeType.regular ?? 0) === 0 &&
-                                      (feeType.late ?? 0) === 0
-                                if (!isZero) return null
-                                return (
-                                  <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-                                    {t('zeroTreatedAsFreeWarning')}
-                                  </div>
-                                )
-                              })()}
-                            </div>
-
-                            {/* — Capacity: own section — */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-purple-200">
-                              <div>
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('capacity')}
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={feeType.capacity ?? ''}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                    updateCustomFeeType(feeType.id, {
-                                      capacity:
-                                        v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0),
-                                    })
-                                  }}
-                                  placeholder="npr. 50"
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <p className="mt-1 text-xs text-purple-600">
-                                  {t('capacityHint')}
-                                </p>
-                              </div>
-                              {typeof feeType.capacity === 'number' && feeType.capacity > 0 && (
-                                <div>
-                                  <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                    {t('remaining')}
-                                  </label>
-                                  <div className="px-3 py-2 border border-purple-200 rounded-lg bg-purple-50/50 text-sm text-purple-800">
-                                    {loadingFeeTypeUsage
-                                      ? '…'
-                                      : `${Math.max(
-                                          0,
-                                          feeType.capacity -
-                                            (feeTypeUsage[`fee_type_${feeType.id}`] ?? 0)
-                                        )} / ${feeType.capacity}`}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {typeof feeType.capacity === 'number' && feeType.capacity > 0 && (
-                              <div className="pt-3">
-                                <label className="block text-xs font-semibold text-purple-900 mb-1">
-                                  {t('priceAfterCapacityFull')}
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={feeType.price_after_capacity_full ?? ''}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                    updateCustomFeeType(feeType.id, {
-                                      price_after_capacity_full:
-                                        v === '' ? undefined : parseFloat(v) || 0,
-                                    })
-                                  }}
-                                  placeholder={`npr. ${formData.currency} (${t('priceForLateRegistration')})`}
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <p className="mt-1 text-xs text-purple-600">
-                                  {t('priceAfterCapacityFullHint')}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* — Availability (visibility on form) — */}
-                            <div className="mt-4 pt-4 border-t border-purple-200">
-                              <p className="text-xs font-semibold text-purple-900 mb-1">{t('feeTypeAvailabilityLabel')}</p>
-                              <p className="text-xs text-purple-600 mb-2">{t('feeTypeAvailabilityHint')}</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs text-purple-800 mb-1">{t('validFrom')}</label>
-                                  <input
-                                    type="date"
-                                    value={feeType.valid_from || ''}
-                                    onChange={(e) =>
-                                      updateCustomFeeType(feeType.id, {
-                                        valid_from: e.target.value || undefined,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-purple-800 mb-1">{t('validTo')}</label>
-                                  <input
-                                    type="date"
-                                    value={feeType.valid_to || ''}
-                                    onChange={(e) =>
-                                      updateCustomFeeType(feeType.id, {
-                                        valid_to: e.target.value || undefined,
-                                      })
-                                    }
-                                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+            {/* Custom Registration Fees – PDV se postavlja unutar svakog fee-a */}
+            <div className="md:col-span-2 mt-4">
+              <CustomRegistrationFeesSection
+                conferenceId={conferenceId}
+                currency={formData.currency}
+                vatPercentage={
+                  typeof formData.vat_percentage === 'string'
+                    ? Number(formData.vat_percentage) || (profile?.default_vat_percentage ?? 25)
+                    : (formData.vat_percentage as number) || (profile?.default_vat_percentage ?? 25)
+                }
+              />
             </div>
           </div>
         </div>
@@ -2114,14 +1278,25 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <div className="text-sm text-gray-600">
               {t('fieldsConfigured', { count: hotelOptions.length })}
             </div>
-            <button
-              type="button"
-              onClick={addHotelOption}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              {t('addField')} Hotel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={saveConference}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? `${tCommon('loading') || 'Loading'}…` : tCommon('save')}
+              </button>
+              <button
+                type="button"
+                onClick={addHotelOption}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                {t('addField')} Hotel
+              </button>
+            </div>
           </div>
 
           {hotelOptions.length === 0 ? (
@@ -2478,22 +1653,31 @@ Important: Authors who submit abstracts for presentation are not automatically r
               <h2 className="text-xl font-bold text-gray-900">{t('customAbstractFields')}</h2>
             </div>
             <p className="text-sm text-gray-600 ml-13">
-              {t('customRegistrationFieldsDesc')}
+              {t('customAbstractFieldsDesc')}
             </p>
           </div>
 
           <div className="flex items-center justify-between mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-purple-900">
-                {formData.custom_abstract_fields.length} field(s) configured
+                {t('fieldsConfigured', { count: formData.custom_abstract_fields.length })}
               </span>
               {formData.custom_abstract_fields.length > 0 && (
                 <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
-                  Active
+                  {t('active')}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={saveConference}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 shadow-md hover:shadow-lg"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? `${tCommon('loading') || 'Loading'}…` : tCommon('save')}
+              </button>
               <button
                 type="button"
                 onClick={addCustomAbstractSeparator}

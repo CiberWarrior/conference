@@ -1,17 +1,15 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { getCurrentPricingTier, getEffectiveFeeTypeAmount, getFeeTypePricingMode } from '@/utils/pricing'
-import type { ConferencePricing, CustomFeeType } from '@/types/conference'
+import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import { formatPriceWithoutZeros } from '@/utils/pricing'
 
 interface FeeTypeSelectorProps {
-  pricing: ConferencePricing
+  /** Fees from GET /api/conferences/[slug]/registration-fees (custom_registration_fees) */
+  registrationFees: RegistrationFeeOption[]
+  currency?: string
   selectedFee: string
   onSelectFee: (feeId: string) => void
-  getDisplayPrice: (inputPrice: number) => number
-  feeTypeUsage?: Record<string, number>
-  conferenceStartDate?: string
   showWarning?: boolean
 }
 
@@ -24,20 +22,17 @@ const CARD_COLORS: Record<string, string> = {
 }
 
 export default function FeeTypeSelector({
-  pricing,
+  registrationFees,
+  currency = 'EUR',
   selectedFee,
   onSelectFee,
-  getDisplayPrice,
-  feeTypeUsage = {},
-  conferenceStartDate,
 }: FeeTypeSelectorProps) {
   const t = useTranslations('registrationForm')
-  const list = pricing.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []
-  const tier = getCurrentPricingTier(
-    pricing,
-    new Date(),
-    conferenceStartDate ? new Date(conferenceStartDate) : undefined
-  )
+  const curr = currency || 'EUR'
+
+  if (!registrationFees || registrationFees.length === 0) {
+    return null
+  }
 
   return (
     <div className="space-y-6 mb-8">
@@ -46,61 +41,77 @@ export default function FeeTypeSelector({
         <p className="text-gray-600">{t('selectFeeCategory')}</p>
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((ft: CustomFeeType, idx: number) => {
-          const feeId = `fee_type_${ft.id}`
-          const isSelected = selectedFee === feeId
-          const usage = feeTypeUsage[feeId] ?? 0
-          const atCapacity = typeof ft.capacity === 'number' && ft.capacity > 0 && usage >= ft.capacity
-          const amount = getFeeTypePricingMode(ft) === 'free' ? 0 : getEffectiveFeeTypeAmount(ft, tier)
-          const displayPrice = getDisplayPrice(amount)
+        {registrationFees.map((opt, idx) => {
+          const isSelected = selectedFee === opt.id
+          const isDisabled = !opt.is_available
           const colorKey = Object.keys(CARD_COLORS)[idx % Object.keys(CARD_COLORS).length]
           const gradient = CARD_COLORS[colorKey] || CARD_COLORS.default
 
           return (
             <button
-              key={ft.id}
+              key={opt.id}
               type="button"
-              onClick={() => onSelectFee(feeId)}
+              disabled={isDisabled}
+              onClick={() => (isDisabled ? undefined : onSelectFee(opt.id))}
               className={`text-left p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
-                isSelected
-                  ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl scale-105'
-                  : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg'
+                isDisabled
+                  ? 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'
+                  : isSelected
+                    ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl scale-105'
+                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg'
               }`}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`inline-flex px-3 py-1 rounded-lg text-sm font-semibold text-white bg-gradient-to-r ${gradient} shadow-md`}>
-                  {ft.name}
+                <div
+                  className={`inline-flex px-3 py-1 rounded-lg text-sm font-semibold text-white bg-gradient-to-r ${gradient} shadow-md`}
+                >
+                  {opt.name}
                 </div>
-                {isSelected && (
+                {isSelected && !isDisabled && (
                   <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-4 h-4 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   </div>
                 )}
               </div>
               <div className="space-y-2">
                 <p className="text-3xl font-bold text-gray-900">
-                  {displayPrice === 0 ? (
+                  {opt.price_gross === 0 ? (
                     <span className="text-green-600">{t('free')}</span>
                   ) : (
                     <>
-                      {formatPriceWithoutZeros(displayPrice)}{' '}
-                      <span className="text-lg font-semibold text-gray-600">{pricing.currency}</span>
+                      {formatPriceWithoutZeros(opt.price_gross)}{' '}
+                      <span className="text-lg font-semibold text-gray-600">
+                        {opt.currency || curr}
+                      </span>
                     </>
                   )}
                 </p>
-                {ft.description && (
-                  <p className="text-sm text-gray-600 mt-2">{ft.description}</p>
-                )}
-                {atCapacity && (
+                {isDisabled && opt.disabled_reason && (
                   <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs font-medium text-amber-700">{t('capacityReached')}</p>
+                    <p className="text-xs font-medium text-amber-700">
+                      {opt.disabled_reason === 'sold_out' && t('capacityReached')}
+                      {opt.disabled_reason === 'not_available_yet' &&
+                        (t('notAvailableYet') || 'Not available yet')}
+                      {opt.disabled_reason === 'expired' && (t('expired') || 'Expired')}
+                      {opt.disabled_reason === 'inactive' && (t('inactive') || 'Inactive')}
+                    </p>
                   </div>
                 )}
-                {ft.capacity && !atCapacity && (
+                {opt.capacity != null && opt.capacity > 0 && !isDisabled && (
                   <p className="text-xs text-gray-500 mt-2">
-                    {usage} / {ft.capacity} {t('registered')}
+                    {(opt.sold_count ?? 0)} / {opt.capacity} {t('registered')}
                   </p>
                 )}
               </div>

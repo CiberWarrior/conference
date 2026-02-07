@@ -5,7 +5,6 @@
 import type {
   Conference,
   CustomRegistrationField,
-  CustomFeeType,
   HotelOption,
   PaymentSettings,
 } from '@/types/conference'
@@ -22,24 +21,24 @@ export interface ConferenceFormData {
   website_url: string
   logo_url?: string
   primary_color: string
-  // Pricing
+  // Pricing (currency + VAT only; registration fees in custom_registration_fees table)
   currency: string
   vat_percentage: string | number
   prices_include_vat: boolean
-  early_bird_amount: number
-  early_bird_deadline: string
-  early_bird_start_date: string
-  regular_amount: number
-  regular_start_date: string
-  regular_end_date: string
-  late_amount: number
-  late_start_date: string
-  late_end_date: string
-  student_discount: number
-  student_early_bird: number
-  student_regular: number
-  student_late: number
-  accompanying_person_price: number
+  // Legacy tier-based pricing (optional; used by PricingSection if rendered)
+  early_bird_amount?: number
+  early_bird_start_date?: string
+  early_bird_deadline?: string
+  regular_amount?: number
+  regular_start_date?: string
+  regular_end_date?: string
+  late_amount?: number
+  late_start_date?: string
+  late_end_date?: string
+  student_early_bird?: number
+  student_regular?: number
+  student_late?: number
+  accompanying_person_price?: number
   // Settings
   registration_enabled: boolean
   abstract_submission_enabled: boolean
@@ -59,7 +58,6 @@ export interface ConferenceFormData {
 
 // Callback types
 export type OnFormDataChange = (updates: Partial<ConferenceFormData>) => void
-export type OnCustomFeeTypesChange = (feeTypes: CustomFeeType[]) => void
 export type OnHotelOptionsChange = (hotels: HotelOption[]) => void
 export type OnPaymentSettingsChange = (settings: PaymentSettings) => void
 export type OnParticipantSettingsChange = (settings: ParticipantSettings) => void

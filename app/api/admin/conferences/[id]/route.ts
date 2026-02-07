@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import type { UpdateConferenceInput } from '@/types/conference'
 import { requireAuth, requireCanEditConference } from '@/lib/api-auth'
 import { handleApiError, ApiError } from '@/lib/api-error'

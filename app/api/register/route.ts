@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ZodError } from 'zod'
-import type { ConferencePricing } from '@/types/conference'
-import { createServerClient, createAdminClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import {
   registrationRateLimit,
@@ -41,7 +41,8 @@ const companyDetailsSchema = z
 const registrationSchema = z.object({
   conference_id: z.string().uuid(),
   custom_data: z.record(z.any()).optional(), // Custom fields defined by admin
-  registration_fee_type: z.string().optional().nullable(), // Selected registration fee type (early_bird, regular, late, student, accompanying_person, or custom_{id})
+  registration_fee_type: z.string().optional().nullable(),
+  registration_fee_id: z.string().uuid().optional().nullable(), // New: custom_registration_fees.id when using new fee system
   // Pay Later removed from product; keep only immediate options
   payment_preference: z.enum(['pay_now_card', 'pay_now_bank']).optional().default('pay_now_card'), // Payment preference
   participants: z
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
     // Verify conference exists and is active
       const { data: conference, error: confError } = await supabase
         .from('conferences')
-      .select('id, name, settings, email_settings')
+      .select('id, name, settings, email_settings, pricing, start_date')
       .eq('id', validatedData.conference_id)
         .eq('published', true)
         .eq('active', true)
@@ -214,8 +215,9 @@ export async function POST(request: NextRequest) {
         conference_id: validatedData.conference_id,
         custom_data: customDataWithPayer,
         participants: validatedData.participants || [],
-        registration_fee_type: validatedData.registration_fee_type || null, // Store selected fee type
-        payment_method: paymentMethod, // Payment method: card, bank_transfer, or null
+        registration_fee_type: null, // Legacy column; new flow uses registration_fee_id only
+        registration_fee_id: validatedData.registration_fee_id ?? null,
+        payment_method: paymentMethod,
         payment_status: paymentStatus, // Payment status based on preference
         accommodation: validatedData.accommodation || null, // Store accommodation in registrations table as well
         // Legacy fields set to null/false for compatibility
@@ -442,7 +444,7 @@ export async function POST(request: NextRequest) {
                 registration_id: registration.id,
                 status: 'confirmed',
                 custom_data: validatedData.custom_data || {},
-                registration_fee_type: validatedData.registration_fee_type,
+                registration_fee_type: null,
                 payment_status: 'not_required',
                 accommodation_data: validatedData.accommodation,
               })
@@ -497,8 +499,14 @@ export async function POST(request: NextRequest) {
             })
           })
         }
-        if (validatedData.registration_fee_type) {
-          const feeLabel = validatedData.registration_fee_type.replace(/^fee_type_/, 'Fee type: ')
+        if (validatedData.registration_fee_id) {
+          const { data: feeRow } = await supabase
+            .from('custom_registration_fees')
+            .select('name')
+            .eq('id', validatedData.registration_fee_id)
+            .eq('conference_id', validatedData.conference_id)
+            .single()
+          const feeLabel = feeRow?.name ?? 'Registration fee'
           summaryParts.push(`<p style="margin: 10px 0 4px 0;"><strong>Registration fee</strong>: ${escapeHtml(feeLabel)}</p>`)
         }
         if (validatedData.payment_preference) {
@@ -695,37 +703,28 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
       currency?: string
     } = {}
     if (isPayNowCard) {
-      const { getRegistrationChargeAmount } = await import('@/utils/pricing')
-      // Fee-type usage for capacity / price-after-capacity-full (count includes this registration)
-      let feeTypeUsage: Record<string, number> = {}
-      try {
-        const { data: regs } = await supabase
-          .from('registrations')
-          .select('registration_fee_type')
+      let amount = 0
+      let chargeCurrency = 'EUR'
+
+      // Fee amount from custom_registration_fees (registration_fee_id only)
+      if (validatedData.registration_fee_id) {
+        const { data: feeRow, error: feeErr } = await supabase
+          .from('custom_registration_fees')
+          .select('id, price_gross, currency')
+          .eq('id', validatedData.registration_fee_id)
           .eq('conference_id', validatedData.conference_id)
-          .not('registration_fee_type', 'is', null)
-        for (const row of regs || []) {
-          const ft = row.registration_fee_type as string
-          if (ft) feeTypeUsage[ft] = (feeTypeUsage[ft] || 0) + 1
+          .single()
+        if (!feeErr && feeRow && Number(feeRow.price_gross) > 0) {
+          amount = Number(feeRow.price_gross)
+          chargeCurrency = (feeRow.currency as string) || 'EUR'
         }
-      } catch {
-        // ignore; proceed without usage
       }
-      const { amount, currency } = getRegistrationChargeAmount(
-        {
-          registration_fee_type: validatedData.registration_fee_type || null,
-        },
-        {
-          pricing: ((conference as { pricing?: ConferencePricing | null }).pricing) ?? null,
-          start_date: (conference as { start_date?: string }).start_date ?? null,
-        },
-        feeTypeUsage
-      )
+
       if (amount > 0) {
         paymentPayload = {
           payment_required: true,
           amount,
-          currency: currency || 'EUR',
+          currency: chargeCurrency,
         }
       }
     }

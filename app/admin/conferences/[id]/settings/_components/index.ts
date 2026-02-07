@@ -4,7 +4,7 @@
 
 export { default as BasicInfoSection } from './BasicInfoSection'
 export { default as BrandingSection } from './BrandingSection'
-export { default as PricingSection } from './PricingSection'
+export { default as CustomRegistrationFeesSection } from './CustomRegistrationFeesSection'
 export { default as PaymentSettingsSection } from './PaymentSettingsSection'
 export { default as EmailSettingsSection } from './EmailSettingsSection'
 export { default as PublishingSection } from './PublishingSection'

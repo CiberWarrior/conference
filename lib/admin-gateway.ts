@@ -4,7 +4,7 @@
  * that require elevated privileges.
  */
 
-import { createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import type { CreateConferenceInput, Conference } from '@/types/conference'
 import { log } from '@/lib/logger'
 

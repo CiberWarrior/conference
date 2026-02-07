@@ -4,16 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
-import {
-  getPriceBreakdownFromInput,
-  formatPriceWithoutZeros,
-  getPriceAmount,
-  getCurrentPricingTier,
-  getCurrencySymbol,
-  getFeeTypePricingMode,
-  getEffectiveFeeTypeAmount,
-} from '@/utils/pricing'
-import type { CustomRegistrationField, ParticipantSettings, ConferencePricing, HotelOption, PaymentSettings, StandardFeeTypeKey } from '@/types/conference'
+import { formatPriceWithoutZeros } from '@/utils/pricing'
+import type { CustomRegistrationField, ParticipantSettings, HotelOption, PaymentSettings } from '@/types/conference'
+import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import type { Participant } from '@/types/participant'
 import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
 import ParticipantManager from '@/components/admin/ParticipantManager'
@@ -34,10 +27,9 @@ interface RegistrationFormProps {
   customFields?: CustomRegistrationField[] // Custom registration fields from conference settings
   participantSettings?: ParticipantSettings // Settings for multiple participants
   registrationInfoText?: string // Informational text to display at the top of the form
-  pricing?: ConferencePricing // Pricing information for registration fee selection
   hotelOptions?: HotelOption[] // Available hotels for accommodation
   currency?: string // Currency symbol (EUR, USD, etc.)
-  conferenceStartDate?: string // Conference start date (ISO string)
+  conferenceStartDate?: string // Conference start date (ISO string) – used for accommodation
   conferenceEndDate?: string // Conference end date (ISO string)
   abstractSubmissionEnabled?: boolean // Whether abstract submission is enabled
   paymentSettings?: PaymentSettings // Payment options and preferences (admin-controlled)
@@ -45,8 +37,8 @@ interface RegistrationFormProps {
   conferenceName?: string
   conferenceDate?: string
   conferenceLocation?: string
-  /** Count of registrations per registration_fee_type; used for capacity / price-after-capacity-full */
-  feeTypeUsage?: Record<string, number>
+  /** Custom registration fees from GET /api/conferences/[slug]/registration-fees (custom_registration_fees) */
+  registrationFees?: RegistrationFeeOption[] | null
 }
 
 export default function RegistrationForm({
@@ -55,7 +47,6 @@ export default function RegistrationForm({
   customFields = [],
   participantSettings,
   registrationInfoText,
-  pricing,
   hotelOptions = [],
   currency = 'EUR',
   conferenceStartDate,
@@ -66,27 +57,29 @@ export default function RegistrationForm({
   conferenceName,
   conferenceDate,
   conferenceLocation,
-  feeTypeUsage,
+  registrationFees,
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
   const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [selectedFee, setSelectedFee] = useState<string>('') // Selected registration fee type
-  const [feeConfirmed, setFeeConfirmed] = useState(false) // User has confirmed fee selection
-  const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration') // Tab state
+  const [selectedFee, setSelectedFee] = useState<string>('') // Selected fee: custom_registration_fees.id (UUID)
+  const [feeConfirmed, setFeeConfirmed] = useState(false)
+  const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration')
 
-  // Auto-select first enabled custom fee type when list loads and current selection is empty or invalid
+  const hasFees = !!(registrationFees && registrationFees.length > 0)
+
+  // Auto-select first fee when list loads
   useEffect(() => {
-    const list = pricing?.custom_fee_types?.filter((ft) => ft.enabled !== false) ?? []
-    if (!list.length) return
-    const valid = list.some((ft) => selectedFee === `fee_type_${ft.id}`)
+    if (!hasFees || !registrationFees) return
+    const firstAvailable = registrationFees.find((f) => f.is_available) ?? registrationFees[0]
+    const valid = registrationFees.some((f) => f.id === selectedFee)
     if (!selectedFee || !valid) {
-      setSelectedFee(`fee_type_${list[0].id}`)
+      setSelectedFee(firstAvailable.id)
       setFeeConfirmed(false)
     }
-  }, [pricing?.custom_fee_types, selectedFee])
+  }, [hasFees, registrationFees, selectedFee])
 
   // Reset fee confirmation when tab changes
   useEffect(() => {
@@ -95,39 +88,6 @@ export default function RegistrationForm({
     }
   }, [activeTab])
   
-  // ============================================
-  // PDV/VAT display logic (public form)
-  // We display ONLY the final price to the participant (sa PDV-om),
-  // while admin dashboards can still show both net/gross breakdowns.
-  // Pricing values stored in conference pricing can be either net or gross,
-  // depending on the conference pricing setting: pricing.prices_include_vat.
-  // ============================================
-  const vatPercentage: number | undefined = (() => {
-    const raw = pricing?.vat_percentage
-    if (raw === null || raw === undefined) return undefined
-    const parsed = typeof raw === 'number' ? raw : Number(raw)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
-  })()
-
-  const pricesIncludeVAT = !!pricing?.prices_include_vat
-
-  const getDisplayPrice = (inputPrice: number) => {
-    // Always show the final (VAT-inclusive) price to participants
-    return getPriceBreakdownFromInput(inputPrice, vatPercentage, pricesIncludeVAT).withVAT
-  }
-
-  // Fee type display: standard types use i18n only (Early Bird → Rana prijava etc.). Custom fee types use admin-defined name (feeType.name).
-  const FEE_TYPE_I18N_KEYS: Record<StandardFeeTypeKey, string> = {
-    early_bird: 'feeTypeEarlyBird',
-    regular: 'feeTypeRegular',
-    late: 'feeTypeLate',
-    student: 'feeTypeStudent',
-    accompanying_person: 'feeTypeAccompanyingPerson',
-  }
-  const getFeeTypeDisplayName = (tier: StandardFeeTypeKey) => t(FEE_TYPE_I18N_KEYS[tier])
-
-  // Note: FEE_TYPE_CARD_COLORS and formatAvailabilityText moved to FeeTypeCard.tsx component
-
   // Determine which payment options are available based on settings
   const availablePaymentOptions = {
     card: paymentSettings?.allow_card ?? true,
@@ -148,39 +108,11 @@ export default function RegistrationForm({
   // Count available options
   const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
 
-  // Iznos odabrane kotizacije (za prikaz "Nije potrebno plaćanje" kad je 0)
+  // Iznos odabrane kotizacije (iz custom_registration_fees)
   const selectedFeeAmount = ((): number => {
-    if (!pricing || !selectedFee) return 0
-    if (selectedFee === 'early_bird') return getPriceAmount(pricing.early_bird?.amount, pricing.currency)
-    if (selectedFee === 'regular') return getPriceAmount(pricing.regular?.amount, pricing.currency)
-    if (selectedFee === 'student') {
-      const reg = getPriceAmount(pricing.regular?.amount, pricing.currency)
-      const disc = getPriceAmount(pricing.student_discount, pricing.currency)
-      return pricing.student?.regular ?? (reg - disc)
-    }
-    if (selectedFee === 'late') return getPriceAmount(pricing.late?.amount, pricing.currency)
-    if (selectedFee === 'accompanying_person') return getPriceAmount(pricing.accompanying_person_price, pricing.currency)
-    if (selectedFee.startsWith('fee_type_')) {
-      const id = selectedFee.replace('fee_type_', '')
-      const ft = pricing.custom_fee_types?.find((f) => f.id === id)
-      if (!ft) return 0
-      if (getFeeTypePricingMode(ft) === 'free') return 0
-      const usage = feeTypeUsage?.[selectedFee] ?? 0
-      const atCapacity =
-        typeof ft.capacity === 'number' && ft.capacity > 0 && usage >= ft.capacity
-      if (atCapacity && ft.price_after_capacity_full != null && ft.price_after_capacity_full !== undefined) {
-        return ft.price_after_capacity_full
-      }
-      if (atCapacity) return ft.late ?? 0
-      const tier = getCurrentPricingTier(pricing, new Date(), conferenceStartDate ? new Date(conferenceStartDate) : undefined)
-      return getEffectiveFeeTypeAmount(ft, tier)
-    }
-    if (selectedFee.startsWith('custom_')) {
-      const fid = selectedFee.replace('custom_', '')
-      const cf = pricing.custom_fields?.find((f) => f.id === fid)
-      return cf ? getPriceAmount(cf.value, pricing.currency) : 0
-    }
-    return 0
+    if (!selectedFee || !registrationFees) return 0
+    const opt = registrationFees.find((f) => f.id === selectedFee)
+    return opt ? opt.price_gross : 0
   })()
   
   // Accommodation state
@@ -252,26 +184,25 @@ export default function RegistrationForm({
       return false
     }
 
-    // Check if registration fee is selected (if pricing is available)
-    if (pricing && !selectedFee) {
+    if (hasFees && !selectedFee) {
       showError(t('pleaseSelectFee'))
       return false
     }
 
     // Check if payment method is selected when payment is required
-    if (pricing && selectedFeeAmount > 0 && !paymentPreference) {
+    if (hasFees && selectedFeeAmount > 0 && !paymentPreference) {
       showError(t('pleaseSelectPaymentMethod'))
       return false
     }
 
     // Check if payer type is selected when payment is required
-    if (pricing && selectedFeeAmount > 0 && !payerType) {
+    if (hasFees && selectedFeeAmount > 0 && !payerType) {
       showError(t('pleaseSelectPayerType'))
       return false
     }
 
     // If paying as company, validate company fields (all required except phone and VAT when "I don't have VAT")
-    if (pricing && paymentSettings?.enabled && payerType === 'company') {
+    if (hasFees && paymentSettings?.enabled && payerType === 'company') {
       if (!companyName?.trim()) {
         showError(t('companyNameRequired'))
         return false
@@ -337,9 +268,9 @@ export default function RegistrationForm({
 
       const payload = {
         conference_id: conferenceId,
-        custom_data: {}, // No global custom data anymore, everything is per-participant
+        custom_data: {},
         participants: participants,
-        registration_fee_type: selectedFee || null, // Include selected fee type
+        registration_fee_id: selectedFee || null,
         payment_preference: paymentPreference, // Payment preference: pay_now_card, pay_now_bank
         locale: locale === 'hr' ? 'hr' : 'en', // Za e-mail potvrde (HR/EN)
         accommodation: arrivalDate && departureDate ? {
@@ -439,45 +370,42 @@ export default function RegistrationForm({
         {/* Registration Info Banner - Refactored component */}
         {registrationInfoText && <RegistrationInfoBanner infoText={registrationInfoText} />}
 
-        {/* Fee Type Selection - Show FIRST, before form fields */}
-        {pricing && activeTab === 'registration' && !feeConfirmed && (
+        {/* Fee Type Selection – only custom_registration_fees (GET /registration-fees) */}
+        {hasFees && activeTab === 'registration' && !feeConfirmed && (
           <div className="space-y-6">
-            {(pricing.custom_fee_types?.filter((ft) => ft.enabled !== false).length ?? 0) > 0 ? (
-              <>
-                <FeeTypeSelector
-                  pricing={pricing}
-                  selectedFee={selectedFee}
-                  onSelectFee={setSelectedFee}
-                  getDisplayPrice={getDisplayPrice}
-                  feeTypeUsage={feeTypeUsage}
-                  conferenceStartDate={conferenceStartDate}
-                  showWarning={true}
-                />
-                {/* Confirm Fee Selection Button */}
-                {selectedFee && (
-                  <div className="flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => setFeeConfirmed(true)}
-                      className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3 text-base"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>{t('confirmFeeSelection')}</span>
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg font-medium text-gray-700 mb-2">{t('noFeesConfigured')}</p>
-                <p className="text-sm text-gray-500">{t('contactAdministrator')}</p>
+            <FeeTypeSelector
+              registrationFees={registrationFees!}
+              currency={currency}
+              selectedFee={selectedFee}
+              onSelectFee={setSelectedFee}
+              showWarning={true}
+            />
+            {selectedFee && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setFeeConfirmed(true)}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3 text-base"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{t('confirmFeeSelection')}</span>
+                </button>
               </div>
             )}
           </div>
         )}
+
+        {/* No fees configured – show when registration tab but no custom_registration_fees */}
+        {!hasFees && activeTab === 'registration' && !feeConfirmed && (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-lg font-medium text-gray-700 mb-2">{t('noFeesConfigured')}</p>
+            <p className="text-sm text-gray-500">{t('contactAdministrator')}</p>
+          </div>
+        )}
+
 
       {/* Tab Navigation */}
       <div className="mb-10">
@@ -519,29 +447,21 @@ export default function RegistrationForm({
         </nav>
       </div>
 
-      {/* Registration Tab Content - Only show after fee is confirmed */}
-      {activeTab === 'registration' && feeConfirmed && (
+      {/* Registration Tab Content - After fee confirmed, or when no fees configured */}
+      {activeTab === 'registration' && (feeConfirmed || !hasFees) && (
         <div className="space-y-8">
           {/* Show selected fee with option to change */}
-          {pricing && selectedFee && (
+          {hasFees && selectedFee && registrationFees && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-1">{t('selectedFeeType')}</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {(() => {
-                      const feeId = selectedFee
-                      if (feeId.startsWith('fee_type_')) {
-                        const id = feeId.replace('fee_type_', '')
-                        const ft = pricing.custom_fee_types?.find((f) => f.id === id)
-                        return ft?.name || selectedFee
-                      }
-                      return selectedFee
-                    })()}
+                    {registrationFees.find((f) => f.id === selectedFee)?.name ?? selectedFee}
                     {' - '}
                     {selectedFeeAmount === 0
                       ? t('free')
-                      : `${formatPriceWithoutZeros(getDisplayPrice(selectedFeeAmount))} ${pricing.currency}`}
+                      : `${formatPriceWithoutZeros(selectedFeeAmount)} ${currency}`}
                   </p>
                 </div>
                 <button
@@ -593,14 +513,14 @@ export default function RegistrationForm({
           )}
 
           {/* When selected fee is free, show message and skip payment block */}
-          {pricing && selectedFee && selectedFeeAmount === 0 && (
+          {hasFees && selectedFee && selectedFeeAmount === 0 && (
             <div className="pt-6 border-t-2 border-gray-100">
               <p className="text-sm font-medium text-green-700">{t('noPaymentRequired')}</p>
             </div>
           )}
 
           {/* Payment Section – refactored component */}
-          {pricing && selectedFee && selectedFeeAmount > 0 && (
+          {hasFees && selectedFee && selectedFeeAmount > 0 && (
             <PaymentSection
               paymentSettings={paymentSettings}
               availablePaymentOptions={availablePaymentOptions}

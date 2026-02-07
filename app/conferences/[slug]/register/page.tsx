@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import RegistrationForm from '@/components/RegistrationForm'
 import { ArrowLeft, Users, CheckCircle } from 'lucide-react'
 import type { Conference } from '@/types/conference'
+import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
 
 export default function ConferenceRegisterPage() {
@@ -19,7 +20,10 @@ export default function ConferenceRegisterPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasBankAccount, setHasBankAccount] = useState(false)
-  const [feeTypeUsage, setFeeTypeUsage] = useState<Record<string, number>>({})
+  const [registrationFees, setRegistrationFees] = useState<{
+    fees: RegistrationFeeOption[]
+    currency: string
+  } | null>(null)
 
   useEffect(() => {
     if (!slug) return
@@ -58,18 +62,26 @@ export default function ConferenceRegisterPage() {
     loadConference()
   }, [slug, t])
 
+  // Load custom registration fees (custom_registration_fees table)
   useEffect(() => {
     if (!slug) return
-    const loadFeeTypeUsage = async () => {
+    const loadRegistrationFees = async () => {
       try {
-        const res = await fetch(`/api/conferences/${slug}/fee-type-usage`)
+        const res = await fetch(`/api/conferences/${slug}/registration-fees`)
         const data = await res.json()
-        if (res.ok && data.usage) setFeeTypeUsage(data.usage)
+        if (res.ok && data.fees && Array.isArray(data.fees) && data.fees.length > 0) {
+          setRegistrationFees({
+            fees: data.fees as RegistrationFeeOption[],
+            currency: data.currency ?? 'EUR',
+          })
+        } else {
+          setRegistrationFees(null)
+        }
       } catch {
-        // ignore
+        setRegistrationFees(null)
       }
     }
-    loadFeeTypeUsage()
+    loadRegistrationFees()
   }, [slug])
 
   if (loading) {
@@ -206,15 +218,14 @@ export default function ConferenceRegisterPage() {
 
           {/* Registration Form */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-            <RegistrationForm 
+            <RegistrationForm
               conferenceId={conference.id}
               conferenceSlug={conference.slug}
               customFields={conference.settings?.custom_registration_fields || []}
               participantSettings={conference.settings?.participant_settings}
               registrationInfoText={conference.settings?.registration_info_text}
-              pricing={conference.pricing}
               hotelOptions={conference.settings?.hotel_options || []}
-              currency={conference.pricing?.currency || 'EUR'}
+              currency={registrationFees?.currency ?? 'EUR'}
               conferenceStartDate={conference.start_date}
               conferenceEndDate={conference.end_date}
               abstractSubmissionEnabled={conference.settings?.abstract_submission_enabled}
@@ -223,7 +234,7 @@ export default function ConferenceRegisterPage() {
               conferenceName={conference.name}
               conferenceDate={conference.start_date ? new Date(conference.start_date).toLocaleDateString() : undefined}
               conferenceLocation={conference.location || conference.venue}
-              feeTypeUsage={feeTypeUsage}
+              registrationFees={registrationFees?.fees ?? null}
             />
           </div>
         </div>
