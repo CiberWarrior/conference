@@ -1184,6 +1184,7 @@
       "feeStatusSoldOut": "Sold out",
       "feeStatusExpired": "Expired",
       "feeStatusNotYet": "Not yet",
+      "feeFree": "Free",
       "feeNoFeesYet": "No registration fees yet",
       "feeAddFeeHint": "Click \"+ Add registration fee\" to create one",
       "feeDeleteConfirm": "Delete this registration fee? Registrations that already use it will keep the fee reference.",

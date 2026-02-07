@@ -1184,6 +1184,7 @@
       "feeStatusSoldOut": "Rasprodano",
       "feeStatusExpired": "Isteklo",
       "feeStatusNotYet": "Uskoro",
+      "feeFree": "Besplatno",
       "feeNoFeesYet": "Još nema kotizacija",
       "feeAddFeeHint": "Kliknite \"+ Dodaj kotizaciju\" za izradu",
       "feeDeleteConfirm": "Obrisati ovu kotizaciju? Prijave koje je već koriste zadržat će referencu.",

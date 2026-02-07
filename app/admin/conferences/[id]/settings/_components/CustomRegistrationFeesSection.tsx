@@ -407,7 +407,14 @@ export default function CustomRegistrationFeesSection({
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900">{fee.name}</div>
+                  <div className="font-semibold text-gray-900 flex items-center gap-2">
+                    {fee.name}
+                    {fee.price_gross === 0 && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {t('feeFree')}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-500 mt-0.5">
                     {formatPriceWithoutZeros(fee.price_gross)} {fee.currency}{' '}
                     <span className="text-gray-400">({t('feeGrossShort') || 'gross'})</span>
