@@ -113,24 +113,40 @@ function AbstractsPageContent() {
       if (fetchError) throw fetchError
 
       setAbstracts(
-        (data || []).map((a: any) => ({
-          id: a.id,
-          file_name: a.file_name,
-          file_path: a.file_path,
-          file_size: a.file_size,
-          email: a.email,
-          uploaded_at: a.uploaded_at,
-          conference_id: a.conference_id,
-          registration_id: a.registration_id,
-          custom_data: a.custom_data || {},
-          conference: a.conferences
-            ? {
-                id: a.conferences.id,
-                name: a.conferences.name,
-                slug: a.conferences.slug,
+        (data || []).map((a: any) => {
+          // Parse authors if stored as string (JSONB from Supabase is usually already parsed)
+          let authors: Author[] | null = null
+          if (a.authors != null) {
+            if (Array.isArray(a.authors)) authors = a.authors
+            else if (typeof a.authors === 'string') {
+              try {
+                const parsed = JSON.parse(a.authors)
+                authors = Array.isArray(parsed) ? parsed : null
+              } catch {
+                authors = null
               }
-            : undefined,
-        }))
+            }
+          }
+          return {
+            id: a.id,
+            file_name: a.file_name,
+            file_path: a.file_path,
+            file_size: a.file_size,
+            email: a.email,
+            uploaded_at: a.uploaded_at,
+            conference_id: a.conference_id,
+            registration_id: a.registration_id,
+            custom_data: a.custom_data || {},
+            authors: authors ?? undefined,
+            conference: a.conferences
+              ? {
+                  id: a.conferences.id,
+                  name: a.conferences.name,
+                  slug: a.conferences.slug,
+                }
+              : undefined,
+          }
+        })
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : t('loadFailed'))

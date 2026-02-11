@@ -39,6 +39,7 @@ export async function GET(
     }
 
     // Check if registration exists for this conference and email
+    // Use maybeSingle() to avoid error logs when no registration found
     const { data: registration, error } = await supabase
       .from('registrations')
       .select('id, first_name, last_name, status')
@@ -46,10 +47,19 @@ export async function GET(
       .eq('email', email)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
-    if (error || !registration) {
-      // No registration found - this is not an error, just return empty
+    if (error) {
+      // Actual error (not just "no rows")
+      console.error('Error checking registration:', error)
+      return NextResponse.json(
+        { error: 'Failed to check registration' },
+        { status: 500 }
+      )
+    }
+
+    if (!registration) {
+      // No registration found - this is expected, just return empty
       return NextResponse.json({
         found: false,
         registrationId: null,

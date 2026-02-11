@@ -6,6 +6,7 @@ export interface Author {
   affiliation?: string
   country?: string
   city?: string
+  orcid?: string
   isCorresponding?: boolean
   order?: number
   customFields?: Record<string, any>
