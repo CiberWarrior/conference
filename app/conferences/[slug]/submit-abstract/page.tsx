@@ -157,12 +157,12 @@ export default function SubmitAbstractPage() {
 
   // Check if user has registration when corresponding author email changes
   const checkUserRegistration = async (email: string) => {
-    if (!email || !conference?.id) return
+    if (!email || !slug) return
     
     setCheckingRegistration(true)
     try {
       const response = await fetch(
-        `/api/conferences/${conference.id}/check-registration?email=${encodeURIComponent(email)}`
+        `/api/conferences/${slug}/check-registration?email=${encodeURIComponent(email)}`
       )
       
       if (response.ok) {
