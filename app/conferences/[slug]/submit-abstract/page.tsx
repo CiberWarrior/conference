@@ -12,8 +12,10 @@ import {
   X,
 } from 'lucide-react'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
+import type { Author } from '@/types/author'
 import { showSuccess, showError } from '@/utils/toast'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import AuthorManager from '@/components/admin/AuthorManager'
 
 export default function SubmitAbstractPage() {
   const params = useParams()
@@ -24,10 +26,31 @@ export default function SubmitAbstractPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submittedEmail, setSubmittedEmail] = useState<string>('')
+  const [registrationId, setRegistrationId] = useState<string | null>(null)
+  const [checkingRegistration, setCheckingRegistration] = useState(false)
 
   // Form state
   const [file, setFile] = useState<File | null>(null)
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
+  const [authors, setAuthors] = useState<Author[]>([
+    {
+      firstName: '',
+      lastName: '',
+      email: '',
+      affiliation: '',
+      country: '',
+      city: '',
+      isCorresponding: true,
+      order: 1,
+      customFields: {},
+    },
+  ])
+
+  // Abstract details state
+  const [abstractTitle, setAbstractTitle] = useState('')
+  const [abstractContent, setAbstractContent] = useState('')
+  const [abstractKeywords, setAbstractKeywords] = useState('')
+  const [abstractType, setAbstractType] = useState<'poster' | 'oral' | 'invited'>('poster')
 
   useEffect(() => {
     if (!slug) return
@@ -132,8 +155,118 @@ export default function SubmitAbstractPage() {
     }))
   }
 
+  // Check if user has registration when corresponding author email changes
+  const checkUserRegistration = async (email: string) => {
+    if (!email || !conference?.id) return
+    
+    setCheckingRegistration(true)
+    try {
+      const response = await fetch(
+        `/api/conferences/${conference.id}/check-registration?email=${encodeURIComponent(email)}`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.registrationId) {
+          setRegistrationId(data.registrationId)
+          showSuccess('Pronađena registracija! Abstract će biti povezan sa vašom prijavom.')
+        } else {
+          setRegistrationId(null)
+        }
+      }
+    } catch (err) {
+      console.error('Error checking registration:', err)
+      // Don't show error to user, it's optional
+    } finally {
+      setCheckingRegistration(false)
+    }
+  }
+
+  // Watch for corresponding author email changes
+  useEffect(() => {
+    const correspondingAuthor = authors.find((a) => a.isCorresponding)
+    if (correspondingAuthor?.email && correspondingAuthor.email.includes('@')) {
+      // Debounce the check
+      const timer = setTimeout(() => {
+        checkUserRegistration(correspondingAuthor.email!)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else {
+      setRegistrationId(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authors.map(a => a.isCorresponding ? a.email : null).join(',')])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate abstract details
+    if (!abstractTitle || abstractTitle.trim() === '') {
+      showError('Abstract title is required')
+      return
+    }
+
+    if (!abstractContent || abstractContent.trim() === '') {
+      showError('Abstract content is required')
+      return
+    }
+
+    // Validate character count (1000-2000 with spaces)
+    const contentLength = abstractContent.length
+    if (contentLength < 1000) {
+      showError(`Abstract content is too short. Current: ${contentLength} characters. Minimum: 1000 characters.`)
+      return
+    }
+    if (contentLength > 2000) {
+      showError(`Abstract content is too long. Current: ${contentLength} characters. Maximum: 2000 characters.`)
+      return
+    }
+
+    if (!abstractKeywords || abstractKeywords.trim() === '') {
+      showError('Keywords are required')
+      return
+    }
+
+    // Validate keywords (should have at least 5)
+    const keywordsArray = abstractKeywords.split(',').map(k => k.trim()).filter(k => k)
+    if (keywordsArray.length < 5) {
+      showError(`Please enter at least 5 keywords. Current: ${keywordsArray.length}`)
+      return
+    }
+
+    // Validate authors
+    if (authors.length === 0) {
+      showError('At least one author is required')
+      return
+    }
+
+    // Validate each author has required fields
+    for (let i = 0; i < authors.length; i++) {
+      const author = authors[i]
+      if (!author.firstName || author.firstName.trim() === '') {
+        showError(`Author ${i + 1}: First name is required`)
+        return
+      }
+      if (!author.lastName || author.lastName.trim() === '') {
+        showError(`Author ${i + 1}: Last name is required`)
+        return
+      }
+      if (!author.email || author.email.trim() === '') {
+        showError(`Author ${i + 1}: Email is required`)
+        return
+      }
+      if (!author.affiliation || author.affiliation.trim() === '') {
+        showError(`Author ${i + 1}: Affiliation is required`)
+        return
+      }
+    }
+
+    // Ensure at least one corresponding author
+    const hasCorresponding = authors.some((a) => a.isCorresponding)
+    if (!hasCorresponding) {
+      showError('Please select at least one corresponding author')
+      return
+    }
 
     // Validate required custom fields (skip separators)
     const abstractCustomFields = Array.isArray(conference?.settings?.custom_abstract_fields)
@@ -142,7 +275,7 @@ export default function SubmitAbstractPage() {
 
     // Check if email is in custom fields
     const emailField = abstractCustomFields.find((f) => f && f.type === 'email')
-    const email = emailField ? customFields[emailField.name] : null
+    const email = emailField ? customFields[emailField.name] : authors.find(a => a.isCorresponding)?.email || authors[0]?.email
     
     if (!email) {
       showError('Email is required. Please fill in the email field.')
@@ -184,6 +317,20 @@ export default function SubmitAbstractPage() {
       
       formData.append('email', email)
       
+      // Append authors data
+      formData.append('authors', JSON.stringify(authors))
+      
+      // Append abstract details
+      formData.append('abstractTitle', abstractTitle)
+      formData.append('abstractContent', abstractContent)
+      formData.append('abstractKeywords', abstractKeywords)
+      formData.append('abstractType', abstractType)
+      
+      // Append registration ID if found
+      if (registrationId) {
+        formData.append('registrationId', registrationId)
+      }
+      
       // Append custom_data as JSON (excluding files)
       const customDataWithoutFiles: Record<string, any> = {}
       for (const key in customFields) {
@@ -223,6 +370,23 @@ export default function SubmitAbstractPage() {
 
       // Reset form
       setCustomFields({})
+      setAbstractTitle('')
+      setAbstractContent('')
+      setAbstractKeywords('')
+      setAbstractType('poster')
+      setAuthors([
+        {
+          firstName: '',
+          lastName: '',
+          email: '',
+          affiliation: '',
+          country: '',
+          city: '',
+          isCorresponding: true,
+          order: 1,
+          customFields: {},
+        },
+      ])
       
       // Reset all file inputs
       const fileInputs = document.querySelectorAll('input[type="file"]')
@@ -415,12 +579,14 @@ export default function SubmitAbstractPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Abstract Information Text */}
               {conference.settings?.abstract_info_text && conference.settings.abstract_info_text.trim() !== '' && (
-                <div className="bg-purple-50 border-l-4 border-purple-500 p-6 mb-6 rounded-r-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-gradient-to-r from-purple-50 via-purple-50/80 to-purple-50/60 border-l-4 border-purple-500 p-8 mb-8 rounded-r-xl shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <AlertCircle className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                    </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-purple-900 mb-2">Abstract Information</h3>
-                      <div className="text-sm text-purple-800 whitespace-pre-line">
+                      <h3 className="text-xl font-bold text-purple-900 mb-3 tracking-tight">Abstract Information</h3>
+                      <div className="text-base text-purple-800 whitespace-pre-line leading-relaxed">
                         {conference.settings.abstract_info_text}
                       </div>
                     </div>
@@ -428,13 +594,246 @@ export default function SubmitAbstractPage() {
                 </div>
               )}
 
+              {/* Author Management */}
+              <div className="border-2 border-purple-300 rounded-xl p-8 bg-gradient-to-br from-purple-50 via-purple-50/50 to-white shadow-sm">
+                <AuthorManager
+                  authors={authors}
+                  onChange={setAuthors}
+                  maxAuthors={undefined}
+                  customFields={[]}
+                  showCustomFields={false}
+                />
+                
+                {/* Registration Status Indicator */}
+                {checkingRegistration && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Provjera registracije...</span>
+                  </div>
+                )}
+                
+                {!checkingRegistration && registrationId && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-3 rounded-lg border-2 border-green-200">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold">Povezano sa registracijom</p>
+                      <p className="text-xs text-green-600">
+                        Ovaj abstract će biti automatski povezan sa vašom prijavom za konferenciju.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {!checkingRegistration && !registrationId && authors.some(a => a.isCorresponding && a.email) && (
+                  <div className="mt-4 flex items-start gap-2 text-sm text-amber-700 bg-amber-50 px-4 py-3 rounded-lg border border-amber-200">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Registracija nije pronađena</p>
+                      <p className="text-xs text-amber-600">
+                        Niste registrovani za konferenciju sa ovim emailom. 
+                        Možete nastaviti sa submitom abstrackta, ali preporučujemo da se{' '}
+                        <Link 
+                          href={`/conferences/${slug}/register`}
+                          className="underline font-medium hover:text-amber-800"
+                          target="_blank"
+                        >
+                          registrujete ovdje
+                        </Link>.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Abstract Details Section */}
+              <div className="space-y-6 border-2 border-blue-300 rounded-xl p-8 bg-gradient-to-br from-blue-50 via-blue-50/50 to-white shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-2.5 bg-blue-100 rounded-xl">
+                    <FileText className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Abstract Details</h3>
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={abstractTitle}
+                    onChange={(e) => setAbstractTitle(e.target.value)}
+                    placeholder="Enter your abstract title"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
+                  />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Content <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={abstractContent}
+                    onChange={(e) => setAbstractContent(e.target.value)}
+                    placeholder="Enter your abstract content..."
+                    required
+                    disabled={isSubmitting}
+                    rows={12}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-y text-base"
+                  />
+                  <div className="mt-2 flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        <strong>Please note:</strong> Do NOT include references in the abstract text. Tables and graphics are not allowed.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-semibold ${
+                        abstractContent.length < 1000
+                          ? 'text-amber-600'
+                          : abstractContent.length > 2000
+                          ? 'text-red-600'
+                          : 'text-green-600'
+                      }`}>
+                        {abstractContent.length} / 2000 characters
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {abstractContent.length < 1000 
+                          ? `Need ${1000 - abstractContent.length} more` 
+                          : abstractContent.length > 2000
+                          ? `${abstractContent.length - 2000} over limit`
+                          : 'Perfect length'}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    The abstract should not have less than <strong>1000</strong> and more than <strong>2000</strong> characters with spaces.
+                  </p>
+                </div>
+
+                {/* Keywords */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Keywords <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={abstractKeywords}
+                    onChange={(e) => setAbstractKeywords(e.target.value)}
+                    placeholder="keyword1, keyword2, keyword3, keyword4, keyword5"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
+                  />
+                  <p className="text-xs text-gray-600 mt-2">
+                    Please enter <strong>5 keywords</strong> relevant for your abstract using the name or acronym that is the best known. Separate them by comma.
+                  </p>
+                  {abstractKeywords && (
+                    <div className="mt-2 flex items-center gap-2 text-xs">
+                      <span className={`font-semibold ${
+                        abstractKeywords.split(',').filter(k => k.trim()).length >= 5
+                          ? 'text-green-600'
+                          : 'text-amber-600'
+                      }`}>
+                        {abstractKeywords.split(',').filter(k => k.trim()).length} keywords entered
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Abstract Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">
+                    Abstract <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="abstractType"
+                        value="poster"
+                        checked={abstractType === 'poster'}
+                        onChange={(e) => setAbstractType(e.target.value as any)}
+                        className="w-4 h-4 text-blue-600"
+                        required
+                      />
+                      <span className="text-sm font-medium text-gray-900">Poster</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="abstractType"
+                        value="oral"
+                        checked={abstractType === 'oral'}
+                        onChange={(e) => setAbstractType(e.target.value as any)}
+                        className="w-4 h-4 text-blue-600"
+                        required
+                      />
+                      <span className="text-sm font-medium text-gray-900">Oral</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50">
+                      <input
+                        type="radio"
+                        name="abstractType"
+                        value="invited"
+                        checked={abstractType === 'invited'}
+                        onChange={(e) => setAbstractType(e.target.value as any)}
+                        className="w-4 h-4 text-blue-600"
+                        required
+                      />
+                      <span className="text-sm font-medium text-gray-900">Invited speaker</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Custom Fields */}
               {conference.settings?.custom_abstract_fields &&
                 Array.isArray(conference.settings.custom_abstract_fields) &&
                 conference.settings.custom_abstract_fields.length > 0 && (
                   <div className="space-y-6">
                     {conference.settings.custom_abstract_fields
-                      .filter((field) => field && field.type) // Filter out invalid fields (separators don't need name)
+                      .filter((field) => {
+                        if (!field || !field.type) return false
+                        
+                        // Filter out fields that are already covered in other sections
+                        const coveredFieldNames = [
+                          // Author-related fields (covered in AuthorManager)
+                          'first_name', 'firstName', 'first name', 'ime',
+                          'last_name', 'lastName', 'last name', 'prezime', 'surname',
+                          'email', 'e-mail',
+                          'institution', 'institutions', 'institucija', 'affiliation',
+                          'country', 'država', 'drzava',
+                          'city', 'grad',
+                          'orcid',
+                          'author', 'authors', 'autor', 'autori',
+                          
+                          // Abstract-related fields (covered in Abstract Details)
+                          'abstract', 'abstrakt', 'sažetak', 'sazetak',
+                          'title', 'naslov',
+                          'content', 'sadržaj', 'sadrzaj',
+                          'keywords', 'ključne riječi', 'kljucne rijeci',
+                          'poster', 'oral', 'invited', 'invited speaker',
+                          'abstract type', 'tip abstrakta', 'vrsta abstrakta'
+                        ]
+                        
+                        const fieldNameLower = field.name?.toLowerCase() || ''
+                        const fieldLabelLower = field.label?.toLowerCase() || ''
+                        
+                        // Skip if field name or label matches covered fields
+                        const isCoveredField = coveredFieldNames.some(
+                          coveredField => 
+                            fieldNameLower.includes(coveredField.toLowerCase()) ||
+                            fieldLabelLower.includes(coveredField.toLowerCase())
+                        )
+                        
+                        return !isCoveredField
+                      })
                       .map((field, idx) => {
                       // Skip separators from field value lookup
                       const fieldValue = field.type !== 'separator' ? (customFields[field.name] || '') : ''
@@ -443,18 +842,18 @@ export default function SubmitAbstractPage() {
                       // Render separator
                       if (field.type === 'separator') {
                         return (
-                          <div key={`separator-${field.id}-${idx}`} className="my-8 pt-4 border-t-2 border-purple-200">
+                          <div key={`separator-${field.id}-${idx}`} className="my-10">
                             <div className="relative">
                               <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t-2 border-purple-300"></div>
+                                <div className="w-full border-t-2 border-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
                               </div>
                               <div className="relative flex justify-center">
-                                <div className="bg-white px-4 py-2">
-                                  <h4 className="text-lg font-bold text-gray-900">
+                                <div className="bg-white px-6 py-3">
+                                  <h4 className="text-2xl font-bold text-gray-900 tracking-tight">
                                     {field.label}
                                   </h4>
                                   {field.description && (
-                                    <p className="text-sm text-gray-600 mt-1">
+                                    <p className="text-sm text-gray-600 mt-2 text-center">
                                       {field.description}
                                     </p>
                                   )}
@@ -466,10 +865,10 @@ export default function SubmitAbstractPage() {
                       }
 
                       return (
-                        <div key={`field-${field.id}-${idx}`} className="field-wrapper">
+                        <div key={`field-${field.id}-${idx}`} className="border-2 border-gray-200 rounded-xl p-6 bg-gradient-to-br from-gray-50 via-white to-white shadow-sm hover:shadow-md hover:border-gray-300 transition-all">
                           <label
                             htmlFor={`custom-${field.name}`}
-                            className="block text-sm font-semibold text-gray-900 mb-2"
+                            className="block text-lg font-bold text-gray-900 mb-3"
                           >
                             {field.label}
                             {field.required && (
@@ -477,7 +876,7 @@ export default function SubmitAbstractPage() {
                             )}
                           </label>
                           {field.description && (
-                            <p className="text-xs text-gray-500 mb-2">
+                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
                               {field.description}
                             </p>
                           )}
@@ -494,7 +893,7 @@ export default function SubmitAbstractPage() {
                               placeholder={field.placeholder}
                               rows={4}
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all resize-y min-h-[100px]"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-y min-h-[100px] text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -510,7 +909,7 @@ export default function SubmitAbstractPage() {
                               }
                               placeholder={field.placeholder}
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -526,7 +925,7 @@ export default function SubmitAbstractPage() {
                               }
                               placeholder={field.placeholder}
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -542,7 +941,7 @@ export default function SubmitAbstractPage() {
                               }
                               placeholder={field.placeholder}
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -560,7 +959,7 @@ export default function SubmitAbstractPage() {
                               min={field.validation?.min}
                               max={field.validation?.max}
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -575,7 +974,7 @@ export default function SubmitAbstractPage() {
                                 handleCustomFieldChange(field.name, e.target.value)
                               }
                               disabled={isSubmitting}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-base hover:border-indigo-400 shadow-sm"
                             />
                           )}
 
@@ -604,7 +1003,7 @@ export default function SubmitAbstractPage() {
                           {field.type === 'radio' && (
                             <>
                               {field.options && Array.isArray(field.options) && field.options.length > 0 ? (
-                                <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div className="space-y-3 bg-indigo-50/30 p-5 rounded-lg border-2 border-indigo-200/50 shadow-sm">
                                   {field.options.map((option, optIdx) => (
                                     <div key={`${field.name}-${optIdx}-${option}`} className="flex items-center">
                                       <input
@@ -621,11 +1020,11 @@ export default function SubmitAbstractPage() {
                                         }
                                         required={field.required}
                                         disabled={isSubmitting}
-                                        className="w-5 h-5 text-purple-600 border-gray-300 focus:ring-purple-500 focus:ring-2 cursor-pointer"
+                                        className="w-5 h-5 text-indigo-600 border-gray-300 focus:ring-indigo-500 focus:ring-2 cursor-pointer"
                                       />
                                       <label
                                         htmlFor={`custom-${field.name}-${optIdx}-${option}`}
-                                        className="ml-3 text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900"
+                                        className="ml-3 text-base font-medium text-gray-900 cursor-pointer hover:text-indigo-600 transition-colors"
                                       >
                                         {option}
                                       </label>
@@ -644,7 +1043,7 @@ export default function SubmitAbstractPage() {
 
                           {/* Checkbox */}
                           {field.type === 'checkbox' && (
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3 p-4 bg-indigo-50/30 border-2 border-indigo-200/50 rounded-lg hover:bg-indigo-100/40 hover:border-indigo-300/60 transition-all shadow-sm">
                               <input
                                 type="checkbox"
                                 id={`custom-${field.name}`}
@@ -659,11 +1058,11 @@ export default function SubmitAbstractPage() {
                                 }
                                 required={field.required}
                                 disabled={isSubmitting}
-                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mt-1 flex-shrink-0"
+                                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 focus:ring-2 mt-0.5 flex-shrink-0 cursor-pointer"
                               />
                               <label
                                 htmlFor={`custom-${field.name}`}
-                                className="text-sm text-gray-700 cursor-pointer"
+                                className="text-base font-medium text-gray-900 cursor-pointer"
                               >
                                 {field.placeholder || field.label}
                               </label>
@@ -805,28 +1204,31 @@ export default function SubmitAbstractPage() {
                 )}
 
               {/* Submit Button */}
-              <div className="pt-4">
+              <div className="pt-6">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="group relative w-full py-5 px-8 bg-gradient-to-r from-purple-600 via-purple-600 to-purple-700 text-white text-lg font-bold rounded-xl shadow-2xl hover:shadow-purple-500/50 hover:from-purple-700 hover:via-purple-700 hover:to-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3 overflow-hidden"
                   style={
                     conference.primary_color
                       ? {
-                          background: `linear-gradient(135deg, ${conference.primary_color} 0%, ${conference.primary_color}DD 100%)`,
+                          background: `linear-gradient(135deg, ${conference.primary_color} 0%, ${conference.primary_color}DD 50%, ${conference.primary_color}CC 100%)`,
                         }
                       : undefined
                   }
                 >
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                  
                   {isSubmitting ? (
                     <>
                       <LoadingSpinner />
-                      <span>Submitting...</span>
+                      <span className="relative z-10">Submitting...</span>
                     </>
                   ) : (
                     <>
-                      <Upload className="w-5 h-5" />
-                      <span>Submit Abstract</span>
+                      <Upload className="w-6 h-6 relative z-10 group-hover:scale-110 transition-transform duration-200" />
+                      <span className="relative z-10">Submit Abstract</span>
                     </>
                   )}
                 </button>

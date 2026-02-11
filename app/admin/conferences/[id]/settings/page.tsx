@@ -1730,7 +1730,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     onToggleExpand={() => setExpandedAbstractFieldId(expandedAbstractFieldId === field.id ? null : field.id)}
                   />
                 </div>
-              ))}
+              )              )}
             </div>
           )}
         </div>

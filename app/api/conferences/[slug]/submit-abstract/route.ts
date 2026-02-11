@@ -18,6 +18,14 @@ export async function POST(
     const email = formData.get('email') as string
     const registrationId = formData.get('registrationId') as string | null
     const customDataStr = formData.get('custom_data') as string | null
+    const authorsStr = formData.get('authors') as string | null
+    
+    // Abstract details
+    const abstractTitle = formData.get('abstractTitle') as string | null
+    const abstractContent = formData.get('abstractContent') as string | null
+    const abstractKeywords = formData.get('abstractKeywords') as string | null
+    const abstractType = formData.get('abstractType') as string | null
+    
     let customData = {}
     if (customDataStr) {
       try {
@@ -26,6 +34,21 @@ export async function POST(
         log.warn('Failed to parse custom_data', { error: err })
       }
     }
+    
+    let authors = []
+    if (authorsStr) {
+      try {
+        authors = JSON.parse(authorsStr)
+      } catch (err) {
+        log.warn('Failed to parse authors', { error: err })
+      }
+    }
+    
+    // Add abstract details to custom_data
+    if (abstractTitle) customData = { ...customData, abstractTitle }
+    if (abstractContent) customData = { ...customData, abstractContent }
+    if (abstractKeywords) customData = { ...customData, abstractKeywords }
+    if (abstractType) customData = { ...customData, abstractType }
 
     if (!file) {
       return NextResponse.json(
@@ -170,8 +193,9 @@ export async function POST(
         file_size: file.size,
         email: email,
         conference_id: conference.id,
-        registration_id: registrationId || null,
+        registration_id: registrationId || null, // Auto-linked via email in frontend
         custom_data: customData,
+        authors: authors,
       })
       .select()
       .single()
@@ -224,6 +248,22 @@ export async function POST(
       try {
         const { sendConferenceTeamNotification } = await import('@/lib/email')
         
+        // Format authors for email
+        const authorsHtml = authors.length > 0 
+          ? authors.map((author: any, idx: number) => `
+              <div style="padding: 10px; background: white; margin-bottom: 8px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <strong>${idx + 1}. ${author.firstName || ''} ${author.lastName || ''}</strong>
+                ${author.isCorresponding ? '<span style="color: #3b82f6; font-size: 12px;"> (Corresponding)</span>' : ''}
+                <br>
+                <span style="font-size: 13px; color: #6b7280;">
+                  ${author.email || ''}<br>
+                  ${author.affiliation || ''}<br>
+                  ${author.country ? `${author.country}${author.city ? `, ${author.city}` : ''}` : ''}
+                </span>
+              </div>
+            `).join('')
+          : '<div class="value">No authors specified</div>'
+        
         await sendConferenceTeamNotification({
           to: conference.email_settings.reply_to,
           subject: `📄 New Abstract Submission: ${conference.name}`,
@@ -259,6 +299,28 @@ export async function POST(
                       <span class="label">Abstract ID:</span>
                       <div class="value">${abstractRecord.id}</div>
                     </div>
+                    ${abstractTitle ? `
+                    <div class="field">
+                      <span class="label">Title:</span>
+                      <div class="value"><strong>${abstractTitle}</strong></div>
+                    </div>
+                    ` : ''}
+                    ${abstractType ? `
+                    <div class="field">
+                      <span class="label">Type:</span>
+                      <div class="value">
+                        <span style="display: inline-block; padding: 4px 12px; background: #dbeafe; color: #1e40af; border-radius: 6px; font-weight: 600; text-transform: capitalize;">
+                          ${abstractType}
+                        </span>
+                      </div>
+                    </div>
+                    ` : ''}
+                    ${abstractKeywords ? `
+                    <div class="field">
+                      <span class="label">Keywords:</span>
+                      <div class="value">${abstractKeywords}</div>
+                    </div>
+                    ` : ''}
                     <div class="field">
                       <span class="label">File Name:</span>
                       <div class="value">${file.name}</div>
@@ -266,6 +328,10 @@ export async function POST(
                     <div class="field">
                       <span class="label">File Size:</span>
                       <div class="value">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                    </div>
+                    <div class="field">
+                      <span class="label">Authors:</span>
+                      ${authorsHtml}
                     </div>
                     <div class="field">
                       <span class="label">Submitted by:</span>
@@ -292,8 +358,21 @@ New Abstract Submission
 
 Conference: ${conference.name}
 Abstract ID: ${abstractRecord.id}
+${abstractTitle ? `Title: ${abstractTitle}` : ''}
+${abstractType ? `Type: ${abstractType.toUpperCase()}` : ''}
+${abstractKeywords ? `Keywords: ${abstractKeywords}` : ''}
+
 File Name: ${file.name}
 File Size: ${(file.size / 1024 / 1024).toFixed(2)} MB
+
+Authors:
+${authors.length > 0 ? authors.map((author: any, idx: number) => `
+${idx + 1}. ${author.firstName || ''} ${author.lastName || ''}${author.isCorresponding ? ' (Corresponding)' : ''}
+   Email: ${author.email || 'N/A'}
+   Affiliation: ${author.affiliation || 'N/A'}
+   ${author.country ? `Location: ${author.country}${author.city ? `, ${author.city}` : ''}` : ''}
+`).join('') : 'No authors specified'}
+
 Submitted by: ${email}
 ${registrationId ? `Registration ID: ${registrationId}` : ''}
 

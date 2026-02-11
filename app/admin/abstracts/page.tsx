@@ -20,7 +20,21 @@ import {
   User,
   X,
   ExternalLink,
+  CheckCircle,
 } from 'lucide-react'
+
+interface Author {
+  firstName?: string
+  lastName?: string
+  email?: string
+  affiliation?: string
+  country?: string
+  city?: string
+  orcid?: string
+  isCorresponding?: boolean
+  order?: number
+  customFields?: Record<string, any>
+}
 
 interface Abstract {
   id: string
@@ -32,6 +46,7 @@ interface Abstract {
   conference_id: string | null
   registration_id: string | null
   custom_data: Record<string, any> | null
+  authors?: Author[] | null
   conference?: {
     id: string
     name: string
@@ -339,6 +354,9 @@ function AbstractsPageContent() {
                     {t('fileName')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Autori
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     {t('conference')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -366,28 +384,73 @@ function AbstractsPageContent() {
                         <div className="flex-shrink-0 mt-0.5">
                           <FileText className="w-5 h-5 text-blue-600" />
                         </div>
-                        <div className="ml-3 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {abstract.file_name}
+                        <div className="ml-3 min-w-0 flex-1">
+                          {/* Title (if exists) */}
+                          {abstract.custom_data?.abstractTitle && (
+                            <div className="text-sm font-bold text-gray-900 mb-1 line-clamp-2">
+                              {abstract.custom_data.abstractTitle}
+                            </div>
+                          )}
+                          
+                          {/* File name */}
+                          <div className="text-sm text-gray-600 truncate mb-1">
+                            📎 {abstract.file_name}
                           </div>
-                          {abstract.custom_data &&
-                            Object.keys(abstract.custom_data).length > 0 && (
-                              <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                                {Object.entries(abstract.custom_data)
-                                  .slice(0, 2)
-                                  .map(([key, value]) => (
-                                    <span
-                                      key={key}
-                                      className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700"
-                                    >
-                                      <strong className="mr-1">{key}:</strong>
-                                      {String(value)}
-                                    </span>
-                                  ))}
-                              </div>
-                            )}
+                          
+                          {/* Type badge */}
+                          {abstract.custom_data?.abstractType && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                              abstract.custom_data.abstractType === 'oral'
+                                ? 'bg-blue-100 text-blue-700'
+                                : abstract.custom_data.abstractType === 'invited'
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {abstract.custom_data.abstractType === 'oral' && '🎤 Oral'}
+                              {abstract.custom_data.abstractType === 'invited' && '⭐ Invited Speaker'}
+                              {abstract.custom_data.abstractType === 'poster' && '📊 Poster'}
+                            </span>
+                          )}
+                          
+                          {/* Keywords */}
+                          {abstract.custom_data?.abstractKeywords && (
+                            <div className="text-xs text-gray-500 mt-1 truncate">
+                              🔑 {abstract.custom_data.abstractKeywords}
+                            </div>
+                          )}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {abstract.authors && abstract.authors.length > 0 ? (
+                        <div className="space-y-1">
+                          {abstract.authors.slice(0, 2).map((author, idx) => (
+                            <div key={idx} className="flex items-start text-sm">
+                              <User className="w-3.5 h-3.5 text-gray-400 mr-1.5 flex-shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-gray-900 truncate">
+                                  {author.firstName} {author.lastName}
+                                  {author.isCorresponding && (
+                                    <span className="ml-1 text-xs text-blue-600">★</span>
+                                  )}
+                                </div>
+                                {author.affiliation && (
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {author.affiliation}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {abstract.authors.length > 2 && (
+                            <div className="text-xs text-gray-500 ml-5">
+                              +{abstract.authors.length - 2} više
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">N/A</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {abstract.conference?.slug ? (
@@ -408,13 +471,23 @@ function AbstractsPageContent() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Mail className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                        <span className="truncate">
-                          {abstract.email || (
-                            <span className="text-gray-400 italic">N/A</span>
-                          )}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm text-gray-900">
+                          <Mail className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                          <span className="truncate">
+                            {abstract.email || (
+                              <span className="text-gray-400 italic">N/A</span>
+                            )}
+                          </span>
+                        </div>
+                        {abstract.registration_id && (
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Povezano sa registracijom
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
