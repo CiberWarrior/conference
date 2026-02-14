@@ -63,29 +63,20 @@ export default function AdminLoginPage() {
         return
       }
 
-      // Show success state
+      // Show success state and stop spinner (session is in cookies from API response)
       setSuccess(true)
       setError('')
-      
-      // IMPORTANT: Set session in client-side Supabase instance
+      setLoading(false)
+
+      // Optional: sync client-side Supabase session from tokens (backup; cookies are primary)
       if (data.session) {
-        const { error: sessionError } = await supabase.auth.setSession({
+        await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         })
-        
-        if (sessionError) {
-          console.error('Failed to set client session:', sessionError.message)
-          setError('Failed to set session. Please try again.')
-          setLoading(false)
-          return
-        }
       }
-      
-      // Wait a bit for session to be fully set
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Use window.location for full page reload to ensure session is properly loaded
+
+      // Full page redirect so middleware sees the session cookies
       window.location.href = '/admin/dashboard'
     } catch (error) {
       console.error('Login error:', error)
@@ -117,7 +108,7 @@ export default function AdminLoginPage() {
               MeetFlow
             </span>
           </Link>
-          <p className="text-slate-400">Admin Login</p>
+          <p className="text-slate-400">{t('title')}</p>
         </div>
 
         {/* Login Card */}

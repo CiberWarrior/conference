@@ -1,9 +1,12 @@
 -- ============================================
--- CREATE TEST USER - Quick Setup Script
+-- CREATE TEST USER (Super Admin)
 -- ============================================
--- 
--- Ova skripta kreira test usera za admin login
--- Koraci:
+--
+-- Ova skripta kreira TEST SUPER ADMIN usera (puni pristup cijeloj platformi).
+-- Za test korisnika koji je ADMIN KONFERENCIJE (conference_admin) koristi:
+--   docs/CREATE_TEST_CONFERENCE_ADMIN.sql  (testuser@example.com)
+--
+-- Koraci za ovu skriptu:
 -- 1. Prvo kreiraj Auth user u Supabase Dashboard (Authentication → Users → Add User)
 -- 2. Kopiraj UUID iz Auth usera
 -- 3. Zameni UUID i email u ovoj skripti

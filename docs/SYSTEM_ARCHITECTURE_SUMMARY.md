@@ -23,7 +23,7 @@ This document clarifies the architecture and explains which features are active 
 
 **Login Flow**:
 ```
-Admin → /login → Email/Password → Admin Dashboard
+Admin → /auth/admin-login → Email/Password → Admin Dashboard
 ```
 
 **Access**:

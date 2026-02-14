@@ -44,11 +44,13 @@ npm run dev
 
 ## Struktura
 
-- `/` - Glavna registracijska forma
-- `/admin` - Admin panel za pregled prijava
-- `/success` - Success stranica nakon plaćanja
-- `/api/register` - API endpoint za registraciju
-- `/api/stripe-webhook` - Webhook za Stripe događaje
+Puna struktura projekta (folderi, rute, API) je u **`docs/00_ACTIVE/PROJECT_CONTEXT.md`** (§4 Struktura projekta).
+
+Kratki pregled ruta:
+- `/` – Početna; `/auth/admin-login` – Login za super/conference admine
+- `/admin/*` – Admin dashboard (zaštićeno)
+- `/conferences/[slug]` – Stranica konferencije; `.../register`, `.../submit-abstract`, `.../p/[pageSlug]`
+- `/api/auth/login`, `/api/register`, `/api/conferences/*`, `/api/admin/*`
 
 ## Customizacija
 

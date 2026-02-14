@@ -324,7 +324,7 @@
   },
   "auth": {
     "adminLogin": {
-      "title": "Admin Login",
+      "title": "Conference Admin Login",
       "welcomeBack": "Welcome Back",
       "signInToDashboard": "Sign in to access the admin dashboard",
       "email": "Email",

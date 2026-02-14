@@ -32,17 +32,9 @@ export default function Navigation() {
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
 
-            {/* Sign Up Link */}
+            {/* Admin Login (super admin + conference admins; participants do not login – they receive data by email) */}
             <Link
-              href="/participant/auth/signup"
-              className="text-gray-600 hover:text-blue-600 transition-colors font-medium"
-            >
-              {t('signUp')}
-            </Link>
-
-            {/* Login Button (Participant) */}
-            <Link
-              href="/participant/auth/login"
+              href="/auth/admin-login"
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
             >
               <LogIn className="w-5 h-5" />

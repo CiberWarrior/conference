@@ -209,7 +209,9 @@ export async function POST(request: NextRequest) {
       role: profile.role,
     })
 
-    // Return success response with session data for client-side sync
+    // Return success response WITH the same response object that has session cookies set.
+    // (Supabase setAll() wrote cookies to `response`; returning a new NextResponse.json()
+    // would lose them and the browser would never receive the session.)
     const headers = new Headers(response.headers)
     if (rateLimitResult) {
       Object.entries(createRateLimitHeaders(rateLimitResult)).forEach(
@@ -219,7 +221,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(
+    const successResponse = NextResponse.json(
       {
         success: true,
         message: 'Login successful',
@@ -236,9 +238,16 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 200,
-        headers, // Include the cookies and rate limit headers
+        headers,
       }
     )
+
+    // Copy session cookies from the response Supabase wrote to, so the browser receives them
+    response.cookies.getAll().forEach((cookie) => {
+      successResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+
+    return successResponse
   } catch (error) {
     log.error('Login error', error, {
       action: 'login',

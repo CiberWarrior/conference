@@ -29,8 +29,8 @@
   "home": {
     "hero": {
       "badge": "Profesionalna platforma za događaje",
-      "titleLine1": "Konferencije",
-      "titleLine2": "upravljanje",
+      "titleLine1": "Upravljanje",
+      "titleLine2": "konferencijama",
       "title": "Platforma za upravljanje događajima",
       "subtitle": "Prijavite se kao sudionik, pošaljite sažetak i upravljajte prijavama jednostavno. Jednostavan tijek za znanstvene događaje — od prijave do plaćanja i predavanja.",
       "cta": "Započni",
@@ -324,7 +324,7 @@
   },
   "auth": {
     "adminLogin": {
-      "title": "Prijava za administratore",
+      "title": "Prijava za admine konferencija",
       "welcomeBack": "Dobrodošli natrag",
       "signInToDashboard": "Prijavite se za pristup administratorskoj kontrolnoj ploči",
       "email": "E-pošta",

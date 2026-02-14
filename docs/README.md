@@ -73,6 +73,7 @@ Rezultati pretrage (grep po nazivu datoteke / uobičajenom nazivu dokumenta) –
 | `LOGGING_BEST_PRACTICES.md` | Nema referenci. |
 | `TROUBLESHOOTING_BUILD_ERRORS.md` | Nema referenci. |
 | `CREATE_TEST_USER.sql` | Nema referenci (SQL skripta u docs/). |
+| `CREATE_TEST_CONFERENCE_ADMIN.sql` | Test conference admin (testuser@example.com). Vidi CREATE_TEST_USER.sql. |
 
 Sljedeći dokumenti **imaju** međusobne reference (npr. PAYMENT_TERMS → MULTIPLE_PARTICIPANTS_FEATURE; PARTICIPANT_* reference jedni na druge) – **nisu kandidati** za brisanje bez daljnje odluke:  
 `MULTIPLE_PARTICIPANTS_FEATURE.md`, `MULTIPLE_PARTICIPANTS_SUMMARY.md`, `PARTICIPANT_ACCOUNT_SYSTEM.md`, `PARTICIPANT_SYSTEM_QUICK_START.md`, `PARTICIPANT_SYSTEM_IMPLEMENTATION_SUMMARY.md`, `PAYMENT_TERMS_QUICK_SETUP.md`.
