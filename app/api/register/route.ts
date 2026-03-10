@@ -167,16 +167,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check for duplicate registration if we have a primary email
+    // Check for duplicate registration if we have a primary email.
+    // We run two separate queries to avoid string interpolation in .or() filters
+    // (which can break on special characters and is not safe).
     if (primaryEmail) {
-      const { data: existing } = await supabase
+      const { data: existingByEmail } = await supabase
         .from('registrations')
         .select('id')
         .eq('conference_id', validatedData.conference_id)
-        .or(`custom_data->>email.eq.${primaryEmail},participants @> '[{"email":"${primaryEmail}"}]'`)
+        .eq('email', primaryEmail)
         .maybeSingle()
 
-      if (existing) {
+      const { data: existingByCustomData } = existingByEmail
+        ? { data: null }
+        : await supabase
+            .from('registrations')
+            .select('id')
+            .eq('conference_id', validatedData.conference_id)
+            .eq('custom_data->>email', primaryEmail)
+            .maybeSingle()
+
+      if (existingByEmail || existingByCustomData) {
         log.warn('Duplicate registration attempt', {
           conferenceId: validatedData.conference_id,
           email: primaryEmail,

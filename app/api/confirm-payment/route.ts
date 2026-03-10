@@ -34,6 +34,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Security: verify the payment intent belongs to this registration
+    if (paymentIntent.metadata?.registrationId !== registrationId) {
+      log.warn('Payment intent registrationId mismatch', {
+        paymentIntentId,
+        expectedRegistrationId: registrationId,
+        actualRegistrationId: paymentIntent.metadata?.registrationId,
+        action: 'confirm_payment_security',
+      })
+      return NextResponse.json(
+        { error: 'Payment does not match registration' },
+        { status: 400 }
+      )
+    }
+
     const supabase = await createServerClient()
 
     // Get registration details
@@ -61,13 +75,28 @@ export async function POST(request: NextRequest) {
         limit: 1,
       })
 
+      // Derive name/email from custom_data when legacy fields are null
+      const customerEmail =
+        registration.email || registration.custom_data?.email || ''
+      const customerFirstName =
+        registration.first_name ||
+        registration.custom_data?.first_name ||
+        registration.custom_data?.firstName ||
+        ''
+      const customerLastName =
+        registration.last_name ||
+        registration.custom_data?.last_name ||
+        registration.custom_data?.lastName ||
+        ''
+      const customerName = `${customerFirstName} ${customerLastName}`.trim() || customerEmail
+
       let customerId: string
       if (customers.data.length > 0) {
         customerId = customers.data[0].id
       } else {
         const customer = await stripe.customers.create({
-          email: registration.email,
-          name: `${registration.first_name} ${registration.last_name}`,
+          email: customerEmail,
+          name: customerName,
           metadata: {
             registrationId,
           },

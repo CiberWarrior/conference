@@ -300,7 +300,7 @@ export default function CollapsibleFieldEditor({
                 value={field.options?.join('\n') || ''}
                 onChange={(e) =>
                   onUpdate(field.id, {
-                    options: e.target.value.split('\n').filter((opt) => opt.trim()),
+                    options: e.target.value.split('\n').map((opt) => opt.trim()).filter(Boolean),
                   })
                 }
                 placeholder={
@@ -379,7 +379,7 @@ export default function CollapsibleFieldEditor({
                               const current = field.fileTypes || ['.pdf', '.doc', '.docx']
                               const updated = e.target.checked
                                 ? [...current, type]
-                                : current.filter(t => t !== type)
+                                : current.filter(fileType => fileType !== type)
                               onUpdate(field.id, { fileTypes: updated })
                             }}
                             className="w-4 h-4 text-green-600 rounded"

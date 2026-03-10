@@ -115,9 +115,6 @@ export async function sendGenericEmail(params: {
       subject: params.subject,
       function: 'sendGenericEmail',
     })
-    // Still log the email for debugging
-    console.log('Email would be sent to:', params.to)
-    console.log('Subject:', params.subject)
     return
   }
 
@@ -129,7 +126,7 @@ export async function sendGenericEmail(params: {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'MeetFlow <noreply@renatahorvat.com>',
+        from: process.env.EMAIL_FROM || 'MeetFlow <noreply@meetflow.app>',
         to: params.to,
         subject: params.subject,
         html: params.html,
@@ -482,7 +479,7 @@ export async function sendConferenceTeamNotification(params: {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'MeetFlow <noreply@renatahorvat.com>',
+        from: process.env.EMAIL_FROM || 'MeetFlow <noreply@meetflow.app>',
         to: params.to,
         subject: params.subject,
         html: params.html,

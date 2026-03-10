@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { sendPaymentConfirmation, sendWelcomeEmail } from '@/lib/email'
 import Stripe from 'stripe'
 import { log } from '@/lib/logger'
@@ -129,17 +130,19 @@ export async function POST(request: NextRequest) {
 
       // Send payment confirmation email
       if (registration) {
+        const contact = extractRegistrationContact(registration)
+
         sendPaymentConfirmation(
           registration.id,
-          registration.email,
-          registration.first_name,
-          registration.last_name,
+          contact.email,
+          contact.firstName,
+          contact.lastName,
           registration.invoice_url || undefined,
           emailSettings
         ).catch((err) => {
           log.error('Failed to send payment confirmation email', err instanceof Error ? err : undefined, {
             registrationId,
-            email: registration.email,
+            email: contact.email,
             action: 'payment_confirmation_email',
           })
         })
@@ -185,11 +188,11 @@ export async function POST(request: NextRequest) {
                         </div>
                         <div class="field">
                           <span class="label">Participant:</span>
-                          <div class="value">${registration.first_name} ${registration.last_name}</div>
+                          <div class="value">${contact.fullName}</div>
                         </div>
                         <div class="field">
                           <span class="label">Email:</span>
-                          <div class="value">${registration.email}</div>
+                          <div class="value">${contact.email}</div>
                         </div>
                         <div class="field">
                           <span class="label">Registration ID:</span>
@@ -213,8 +216,8 @@ export async function POST(request: NextRequest) {
 Payment Received
 
 Conference: ${conferenceName || 'N/A'}
-Participant: ${registration.first_name} ${registration.last_name}
-Email: ${registration.email}
+Participant: ${contact.fullName}
+Email: ${contact.email}
 Registration ID: ${registration.id}
 Amount: ${amount} ${currency}
 
@@ -268,9 +271,11 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
           )
         }
 
+        const contact = extractRegistrationContact(registration)
+
         // Create or retrieve customer
         const customers = await stripe.customers.list({
-          email: registration.email,
+          email: contact.email,
           limit: 1,
         })
 
@@ -279,8 +284,8 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
           customerId = customers.data[0].id
         } else {
           const customer = await stripe.customers.create({
-            email: registration.email,
-            name: `${registration.first_name} ${registration.last_name}`,
+            email: contact.email,
+            name: contact.fullName,
             metadata: {
               registrationId,
             },
@@ -374,15 +379,15 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
         // Send payment confirmation email
         sendPaymentConfirmation(
           registration.id,
-          registration.email,
-          registration.first_name,
-          registration.last_name,
+          contact.email,
+          contact.firstName,
+          contact.lastName,
           invoiceUrl || undefined,
           emailSettings
         ).catch((err) => {
           log.error('Failed to send payment confirmation email', err, {
             registrationId,
-            email: registration.email,
+            email: contact.email,
             eventType: 'payment_intent.succeeded',
           })
         })
@@ -428,11 +433,11 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
                         </div>
                         <div class="field">
                           <span class="label">Participant:</span>
-                          <div class="value">${registration.first_name} ${registration.last_name}</div>
+                          <div class="value">${contact.fullName}</div>
                         </div>
                         <div class="field">
                           <span class="label">Email:</span>
-                          <div class="value">${registration.email}</div>
+                          <div class="value">${contact.email}</div>
                         </div>
                         <div class="field">
                           <span class="label">Registration ID:</span>
@@ -462,8 +467,8 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
 Payment Received
 
 Conference: ${conferenceName || 'N/A'}
-Participant: ${registration.first_name} ${registration.last_name}
-Email: ${registration.email}
+Participant: ${contact.fullName}
+Email: ${contact.email}
 Registration ID: ${registration.id}
 Amount: ${amount} ${currency}
 ${invoiceUrl ? `Invoice: ${invoiceUrl}` : ''}
@@ -512,8 +517,11 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
  */
 async function handleSubscriptionPayment(
   session: Stripe.Checkout.Session,
-  supabase: any
+  supabase: ReturnType<typeof createServerClient> extends Promise<infer T> ? T : never
 ) {
+  // Auth admin operations require the service role key
+  const adminClient = createAdminClient()
+
   try {
     const inquiryId = session.metadata!.inquiry_id
     const planId = session.metadata!.plan_id
@@ -544,9 +552,9 @@ async function handleSubscriptionPayment(
       return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase.auth.admin.listUsers()
-    const userExists = existingUser?.users?.find((u: any) => u.email === customerEmail)
+    // Check if user already exists (requires service role)
+    const { data: existingUser } = await adminClient.auth.admin.listUsers()
+    const userExists = existingUser?.users?.find((u: { email?: string }) => u.email === customerEmail)
 
     let userId: string
 
@@ -554,10 +562,10 @@ async function handleSubscriptionPayment(
       userId = userExists.id
       log.info('User already exists, using existing user', { userId, email: customerEmail })
     } else {
-      // Create Conference Admin user in Supabase Auth
+      // Create Conference Admin user in Supabase Auth (requires service role)
       const tempPassword = generateSecurePassword()
       
-      const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+      const { data: newUser, error: createUserError } = await adminClient.auth.admin.createUser({
         email: customerEmail,
         password: tempPassword,
         email_confirm: true,
@@ -697,6 +705,49 @@ async function handleSubscriptionPayment(
     })
     return NextResponse.json({ error: 'Failed to process subscription payment' }, { status: 500 })
   }
+}
+
+/**
+ * Extract name/email from a registration row, falling back to custom_data
+ * when the legacy first_name/last_name/email columns are null.
+ */
+function extractRegistrationContact(registration: Record<string, any>): {
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+} {
+  const customData = registration.custom_data || {}
+  const firstParticipantFields =
+    Array.isArray(registration.participants) && registration.participants.length > 0
+      ? (registration.participants[0]?.customFields ?? {})
+      : {}
+
+  const email =
+    registration.email ||
+    customData.email ||
+    firstParticipantFields.email ||
+    ''
+
+  const firstName =
+    registration.first_name ||
+    customData.first_name ||
+    customData.firstName ||
+    firstParticipantFields.first_name ||
+    firstParticipantFields.firstName ||
+    ''
+
+  const lastName =
+    registration.last_name ||
+    customData.last_name ||
+    customData.lastName ||
+    firstParticipantFields.last_name ||
+    firstParticipantFields.lastName ||
+    ''
+
+  const fullName = `${firstName} ${lastName}`.trim() || email
+
+  return { email, firstName, lastName, fullName }
 }
 
 /**

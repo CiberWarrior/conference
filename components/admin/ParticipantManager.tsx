@@ -143,7 +143,7 @@ export default function ParticipantManager({
                       removeParticipant(index)
                     }}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Remove participant"
+                    title={t('removeParticipant')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -282,39 +282,45 @@ export default function ParticipantManager({
                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                               <option value="">{t('selectPlaceholder')}</option>
-                              {field.options.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
+                              {field.options.map((option) => {
+                                const trimmed = option.trim()
+                                return (
+                                  <option key={trimmed} value={trimmed}>
+                                    {trimmed}
+                                  </option>
+                                )
+                              })}
                             </select>
                           )}
 
                           {/* Radio Buttons */}
                           {field.type === 'radio' && field.options && (
                             <div className="space-y-2">
-                              {field.options.map((option) => (
-                                <div key={option} className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    id={`${field.name}-${index}-${option}`}
-                                    name={`${field.name}-${index}`}
-                                    value={option}
-                                    checked={fieldValue === option}
-                                    onChange={(e) =>
-                                      updateParticipant(index, field.name, e.target.value)
-                                    }
-                                    required={field.required}
-                                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                  />
-                                  <label
-                                    htmlFor={`${field.name}-${index}-${option}`}
-                                    className="ml-2 text-sm text-gray-700"
-                                  >
-                                    {option}
-                                  </label>
-                                </div>
-                              ))}
+                              {field.options.map((option) => {
+                                const trimmed = option.trim()
+                                return (
+                                  <div key={trimmed} className="flex items-center">
+                                    <input
+                                      type="radio"
+                                      id={`${field.name}-${index}-${trimmed}`}
+                                      name={`${field.name}-${index}`}
+                                      value={trimmed}
+                                      checked={fieldValue === trimmed}
+                                      onChange={(e) =>
+                                        updateParticipant(index, field.name, e.target.value)
+                                      }
+                                      required={field.required}
+                                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <label
+                                      htmlFor={`${field.name}-${index}-${trimmed}`}
+                                      className="ml-2 text-sm text-gray-700"
+                                    >
+                                      {trimmed}
+                                    </label>
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
 

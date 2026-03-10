@@ -1158,6 +1158,7 @@
       "addField": "Add Field",
       "noCustomRegistrationFields": "No custom registration fields yet",
       "addFieldHint": "Click \"Add Field\" to create your first custom field",
+      "currency": "Currency",
       "registrationFee": "Registration Fee",
       "registrationFeeDesc": "Set currency and VAT for this conference. Add custom registration fees below; each fee has one price, validity period, and optional capacity.",
       "customRegistrationFees": "Custom Registration Fees",

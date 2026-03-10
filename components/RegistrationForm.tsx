@@ -296,19 +296,14 @@ export default function RegistrationForm({
             : null,
       }
 
-      console.log('📤 Sending payload:', JSON.stringify(payload, null, 2))
-
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
-      console.log('📥 Response status:', response.status)
-
       if (!response.ok) {
         const errorData = await response.json()
-        console.log('❌ Error from API:', errorData)
         throw new Error(errorData.error || t('registrationFailed'))
       }
 

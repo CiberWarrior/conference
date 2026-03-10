@@ -1158,6 +1158,7 @@
       "addField": "Dodaj polje",
       "noCustomRegistrationFields": "Još nema prilagođenih polja za prijavu",
       "addFieldHint": "Kliknite \"Dodaj polje\" za stvaranje prvog prilagođenog polja",
+      "currency": "Valuta",
       "registrationFee": "Kotizacija",
       "registrationFeeDesc": "Postavite kotizacije za različite razine. Sustav automatski primjenjuje ispravnu cijenu prema trenutnom datumu i roku za ranu registraciju.",
       "customRegistrationFees": "Prilagođene kotizacije",
