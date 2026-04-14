@@ -61,11 +61,6 @@ export async function middleware(request: NextRequest) {
               value,
               ...(options as CookieOptions),
             })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
             response.cookies.set({
               name,
               value,

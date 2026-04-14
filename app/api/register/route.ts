@@ -157,7 +157,6 @@ export async function POST(request: NextRequest) {
     if (!primaryEmail && validatedData.participants && validatedData.participants.length > 0) {
       const firstParticipant = validatedData.participants[0]
       if (firstParticipant.customFields) {
-        // Look for email field in customFields
         for (const [key, value] of Object.entries(firstParticipant.customFields)) {
           if (key.toLowerCase().includes('email') && typeof value === 'string' && value.includes('@')) {
             primaryEmail = value
@@ -165,6 +164,18 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+    }
+
+    // A1: Require at least one contact email for confirmation and notifications
+    if (!primaryEmail || !primaryEmail.includes('@')) {
+      log.warn('Registration without valid email rejected', {
+        conferenceId: validatedData.conference_id,
+        action: 'registration_validation',
+      })
+      return NextResponse.json(
+        { error: 'A valid email address is required for registration' },
+        { status: 400 }
+      )
     }
 
     // Check for duplicate registration if we have a primary email.
@@ -200,16 +211,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Determine payment method and status based on payment preference
+    // Determine payment method and status (A7: free fee -> not_required)
     let paymentMethod: string | null = null
     let paymentStatus: string = 'not_required'
-    
-    if (validatedData.payment_preference === 'pay_now_card') {
-      paymentMethod = 'card'
-      paymentStatus = 'pending'
-    } else if (validatedData.payment_preference === 'pay_now_bank') {
-      paymentMethod = 'bank_transfer'
-      paymentStatus = 'pending'
+    let feeAmount = 0
+    if (validatedData.registration_fee_id) {
+      const { data: feeRow } = await supabase
+        .from('custom_registration_fees')
+        .select('price_gross')
+        .eq('id', validatedData.registration_fee_id)
+        .eq('conference_id', validatedData.conference_id)
+        .single()
+      feeAmount = feeRow ? Number(feeRow.price_gross ?? 0) : 0
+    }
+    const isFree = feeAmount <= 0
+    if (!isFree) {
+      if (validatedData.payment_preference === 'pay_now_card') {
+        paymentMethod = 'card'
+        paymentStatus = 'pending'
+      } else if (validatedData.payment_preference === 'pay_now_bank') {
+        paymentMethod = 'bank_transfer'
+        paymentStatus = 'pending'
+      }
     }
 
     // Merge payer_type and company_details into custom_data for storage and admin display

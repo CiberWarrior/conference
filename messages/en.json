@@ -692,7 +692,10 @@
       "closed": "Closed",
       "allStatuses": "All statuses",
       "changeStatus": "Change status:",
-      "optional": "optional"
+      "optional": "optional",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page"
     },
     "tickets": {
       "title": "Support Tickets",

@@ -321,7 +321,6 @@ export default function RegistrationForm({
         showSuccess(t('registrationSuccess'))
       }
     } catch (error: any) {
-      console.error('❌ Registration error:', error)
       showError(error.message || t('submitFailed'))
     } finally {
       setIsSubmitting(false)

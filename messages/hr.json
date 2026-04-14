@@ -692,7 +692,10 @@
       "closed": "Zatvoreno",
       "allStatuses": "Svi statusi",
       "changeStatus": "Promijeni status:",
-      "optional": "opcionalno"
+      "optional": "opcionalno",
+      "previous": "Prethodna",
+      "next": "Sljedeća",
+      "page": "Stranica"
     },
     "tickets": {
       "title": "Tiketi podrške",

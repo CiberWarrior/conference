@@ -37,6 +37,10 @@ function RegistrationsPageContent() {
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [selectedQRRegistration, setSelectedQRRegistration] = useState<Registration | null>(null)
+  // B3: Pagination – avoid loading all registrations at once
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(50)
+  const [totalCount, setTotalCount] = useState(0)
 
   // Handle conference query parameter - set conference from URL if provided
   useEffect(() => {
@@ -45,6 +49,7 @@ function RegistrationsPageContent() {
       const conference = conferences.find((c) => c.id === conferenceId)
       if (conference && conference.id !== currentConference?.id) {
         setCurrentConference(conference)
+        setPage(1)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,12 +57,12 @@ function RegistrationsPageContent() {
 
   useEffect(() => {
     if (currentConference) {
-      loadRegistrations()
+      loadRegistrations(page)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConference])
+  }, [currentConference, page])
 
-  const loadRegistrations = async () => {
+  const loadRegistrations = async (pageNum: number) => {
     if (!currentConference) {
       setLoading(false)
       return
@@ -65,18 +70,32 @@ function RegistrationsPageContent() {
 
     try {
       setLoading(true)
+      const from = (pageNum - 1) * pageSize
+      const to = from + pageSize - 1
+
+      // Get total count (single query, lightweight)
+      const { count: countResult } = await supabase
+        .from('registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('conference_id', currentConference.id)
+      setTotalCount(countResult ?? 0)
+
       const { data, error: fetchError } = await supabase
         .from('registrations')
-        .select(`
+        .select(
+          `
           *,
           participant_profiles (
             phone,
             country,
             institution
           )
-        `)
+        `,
+          { count: 'exact' }
+        )
         .eq('conference_id', currentConference.id)
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (fetchError) throw fetchError
 
@@ -88,19 +107,27 @@ function RegistrationsPageContent() {
           // participant_profiles is returned as object, not array
           const participantProfile = r.participant_profiles || null
           
-          // Helper function to find field value by common names
-          const findField = (possibleNames: string[], profileField?: string) => {
-            // Check participant_profiles first (if field specified and profile exists)
+          // Helper: find field value by exact names or by key pattern (e.g. key contains 'email')
+          const findField = (
+            possibleNames: string[],
+            profileField?: string,
+            keyPattern?: (k: string) => boolean
+          ) => {
             if (profileField && participantProfile && participantProfile[profileField]) {
               return participantProfile[profileField]
             }
-            // Check participants array
             for (const name of possibleNames) {
               if (firstParticipant[name]) return firstParticipant[name]
-            }
-            // Then check custom_data
-            for (const name of possibleNames) {
               if (customData[name]) return customData[name]
+            }
+            // Fallback: iterate all keys and match by pattern (catches "Ime", "Prezime", "E-mail", etc.)
+            if (keyPattern) {
+              for (const [k, v] of Object.entries(firstParticipant)) {
+                if (keyPattern(k.toLowerCase()) && v != null && String(v).trim()) return String(v)
+              }
+              for (const [k, v] of Object.entries(customData)) {
+                if (keyPattern(k.toLowerCase()) && v != null && String(v).trim()) return String(v)
+              }
             }
             return ''
           }
@@ -108,14 +135,14 @@ function RegistrationsPageContent() {
           return {
             id: r.id,
             registration_number: r.registration_number || undefined,
-            firstName: r.first_name || findField(['First Name', 'FIRST NAME', 'FirstName', 'first_name', 'Name', 'NAME']),
-            lastName: r.last_name || findField(['Last Name', 'LAST NAME', 'LastName', 'last_name', 'SURNAME', 'Surname']),
-            email: r.email || findField(['EMAIL', 'Email', 'email', 'E-mail']),
-            phone: r.phone || findField(['Phone Number', 'PHONE', 'Phone', 'phone', 'Telephone', 'Mobile', 'Mobile Number', 'Contact Number', 'Tel'], 'phone'),
-            country: r.country || findField(['COUNTRY', 'Country', 'country'], 'country'),
-            institution: r.institution || findField(['INSTITUTION', 'Institution', 'institution', 'ORGANIZATION', 'Organization', 'Company'], 'institution'),
-            arrivalDate: r.arrival_date || r.accommodation?.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In']),
-            departureDate: r.departure_date || r.accommodation?.departure_date || findField(['Departure Date', 'departure_date', 'Check Out']),
+            firstName: r.first_name || findField(['First Name', 'FirstName', 'first_name', 'ime', 'given_name', 'Name'], undefined, (k) => (k.includes('first') && k.includes('name')) || k === 'ime' || k === 'givenname'),
+            lastName: r.last_name || findField(['Last Name', 'LastName', 'last_name', 'prezime', 'surname', 'SURNAME'], undefined, (k) => (k.includes('last') && k.includes('name')) || k.includes('surname') || k === 'prezime'),
+            email: r.email || findField(['EMAIL', 'Email', 'email', 'E-mail', 'e_mail'], undefined, (k) => k.includes('email') || k.includes('e-mail')),
+            phone: r.phone || findField(['Phone Number', 'Phone', 'phone', 'Telephone', 'Mobile', 'Contact Number', 'Tel'], 'phone', (k) => k.includes('phone') || k.includes('tel') || k.includes('mobile')),
+            country: r.country || findField(['Country', 'country'], 'country', (k) => k.includes('country')),
+            institution: r.institution || findField(['Institution', 'institution', 'Organization', 'Company'], 'institution', (k) => k.includes('institution') || k.includes('organization') || k.includes('company')),
+            arrivalDate: r.arrival_date || r.accommodation?.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In', 'check_in'], undefined, (k) => k.includes('arrival') || (k.includes('check') && k.includes('in'))),
+            departureDate: r.departure_date || r.accommodation?.departure_date || findField(['Departure Date', 'departure_date', 'Check Out', 'check_out'], undefined, (k) => k.includes('departure') || (k.includes('check') && k.includes('out'))),
             accommodation: r.accommodation || null, // Store accommodation data
             registrationFeeType: r.registration_fee_type ?? null,
             paymentMethod: r.payment_method ?? null,
@@ -406,7 +433,7 @@ function RegistrationsPageContent() {
       showSuccess(t('updateSuccess', { count: result.updated }))
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
-      loadRegistrations()
+      loadRegistrations(page)
     } catch (error) {
       showError('Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
@@ -442,7 +469,7 @@ function RegistrationsPageContent() {
       showSuccess(t('deleteSuccess', { count: result.deleted }))
       setSelectedIds(new Set())
       setBulkActionMenuOpen(false)
-      loadRegistrations()
+      loadRegistrations(page)
     } catch (error) {
       showError(t('errorPrefix') + (error instanceof Error ? error.message : t('unknownError')))
     } finally {
@@ -1015,13 +1042,36 @@ function RegistrationsPageContent() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-4">
           <p className="text-sm text-gray-600">
             {t('showingCount', {
               filtered: filteredRegistrations.length,
-              total: registrations.length,
+              total: totalCount,
             })}
           </p>
+          {totalCount > pageSize && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                {c('previous')}
+              </button>
+              <span className="text-sm text-gray-600">
+                {c('page')} {page} / {Math.ceil(totalCount / pageSize)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
+                disabled={page >= Math.ceil(totalCount / pageSize)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                {c('next')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -275,59 +275,53 @@ export default function DashboardPage() {
         noShowRate,
       }
 
-      // 6. Revenue Breakdown
+      // 6. Revenue Breakdown – use actual payment_amount from registrations
       const paidRegs = registrations.filter((r) => r.payment_status === 'paid')
-      const totalRevenue = paidRegs.length * (conference.pricing?.regular?.amount || 200) // Simplified
-      
-      // By ticket type
+      const getAmount = (r: { payment_amount?: number | null; created_at?: string }) =>
+        r.payment_amount ?? 0
+      const totalRevenue = paidRegs.reduce((sum, r) => sum + getAmount(r), 0)
+
+      // By ticket type – use registration_fee_id/custom_data when available, else fallback
       const ticketTypeRevenue = new Map<string, number>()
       paidRegs.forEach((reg) => {
-        let type = 'Regular'
-        let amount = conference.pricing?.regular?.amount || 200
-        
-        const regDate = new Date(reg.created_at)
-        const earlyBirdDeadline = conference.pricing?.early_bird?.deadline 
-          ? new Date(conference.pricing.early_bird.deadline) 
-          : null
-        
-        if (earlyBirdDeadline && regDate <= earlyBirdDeadline) {
-          type = 'Early Bird'
-          amount = conference.pricing?.early_bird?.amount || 150
-        } else if (reg.is_student) {
-          type = 'Student'
-          amount = (conference.pricing?.regular?.amount || 200) - (conference.pricing?.student_discount || 50)
-        }
-        
+        const amount = getAmount(reg)
+        const type = (reg.registration_fee_type as string) || 'Regular'
         ticketTypeRevenue.set(type, (ticketTypeRevenue.get(type) || 0) + amount)
       })
-      
       const byTicketType = Array.from(ticketTypeRevenue.entries())
         .map(([type, amount]) => ({ type, amount }))
         .sort((a, b) => b.amount - a.amount)
 
-      // By payment method (simplified - would need actual payment data)
-      const byPaymentMethod = [
-        { method: 'Card', amount: totalRevenue * 0.7 },
-        { method: 'Bank Transfer', amount: totalRevenue * 0.25 },
-        { method: 'Other', amount: totalRevenue * 0.05 },
-      ].filter(item => item.amount > 0)
+      // By payment method – use actual payment_method from registrations
+      const byPaymentMethodMap = new Map<string, number>()
+      paidRegs.forEach((reg) => {
+        const amount = getAmount(reg)
+        const method =
+          reg.payment_method === 'card'
+            ? 'Card'
+            : reg.payment_method === 'bank_transfer'
+              ? 'Bank Transfer'
+              : 'Other'
+        byPaymentMethodMap.set(method, (byPaymentMethodMap.get(method) || 0) + amount)
+      })
+      const byPaymentMethod = Array.from(byPaymentMethodMap.entries()).map(([method, amount]) => ({
+        method,
+        amount,
+      }))
 
       // Time-based revenue
       const today = new Date()
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
       const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-      
       const todayRevenue = paidRegs
         .filter((r) => new Date(r.created_at).toDateString() === today.toDateString())
-        .reduce((sum, r) => sum + (conference.pricing?.regular?.amount || 200), 0)
-      
+        .reduce((sum, r) => sum + getAmount(r), 0)
       const weekRevenue = paidRegs
         .filter((r) => new Date(r.created_at) >= weekAgo)
-        .reduce((sum, r) => sum + (conference.pricing?.regular?.amount || 200), 0)
-      
+        .reduce((sum, r) => sum + getAmount(r), 0)
       const monthRevenue = paidRegs
         .filter((r) => new Date(r.created_at) >= monthAgo)
-        .reduce((sum, r) => sum + (conference.pricing?.regular?.amount || 200), 0)
+        .reduce((sum, r) => sum + getAmount(r), 0)
 
       const averageTransaction = paidRegs.length > 0 ? totalRevenue / paidRegs.length : 0
 
@@ -347,12 +341,15 @@ export default function DashboardPage() {
         currency: conference.pricing?.currency || 'EUR',
       }
 
-      // 8. Engagement Metrics
+      // 8. Engagement Metrics – use accommodation.hotel_id (JSONB)
       const accommodationMap = new Map<string, number>()
+      const hotelOpts = (conference.settings?.hotel_options as { id: string; name?: string }[]) || []
       registrations.forEach((reg) => {
-        if (reg.accommodation_selection) {
-          const hotel = reg.accommodation_selection
-          accommodationMap.set(hotel, (accommodationMap.get(hotel) || 0) + 1)
+        const acc = reg.accommodation as { hotel_id?: string } | null
+        const hotelId = acc?.hotel_id
+        if (hotelId) {
+          const name = hotelOpts.find((h) => h.id === hotelId)?.name ?? hotelId
+          accommodationMap.set(name, (accommodationMap.get(name) || 0) + 1)
         }
       })
       
@@ -396,11 +393,13 @@ export default function DashboardPage() {
       if (previousConf) {
         const { data: prevRegs } = await supabase
           .from('registrations')
-          .select('*')
+          .select('payment_status, payment_amount')
           .eq('conference_id', previousConf.id)
-        
         const prevPaidRegs = prevRegs?.filter((r) => r.payment_status === 'paid') || []
-        const prevRevenue = prevPaidRegs.length * (conference.pricing?.regular?.amount || 200)
+        const prevRevenue = prevPaidRegs.reduce(
+          (s, r) => s + (r.payment_amount ?? 0),
+          0
+        )
         const prevAvgPrice = prevPaidRegs.length > 0 ? prevRevenue / prevPaidRegs.length : 0
         
         previousStats = {
@@ -412,10 +411,11 @@ export default function DashboardPage() {
       }
 
       // Projected target (if set in conference settings)
-      const projectedTarget = conference.settings?.max_registrations 
+      const avgPrice = paidRegs.length > 0 ? totalRevenue / paidRegs.length : (conference.pricing?.regular?.amount ?? 0)
+      const projectedTarget = conference.settings?.max_registrations
         ? {
             registrations: conference.settings.max_registrations,
-            revenue: conference.settings.max_registrations * (conference.pricing?.regular?.amount || 200),
+            revenue: conference.settings.max_registrations * avgPrice,
           }
         : undefined
 
@@ -590,13 +590,13 @@ export default function DashboardPage() {
       // Load all registrations
       const { data: allRegistrations, error: regError } = await supabase
         .from('registrations')
-        .select('id, payment_status, amount_paid')
+        .select('id, payment_status, payment_amount')
 
       if (regError) throw regError
 
       const activeConferences = allConferences?.filter(c => c.active && c.published).length || 0
       const totalRevenue = allRegistrations?.reduce((sum, r) => {
-        return sum + (r.amount_paid || 0)
+        return sum + (r.payment_amount || 0)
       }, 0) || 0
 
       setPlatformStats({
