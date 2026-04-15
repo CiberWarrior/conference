@@ -44,10 +44,13 @@ export async function POST(request: NextRequest) {
     const { registrationId, amount: clientAmount } = body
 
     if (!registrationId) {
-      return NextResponse.json(
-        { error: 'Missing registrationId' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing registrationId' }, { status: 400 })
+    }
+
+    // Validate UUID format to block injection attempts before hitting the DB
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (typeof registrationId !== 'string' || !UUID_RE.test(registrationId)) {
+      return NextResponse.json({ error: 'Invalid registrationId format' }, { status: 400 })
     }
 
     if (!stripe) {

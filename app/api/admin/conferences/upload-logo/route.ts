@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { requireCanEditConference } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -15,16 +17,23 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const conferenceId = formData.get('conferenceId') as string
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      )
-    }
-
     if (!conferenceId) {
       return NextResponse.json(
         { error: 'Conference ID is required' },
+        { status: 400 },
+      )
+    }
+
+    // Verify caller has edit rights for this conference before touching storage
+    try {
+      await requireCanEditConference(conferenceId)
+    } catch (authErr) {
+      return handleApiError(authErr, { action: 'upload_logo', conferenceId })
+    }
+
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
         { status: 400 }
       )
     }

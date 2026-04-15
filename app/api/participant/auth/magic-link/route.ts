@@ -8,7 +8,15 @@ export const dynamic = 'force-dynamic'
 // Validation schema
 const magicLinkSchema = z.object({
   email: z.string().email('Invalid email address'),
-  redirect_to: z.string().url().optional(),
+  // redirect_to must be a relative path on our own domain — prevents open redirect
+  redirect_to: z
+    .string()
+    .startsWith('/', 'Redirect must be a relative path starting with /')
+    .refine(
+      (p) => !p.startsWith('//') && !p.includes('://'),
+      'Absolute URLs are not allowed in redirect_to',
+    )
+    .optional(),
 })
 
 /**
@@ -52,10 +60,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Send magic link
-    const redirectTo =
-      validatedData.redirect_to ||
-      `${process.env.NEXT_PUBLIC_SITE_URL}/participant/dashboard`
+    // Build absolute redirect URL from validated relative path (safe — no open redirect)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+    const redirectTo = validatedData.redirect_to
+      ? `${siteUrl}${validatedData.redirect_to}`
+      : `${siteUrl}/participant/dashboard`
 
     const { error: magicLinkError } = await supabase.auth.signInWithOtp({
       email: validatedData.email,
