@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         customer: customerId,
         invoice: invoice.id,
         amount: paymentIntent.amount,
-        currency: 'eur',
+        currency: paymentIntent.currency,
         description: 'Conference Registration Fee',
       })
 
@@ -135,6 +135,9 @@ export async function POST(request: NextRequest) {
         .from('registrations')
         .update({
           payment_status: 'paid',
+          payment_method: 'card',
+          payment_amount: paymentIntent.amount / 100,
+          payment_currency: paymentIntent.currency.toUpperCase(),
           invoice_id: invoiceId,
           invoice_url: invoiceUrl,
         })
@@ -148,7 +151,12 @@ export async function POST(request: NextRequest) {
       // Still update payment status even if invoice creation fails
       await supabase
         .from('registrations')
-        .update({ payment_status: 'paid' })
+        .update({
+          payment_status: 'paid',
+          payment_method: 'card',
+          payment_amount: paymentIntent.amount / 100,
+          payment_currency: paymentIntent.currency.toUpperCase(),
+        })
         .eq('id', registrationId)
     }
 

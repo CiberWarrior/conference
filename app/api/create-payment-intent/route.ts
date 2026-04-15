@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Amount: from client or from custom_registration_fees (registration_fee_id only)
+    // Security hardening: never trust client-supplied amount.
+    // Always derive charge amount from server-side fee configuration.
     let amountCents: number
     let currency: string = 'eur'
     if (
@@ -81,33 +82,36 @@ export async function POST(request: NextRequest) {
       typeof clientAmount === 'number' &&
       clientAmount > 0
     ) {
-      amountCents = Math.round(clientAmount * 100)
-    } else {
-      let amount = 0
-      let curr = 'EUR'
-      const registrationFeeId = (registration as { registration_fee_id?: string | null })
-        .registration_fee_id
-      if (registrationFeeId) {
-        const { data: feeRow, error: feeErr } = await supabase
-          .from('custom_registration_fees')
-          .select('id, price_gross, currency')
-          .eq('id', registrationFeeId)
-          .eq('conference_id', registration.conference_id)
-          .single()
-        if (!feeErr && feeRow && Number(feeRow.price_gross) > 0) {
-          amount = Number(feeRow.price_gross)
-          curr = (feeRow.currency as string) || 'EUR'
-        }
-      }
-      if (amount <= 0) {
-        return NextResponse.json(
-          { error: 'No amount to charge for this registration' },
-          { status: 400 }
-        )
-      }
-      amountCents = Math.round(amount * 100)
-      currency = curr.toLowerCase()
+      log.warn('Client supplied amount ignored in payment intent request', {
+        registrationId,
+        action: 'payment_intent_security',
+      })
     }
+
+    let amount = 0
+    let curr = 'EUR'
+    const registrationFeeId = (registration as { registration_fee_id?: string | null })
+      .registration_fee_id
+    if (registrationFeeId) {
+      const { data: feeRow, error: feeErr } = await supabase
+        .from('custom_registration_fees')
+        .select('id, price_gross, currency')
+        .eq('id', registrationFeeId)
+        .eq('conference_id', registration.conference_id)
+        .single()
+      if (!feeErr && feeRow && Number(feeRow.price_gross) > 0) {
+        amount = Number(feeRow.price_gross)
+        curr = (feeRow.currency as string) || 'EUR'
+      }
+    }
+    if (amount <= 0) {
+      return NextResponse.json(
+        { error: 'No amount to charge for this registration' },
+        { status: 400 }
+      )
+    }
+    amountCents = Math.round(amount * 100)
+    currency = curr.toLowerCase()
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({

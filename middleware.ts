@@ -29,6 +29,15 @@ const log = {
 }
 
 export async function middleware(request: NextRequest) {
+  // Route safety: keep testers/users on stable registration flow.
+  const regV2Match = request.nextUrl.pathname.match(
+    /^\/conferences\/([^/]+)\/register-v2\/?$/
+  )
+  if (regV2Match) {
+    const slug = regV2Match[1]
+    return NextResponse.redirect(new URL(`/conferences/${slug}/register`, request.url))
+  }
+
   const requestHeaders = new Headers(request.headers)
   // Admin dashboard respects locale (EN/HR) — no longer forced to EN
   let response = NextResponse.next({

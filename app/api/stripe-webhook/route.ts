@@ -84,7 +84,12 @@ export async function POST(request: NextRequest) {
       // Update payment status to paid
       const { error } = await supabase
         .from('registrations')
-        .update({ payment_status: 'paid' })
+        .update({
+          payment_status: 'paid',
+          payment_method: 'card',
+          payment_amount: (session.amount_total || 0) / 100,
+          payment_currency: (session.currency || 'EUR').toUpperCase(),
+        })
         .eq('id', registrationId)
 
       if (error) {
@@ -329,6 +334,9 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
           .from('registrations')
           .update({
             payment_status: 'paid',
+            payment_method: 'card',
+            payment_amount: paymentIntent.amount / 100,
+            payment_currency: paymentIntent.currency.toUpperCase(),
             invoice_id: invoiceId,
             invoice_url: invoiceUrl,
           })
@@ -502,7 +510,12 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
         // Still update payment status even if invoice creation fails
         await supabase
           .from('registrations')
-          .update({ payment_status: 'paid' })
+          .update({
+            payment_status: 'paid',
+            payment_method: 'card',
+            payment_amount: paymentIntent.amount / 100,
+            payment_currency: paymentIntent.currency.toUpperCase(),
+          })
           .eq('id', registrationId)
       }
     }

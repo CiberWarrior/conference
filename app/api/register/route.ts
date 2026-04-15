@@ -415,7 +415,7 @@ export async function POST(request: NextRequest) {
           .eq('email', primaryEmail)
           .single()
 
-        let participantProfileId: string
+        let participantProfileId: string | null = null
 
         if (existingProfile) {
           // Use existing profile
@@ -453,24 +453,57 @@ export async function POST(request: NextRequest) {
               participantProfileId,
               email: primaryEmail,
             })
+          }
+        }
 
-            // Update registration with participant_profile_id
-            const { error: updateError } = await supabase
-              .from('registrations')
-              .update({ participant_profile_id: participantProfileId })
-              .eq('id', registration.id)
+        // Ensure registration is linked for both existing and newly created participant profiles.
+        if (participantProfileId) {
+          const { error: updateError } = await supabase
+            .from('registrations')
+            .update({ participant_profile_id: participantProfileId })
+            .eq('id', registration.id)
 
-            if (updateError) {
-              log.error('Failed to update registration with participant_profile_id', updateError)
+          if (updateError) {
+            log.error('Failed to update registration with participant_profile_id', updateError)
+          } else {
+            log.info('Successfully linked registration to participant profile', {
+              registrationId: registration.id,
+              participantProfileId,
+            })
+          }
+
+          const { data: existingLink } = await supabase
+            .from('participant_registrations')
+            .select('id')
+            .eq('participant_id', participantProfileId)
+            .eq('conference_id', validatedData.conference_id)
+            .neq('status', 'cancelled')
+            .maybeSingle()
+
+          if (existingLink?.id) {
+            const { error: linkUpdateError } = await supabase
+              .from('participant_registrations')
+              .update({
+                registration_id: registration.id,
+                status: 'confirmed',
+                custom_data: validatedData.custom_data || {},
+                registration_fee_type: null,
+                payment_status: paymentStatus,
+                accommodation_data: validatedData.accommodation,
+              })
+              .eq('id', existingLink.id)
+
+            if (linkUpdateError) {
+              log.error('Failed to update participant registration link', linkUpdateError)
             } else {
-              log.info('Successfully linked registration to participant profile', {
-                registrationId: registration.id,
+              log.info('Participant registration link updated', {
                 participantProfileId,
+                conferenceId: validatedData.conference_id,
+                registrationId: registration.id,
               })
             }
-
-            // Create participant_registration linking record
-            const { error: linkError } = await supabase
+          } else {
+            const { error: linkInsertError } = await supabase
               .from('participant_registrations')
               .insert({
                 participant_id: participantProfileId,
@@ -479,13 +512,12 @@ export async function POST(request: NextRequest) {
                 status: 'confirmed',
                 custom_data: validatedData.custom_data || {},
                 registration_fee_type: null,
-                payment_status: 'not_required',
+                payment_status: paymentStatus,
                 accommodation_data: validatedData.accommodation,
               })
 
-            if (linkError) {
-              log.error('Failed to create participant registration link', linkError)
-              // Don't fail the registration
+            if (linkInsertError) {
+              log.error('Failed to create participant registration link', linkInsertError)
             } else {
               log.info('Participant registration link created', {
                 participantProfileId,
