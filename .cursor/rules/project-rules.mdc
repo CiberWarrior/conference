@@ -1,0 +1,61 @@
+---
+description: Project-specific rules for MeetFlow conference platform
+alwaysApply: true
+---
+
+# Project Rules: MeetFlow / Conference
+
+This project is a Next.js conference platform using Supabase and Vercel.
+
+## Project context
+
+- The project uses Next.js, TypeScript, Tailwind CSS, Supabase, and Vercel.
+- The app supports conference/event workflows such as registration, accommodation, abstract submission, admin dashboards, and multilingual content.
+- Preserve existing authentication, middleware, routing, and Supabase structure.
+- The project may depend on environment variables from `.env.local` or Vercel.
+
+## Working rules
+
+- Preserve the existing Next.js App Router structure.
+- Do not change routes unless explicitly requested.
+- Do not rename files or folders unless explicitly requested.
+- Do not introduce new libraries without asking first.
+- Prefer the smallest safe change.
+- Do not make large refactors unless explicitly requested.
+- Before editing, inspect the relevant files and understand the existing implementation.
+- If a task affects multiple areas, explain the plan before editing.
+
+## Supabase and database rules
+
+- Never disable RLS.
+- Never expose Supabase service role keys in client-side code.
+- Use the existing Supabase client structure.
+- For admin write operations, use the existing admin Supabase client if available.
+- Do not change database schema without explaining the SQL migration first.
+- If fee amount is 0, treat it as free/no payment unless project logic explicitly says otherwise.
+- Mention if a change requires new or updated environment variables.
+
+## Next.js and deployment rules
+
+- Keep the project compatible with Vercel deployment.
+- Be careful with server/client component boundaries.
+- Do not use server-only APIs inside client components.
+- Do not use local-only filesystem paths for runtime features.
+- Preserve middleware behavior unless explicitly asked to change it.
+- Do not change deployment-related files unless explicitly requested.
+
+## Design and UX rules
+
+- Preserve the existing visual identity unless explicitly asked to redesign it.
+- Improve readability, spacing, hierarchy, responsiveness, accessibility, and usability.
+- Keep admin interfaces clear, practical, and reliable.
+- Keep public conference pages professional, polished, and easy to use.
+- Always consider mobile responsiveness.
+
+## Code quality
+
+- Follow existing formatting and project conventions.
+- Keep code clean, readable, and maintainable.
+- Use TypeScript types where appropriate.
+- Avoid unnecessary comments and unnecessary abstractions.
+- After making changes, explain what changed, which files changed, and how to test locally.
