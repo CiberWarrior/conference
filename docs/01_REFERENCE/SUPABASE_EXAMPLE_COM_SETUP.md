@@ -134,7 +134,7 @@ enable_confirmations = false
 
 **Dodaj:**
 - `http://localhost:3000/auth/callback`
-- `http://localhost:3001/auth/callback` (ako koristiš)
+- Ako koristiš drugi port (npr. 3001), dodaj: `http://localhost:3001/auth/callback`
 
 ---
 

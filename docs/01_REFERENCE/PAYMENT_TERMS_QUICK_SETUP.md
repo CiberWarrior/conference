@@ -87,7 +87,7 @@ This is a **quick visual guide** to add the 4 payment and terms fields to your r
 ## 🚀 Step-by-Step Instructions
 
 ### Step 1: Open Form Builder
-1. Go to **Admin Dashboard** (http://localhost:3001/admin)
+1. Go to **Admin Dashboard** (http://localhost:3000/admin, port može biti i 3001)
 2. Select your conference from dropdown
 3. Click **"Registration Form"** in sidebar
 
@@ -154,7 +154,7 @@ This is a **quick visual guide** to add the 4 payment and terms fields to your r
 
 ## 🧪 Test Your Form
 
-1. Open your conference page: `http://localhost:3001/conferences/your-conference-slug`
+1. Open your conference page: `http://localhost:3000/conferences/your-conference-slug` (port može biti i 3001)
 2. Scroll down to registration form
 3. Check that all 4 new fields appear
 4. Try submitting **without** filling them → Should show error messages

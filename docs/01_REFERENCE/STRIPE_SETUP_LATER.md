@@ -159,7 +159,7 @@ brew install stripe/stripe-cli/stripe
 stripe login
 
 # Forward webhooks to localhost
-stripe listen --forward-to localhost:3003/api/stripe-webhook
+stripe listen --forward-to localhost:3000/api/stripe-webhook
 
 # U drugom terminalu, testiraj payment
 stripe payment_links create \

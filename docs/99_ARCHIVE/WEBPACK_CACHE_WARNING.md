@@ -59,7 +59,7 @@ npm run dev -- -p 3000
 
 ## ✅ Provjera da Sve Radi
 
-1. Otvori browser: `http://localhost:3002`
+1. Otvori browser: `http://localhost:3000` (ili port koji prikaže terminal)
 2. Provjeri da se aplikacija učitava
 3. Provjeri browser console (F12) - ne bi trebalo biti grešaka
 

@@ -160,7 +160,7 @@ Trebalo bi da vidiš:
 
 ### **KORAK 6: Testraj Login**
 
-1. Otvori: `http://localhost:3001/auth/admin-login` (ili production URL)
+1. Otvori: `http://localhost:3000/auth/admin-login` (ili production URL, port može biti i 3001)
 2. Uloguj se sa:
    - Email: `novi.admin@example.com`
    - Password: Onaj koji si postavio u koraku 2

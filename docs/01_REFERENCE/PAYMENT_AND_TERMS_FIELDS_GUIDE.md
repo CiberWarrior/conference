@@ -239,7 +239,7 @@ When you export registrations to Excel/CSV, these fields will appear as:
 
 After creating the fields:
 
-1. Go to your conference page: `http://localhost:3001/conferences/your-slug`
+1. Go to your conference page: `http://localhost:3000/conferences/your-slug` (port može biti i 3001)
 2. Scroll to the registration form
 3. Verify all 4 fields appear
 4. Try to submit without filling them → should show validation errors
