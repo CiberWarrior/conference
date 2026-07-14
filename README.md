@@ -74,7 +74,19 @@ npm test
 npm run build
 ```
 
-See [docs/QUICK_START.md](docs/QUICK_START.md) for the full setup guide.
+See [docs/01_REFERENCE/QUICK_START.md](docs/01_REFERENCE/QUICK_START.md) for the full setup guide.
+
+### Default Admin Access
+
+**Super Admin:**
+- Email: `screatives.info@gmail.com`
+- Login: `http://localhost:3000/auth/admin-login`
+
+**Test Users:**
+- Conference Admin: `pingu2111@yahoo.com`
+- Participant: `test@participant.com`
+
+See [docs/00_ACTIVE/PROJECT_CONTEXT.md](docs/00_ACTIVE/PROJECT_CONTEXT.md) for full user details.
 
 ## Environment Variables
 
@@ -205,15 +217,15 @@ All docs are in the `docs/` folder:
 
 | Document | Purpose |
 |----------|---------|
-| [QUICK_START.md](docs/QUICK_START.md) | Get started quickly |
-| [SETUP_INSTRUCTIONS.md](docs/SETUP_INSTRUCTIONS.md) | Detailed setup guide |
-| [SYSTEM_ARCHITECTURE_SUMMARY.md](docs/SYSTEM_ARCHITECTURE_SUMMARY.md) | Architecture overview |
-| [VERCEL_DEPLOY.md](docs/VERCEL_DEPLOY.md) | Production deployment |
+| [QUICK_START.md](docs/01_REFERENCE/QUICK_START.md) | Get started quickly |
+| [SETUP_INSTRUCTIONS.md](docs/01_REFERENCE/SETUP_INSTRUCTIONS.md) | Detailed setup guide |
+| [SYSTEM_ARCHITECTURE_SUMMARY.md](docs/01_REFERENCE/SYSTEM_ARCHITECTURE_SUMMARY.md) | Architecture overview |
+| [VERCEL_DEPLOY.md](docs/01_REFERENCE/VERCEL_DEPLOY.md) | Production deployment |
 | [docs/00_ACTIVE/](docs/00_ACTIVE/) | Active checklists and project context |
 
 ## Deployment
 
-The platform is production-ready for Vercel. See [docs/VERCEL_DEPLOY.md](docs/VERCEL_DEPLOY.md) and [docs/00_ACTIVE/DEPLOYMENT_CHECKLIST.md](docs/00_ACTIVE/DEPLOYMENT_CHECKLIST.md) for the full checklist.
+The platform is production-ready for Vercel. See [docs/01_REFERENCE/VERCEL_DEPLOY.md](docs/01_REFERENCE/VERCEL_DEPLOY.md) and [docs/00_ACTIVE/DEPLOYMENT_CHECKLIST.md](docs/00_ACTIVE/DEPLOYMENT_CHECKLIST.md) for the full checklist.
 
 ```bash
 # Deploy via Vercel CLI

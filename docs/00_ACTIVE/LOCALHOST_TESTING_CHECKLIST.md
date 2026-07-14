@@ -35,7 +35,7 @@ npm run dev
 **Očekivani output:**
 ```
 ✓ Ready in X seconds
-○ Local:        http://localhost:3000
+○ Local:        http://localhost:3000  (ili drugi dostupan port)
 ```
 
 ---

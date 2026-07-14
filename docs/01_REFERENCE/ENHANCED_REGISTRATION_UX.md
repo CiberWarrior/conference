@@ -154,7 +154,11 @@ Interaktivna demo gdje možeš:
 - Previewati registration summary
 
 ### **Enhanced Register Page** (v2)
-**URL:** `/conferences/[slug]/register-v2`
+
+> **⚠️ NAPOMENA:** Od verzije 0.1.1, `/register-v2` ruta automatski **redirect-uje** na `/register` (vidi `middleware.ts`).  
+> Ova ruta je zadržana u kodu ali nije dostupna korisnicima. Koristi se samo `/register`.
+
+**Originalni URL (deprecated):** `/conferences/[slug]/register-v2`
 
 Kompletna nova registracijska stranica sa:
 - **Step 1:** Registration Form (postojeći RegistrationForm + SocialProof sidebar)
@@ -175,10 +179,13 @@ Zamjeni trenutni `/conferences/[slug]/register/page.tsx` sa novim enhanced flow-
 **Cons:**
 - Rizik od breaking changes (testiranje potrebno)
 
-### Opcija B: Keep Both (A/B Testing)
-Drži oba URL-a aktivna:
-- `/conferences/[slug]/register` - original
-- `/conferences/[slug]/register-v2` - enhanced
+### Opcija B: Keep Both (A/B Testing) - **DEPRECATED**
+
+> **⚠️ NAPOMENA:** Ova opcija više nije dostupna. Middleware automatski redirect-uje `/register-v2` na `/register`.
+
+~~Drži oba URL-a aktivna:~~
+- `/conferences/[slug]/register` - **✅ Aktivno (jedina ruta)**
+- ~~`/conferences/[slug]/register-v2` - deprecated (redirect-uje na /register)~~
 
 **Pros:**
 - Sigurno (fallback na original ako ima problema)

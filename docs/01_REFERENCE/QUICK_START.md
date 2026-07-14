@@ -25,7 +25,7 @@ npm run dev
 ```
 
 5. **Otvori aplikaciju:**
-   - Registracijska forma: http://localhost:3000
+   - Registracijska forma: http://localhost:3000 (ili port koji prikaže terminal)
    - Admin panel: http://localhost:3000/admin
 
 ## Važne napomene

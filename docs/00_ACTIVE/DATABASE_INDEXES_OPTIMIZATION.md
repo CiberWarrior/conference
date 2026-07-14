@@ -84,7 +84,7 @@ Kopirajte SVE (Cmd+A → Cmd+C)
 1. **Testirajte brzinu:**
    ```bash
    # Otvorite admin dashboard
-   http://localhost:3001/admin/dashboard
+   http://localhost:3000/admin/dashboard  # (ili port koji prikaže terminal)
    
    # Merite vreme učitavanja (Developer Tools → Network)
    ```

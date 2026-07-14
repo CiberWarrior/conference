@@ -58,12 +58,17 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxx...
 npm run setup:upstash
 ```
 
-### Korak 5: Pokrenuti Database Migration (2 minute)
+### Korak 5: Pokrenuti Database Indexes (2 minute)
 
+**Opcija A - Koristite novu skriptu (PREPORUČENO):**
 1. **Idite na:** Supabase Dashboard → SQL Editor
-2. **Kopirajte sadržaj:** `supabase/migrations/015_add_performance_indexes.sql`
+2. **Kopirajte sadržaj:** `scripts/apply-performance-indexes-complete.sql`
 3. **Paste u SQL Editor**
 4. **Kliknite "Run"**
+
+**Opcija B - Koristite staru skriptu:**
+1. Kopirajte `scripts/apply-indexes-safe.sql`
+2. Run u Supabase SQL Editor
 
 ### Korak 6: Testirati (1 minuta)
 
@@ -71,13 +76,15 @@ npm run setup:upstash
 # Pokrenuti dev server
 npm run dev
 
-# U drugom terminalu, testirati rate limiting:
-npm run test:rate-limit
+# Testirajte aplikaciju:
+# - Otvorite http://localhost:3000
+# - Pokušajte registraciju nekoliko puta brzo
+# - Nakon 3-5 pokušaja trebalo bi da vidite rate limit
 ```
 
 **Očekivani rezultat:**
-- Prvih 5 zahtjeva: ✅ Success
-- 6. zahtjev: ❌ Rate Limited (429)
+- Prvih 3-5 registracija: ✅ Success
+- Sledeća: ❌ "Too many registration attempts" (rate limited)
 
 ---
 
@@ -98,16 +105,29 @@ npm run setup:upstash
 
 ### Testirati Rate Limiting:
 
+**Manuelno testiranje:**
 ```bash
-npm run test:rate-limit
+# 1. Otvorite aplikaciju
+http://localhost:3000
+
+# 2. Pokušajte registraciju 5 puta brzo
+# 3. Trebali biste videti rate limit poruku
 ```
 
-**Očekivani output:**
+**Ili koristite curl:**
+```bash
+# Pošaljite nekoliko zahteva brzo
+for i in {1..6}; do
+  curl -X POST http://localhost:3000/api/register \
+    -H "Content-Type: application/json" \
+    -d '{"conference_id":"test"}' 
+  echo ""
+done
 ```
-✅ Request 1-5: Success
-❌ Request 6: Rate Limited (429)
-✅ Rate limiting is WORKING!
-```
+
+**Očekivani rezultat:**
+- Prvih 3-5: ✅ Success ili validation error
+- Sledeći: ❌ 429 Too Many Requests
 
 ### Testirati Caching:
 

@@ -92,7 +92,7 @@ Kratka provjera prema `docs/00_ACTIVE/DEPLOYMENT_CHECKLIST.md`:
 ## 5. Redoslijed rada
 
 ```
-1. npm run dev                    → Otvori localhost:3000
+1. npm run dev                    → Otvori localhost:3000 (ili prikazani port)
 2. Test Admin flow (login, dashboard, konferencije)
 3. Test Registration flow (nova registracija)
 4. (Opcionalno) Test plaćanja s Stripe test karticom

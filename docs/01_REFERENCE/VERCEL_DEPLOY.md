@@ -33,7 +33,7 @@ Provjeri da imaš sve potrebne environment varijable spremne za postavljanje u V
 1. Idite na [vercel.com](https://vercel.com)
 2. Kliknite **"Add New..."** → **"Project"**
 3. Importujte GitHub repository
-4. Odaberite repository (`registration` ili `conference-registration`)
+4. Odaberite repository: **`conference`**
 
 ### 2.2. Konfiguracija projekta
 

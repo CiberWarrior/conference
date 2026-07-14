@@ -58,7 +58,7 @@ Projekt je dvojezičan (EN / HR) — terminologija mora ostati dosljedna.
 **Test korisnici** (za development / testiranje):
 - **TESTER1** – `pingu2111@yahoo.com` (admin konferencija)
 - **Test Participant** – `test@participant.com` (sudionik)
-- Opcionalno: **testuser@example.com** (conference_admin) – kreira se prema `docs/CREATE_TEST_CONFERENCE_ADMIN.sql` ako treba dodatni test admin.
+- Opcionalno: **testuser@example.com** (conference_admin) – kreira se prema `docs/sql/CREATE_TEST_CONFERENCE_ADMIN.sql` ako treba dodatni test admin.
 
 ## 7. Pravila koja se ne smiju mijenjati
 - Ako je kotizacija 0 → nema plaćanja
