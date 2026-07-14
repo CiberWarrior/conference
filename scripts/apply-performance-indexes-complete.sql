@@ -60,8 +60,12 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_history') THEN
     CREATE INDEX IF NOT EXISTS idx_payment_history_registration ON payment_history(registration_id);
     CREATE INDEX IF NOT EXISTS idx_payment_history_recent ON payment_history(registration_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_payment_history_successful ON payment_history(registration_id, created_at DESC) WHERE status = 'completed';
-    CREATE INDEX IF NOT EXISTS idx_payment_history_stripe ON payment_history(stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payment_history' AND column_name = 'status') THEN
+      CREATE INDEX IF NOT EXISTS idx_payment_history_successful ON payment_history(registration_id, created_at DESC) WHERE status = 'completed';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payment_history' AND column_name = 'stripe_payment_intent_id') THEN
+      CREATE INDEX IF NOT EXISTS idx_payment_history_stripe ON payment_history(stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
+    END IF;
   END IF;
 END $$;
 
