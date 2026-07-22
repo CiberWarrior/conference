@@ -4,53 +4,24 @@ This directory contains general-purpose utility functions used throughout the ap
 
 ## Modules
 
-### `formatters.ts`
-Data formatting utilities:
-- `formatDate()` - Format dates
-- `formatDateTime()` - Format date and time
-- `formatCurrency()` - Format currency amounts
-- `formatFullName()` - Format full name from parts
-- `maskEmail()` - Mask email for privacy
-- `formatFileSize()` - Format file sizes
-- `truncateText()` - Truncate text with ellipsis
+### `toast.ts`
+Toast notifications:
+- `showSuccess()` / `showError()` / `showInfo()` - User feedback messages
 
-### `validators.ts`
-Validation utilities:
-- `isValidEmail()` - Validate email format
-- `isValidPhone()` - Validate phone number
-- `isValidUrl()` - Validate URL format
-- `isRequired()` - Check required fields
-- `minLength()` / `maxLength()` - Length validation
-- `isValidFileType()` - Validate file types
-- `isValidFileSize()` - Validate file sizes
+### `pricing.ts`
+Pricing and VAT helpers:
+- `getEffectiveVAT()` - Resolve VAT percentage (conference override or organizer default)
 
-### `helpers.ts`
-General helper functions:
-- `sleep()` - Delay execution
-- `debounce()` - Debounce function calls
-- `generateId()` - Generate random IDs
-- `isEmpty()` - Check if value is empty
-- `deepClone()` - Deep clone objects
-- `getNestedProperty()` - Safely get nested properties
-- `capitalize()` - Capitalize strings
-- `objectToQueryString()` - Convert object to query string
-
-### `constants.ts`
-Utility-related constants (NOT app-wide constants):
-- File upload limits
-- Pagination defaults
-- Date formats
-- Status values (registration, payment, inquiry)
-- Export formats
+### `sanitize-html.ts`
+HTML sanitization for CMS/rich-text content before rendering.
 
 **Note:** For app-wide constants (roles, permissions, app config), see `/constants` directory.
 
 ## Usage
 
 ```typescript
-import { formatDate, formatCurrency } from '@/utils/formatters'
-import { isValidEmail } from '@/utils/validators'
-import { debounce } from '@/utils/helpers'
+import { showSuccess, showError } from '@/utils/toast'
+import { getEffectiveVAT } from '@/utils/pricing'
 ```
 
 ## Adding New Utilities
@@ -60,4 +31,3 @@ When adding new utilities:
 2. Add JSDoc comments
 3. Export as named exports
 4. Update this README
-

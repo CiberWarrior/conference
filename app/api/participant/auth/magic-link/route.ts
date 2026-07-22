@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import { z } from 'zod'
 
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServerClient()
 
-    // Check if participant exists
-    const { data: profile } = await supabase
+    // Check if participant exists (pre-auth lookup requires service role under RLS)
+    const { data: profile } = await createAdminClient()
       .from('participant_profiles')
       .select('id, email, has_account')
       .eq('email', validatedData.email)

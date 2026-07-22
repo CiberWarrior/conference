@@ -56,6 +56,64 @@ import type { Conference } from '@/types/conference'
 import { ABSTRACT_APP_URL } from '@/constants/config'
 import { getEffectiveVAT } from '@/utils/pricing'
 
+/**
+ * New registrations store contact data in participants[0].customFields /
+ * custom_data; the legacy first_name/last_name/email columns are null there,
+ * so fall back across all sources.
+ */
+function extractContact(reg: Record<string, any>): {
+  firstName: string
+  lastName: string
+  email: string
+} {
+  const customData = reg.custom_data || {}
+  const firstParticipant =
+    Array.isArray(reg.participants) && reg.participants.length > 0
+      ? reg.participants[0]?.customFields ?? {}
+      : {}
+
+  const pick = (keys: string[], pattern?: (k: string) => boolean): string => {
+    for (const source of [reg, customData, firstParticipant]) {
+      for (const key of keys) {
+        const value = source?.[key]
+        if (value != null && String(value).trim()) return String(value).trim()
+      }
+    }
+    if (pattern) {
+      for (const source of [customData, firstParticipant]) {
+        for (const [k, v] of Object.entries(source)) {
+          if (pattern(k.toLowerCase()) && v != null && String(v).trim()) {
+            return String(v).trim()
+          }
+        }
+      }
+    }
+    return ''
+  }
+
+  return {
+    firstName: pick(
+      ['first_name', 'firstName', 'First Name', 'ime', 'Ime'],
+      (k) => (k.includes('first') && k.includes('name')) || k === 'ime'
+    ),
+    lastName: pick(
+      ['last_name', 'lastName', 'Last Name', 'prezime', 'Prezime', 'surname'],
+      (k) => (k.includes('last') && k.includes('name')) || k.includes('surname') || k === 'prezime'
+    ),
+    email: pick(
+      ['email', 'Email', 'E-mail', 'e_mail', 'EMAIL'],
+      (k) => k.includes('email') || k.includes('e-mail')
+    ),
+  }
+}
+
+const formatCurrency = (amount: number, currency: string) =>
+  new Intl.NumberFormat('hr-HR', {
+    style: 'currency',
+    currency: currency || 'EUR',
+    maximumFractionDigits: 2,
+  }).format(amount)
+
 export default function DashboardPage() {
   const router = useRouter()
   const t = useTranslations('admin.dashboard')
@@ -73,8 +131,14 @@ export default function DashboardPage() {
     totalConferences: 0,
     totalUsers: 0,
     totalRegistrations: 0,
-    totalRevenue: 0,
+    // Sum of paid conference registration fees (organizers' money, not platform income)
+    conferenceTurnover: 0,
     activeConferences: 0,
+  })
+  const [platformRevenue, setPlatformRevenue] = useState({
+    mrr: 0,
+    currency: 'EUR',
+    activeCount: 0,
   })
   const [inquiryStats, setInquiryStats] = useState({
     newInquiries: 0,
@@ -146,7 +210,7 @@ export default function DashboardPage() {
   const [conferenceAdmins, setConferenceAdmins] = useState<any[]>([])
   const [loadingAdmins, setLoadingAdmins] = useState(false)
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'single' | 'overview'>('single')
+  const [viewMode, setViewMode] = useState<'single' | 'overview' | 'platform'>('single')
   const [conferenceStats, setConferenceStats] = useState<Record<string, {
     totalRegistrations: number
     paidRegistrations: number
@@ -161,6 +225,8 @@ export default function DashboardPage() {
 
   // Auto-select if only one conference
   useEffect(() => {
+    // Don't auto-select/switch while the super admin is on the platform view
+    if (viewMode === 'platform') return
     if (!currentConference && conferences.length === 1 && !conferenceLoading) {
       setCurrentConference(conferences[0])
       setViewMode('single')
@@ -215,25 +281,31 @@ export default function DashboardPage() {
   // Function to fetch new analytics
   const fetchNewAnalytics = async (registrations: any[], conference: any) => {
     try {
-      // 3. Registrations by Type
+      // 3. Registrations by Type – prefer actual fee name (new fee system),
+      // fall back to the legacy heuristic for older registrations
       const typeMap = new Map<string, number>()
       registrations.forEach((reg) => {
-        let type = 'Regular'
-        
-        // Determine type based on pricing or registration data
-        const regDate = new Date(reg.created_at)
-        const earlyBirdDeadline = conference.pricing?.early_bird?.deadline 
-          ? new Date(conference.pricing.early_bird.deadline) 
-          : null
-        
-        if (earlyBirdDeadline && regDate <= earlyBirdDeadline) {
-          type = 'Early Bird'
-        } else if (reg.is_student) {
-          type = 'Student'
-        } else if (reg.accompanying_persons && reg.accompanying_persons.length > 0) {
-          type = 'With Companion'
+        let type =
+          (reg.custom_registration_fees?.name as string) ||
+          (reg.registration_fee_type as string) ||
+          ''
+
+        if (!type) {
+          type = 'Regular'
+          const regDate = new Date(reg.created_at)
+          const earlyBirdDeadline = conference.pricing?.early_bird?.deadline
+            ? new Date(conference.pricing.early_bird.deadline)
+            : null
+
+          if (earlyBirdDeadline && regDate <= earlyBirdDeadline) {
+            type = 'Early Bird'
+          } else if (reg.is_student) {
+            type = 'Student'
+          } else if (reg.accompanying_persons && reg.accompanying_persons.length > 0) {
+            type = 'With Companion'
+          }
         }
-        
+
         typeMap.set(type, (typeMap.get(type) || 0) + 1)
       })
       
@@ -281,11 +353,14 @@ export default function DashboardPage() {
         r.payment_amount ?? 0
       const totalRevenue = paidRegs.reduce((sum, r) => sum + getAmount(r), 0)
 
-      // By ticket type – use registration_fee_id/custom_data when available, else fallback
+      // By ticket type – new fee system (custom_registration_fees) first, legacy column as fallback
       const ticketTypeRevenue = new Map<string, number>()
       paidRegs.forEach((reg) => {
         const amount = getAmount(reg)
-        const type = (reg.registration_fee_type as string) || 'Regular'
+        const type =
+          (reg.custom_registration_fees?.name as string) ||
+          (reg.registration_fee_type as string) ||
+          'Regular'
         ticketTypeRevenue.set(type, (ticketTypeRevenue.get(type) || 0) + amount)
       })
       const byTicketType = Array.from(ticketTypeRevenue.entries())
@@ -358,12 +433,32 @@ export default function DashboardPage() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
 
-      // Custom fields usage (simplified)
-      const customFieldsUsage = [
-        { field: 'Dietary Requirements', usage: 75 },
-        { field: 'Special Needs', usage: 45 },
-        { field: 'T-Shirt Size', usage: 90 },
-      ]
+      // Custom fields usage – real fill rate per configured custom field
+      const customFieldDefs = (
+        (conference.settings?.custom_registration_fields as {
+          name: string
+          label?: string
+          type?: string
+        }[]) || []
+      ).filter((f) => f.type !== 'separator')
+
+      const customFieldsUsage = customFieldDefs
+        .map((field) => {
+          const filled = registrations.filter((reg) => {
+            const participantFields = reg.participants?.[0]?.customFields || {}
+            const value = participantFields[field.name] ?? reg.custom_data?.[field.name]
+            return value != null && String(value).trim() !== ''
+          }).length
+          return {
+            field: (field.label || field.name).substring(0, 30),
+            usage: registrations.length > 0
+              ? Math.round((filled / registrations.length) * 100)
+              : 0,
+          }
+        })
+        .filter((f) => f.usage > 0)
+        .sort((a, b) => b.usage - a.usage)
+        .slice(0, 5)
 
       const engagement = {
         popularAccommodations,
@@ -420,8 +515,14 @@ export default function DashboardPage() {
         : undefined
 
       const progress = projectedTarget ? {
-        registrations: (currentStats.registrations / projectedTarget.registrations) * 100,
-        revenue: (currentStats.revenue / projectedTarget.revenue) * 100,
+        registrations:
+          projectedTarget.registrations > 0
+            ? (currentStats.registrations / projectedTarget.registrations) * 100
+            : 0,
+        revenue:
+          projectedTarget.revenue > 0
+            ? (currentStats.revenue / projectedTarget.revenue) * 100
+            : 0,
       } : undefined
 
       const comparison = {
@@ -474,10 +575,10 @@ export default function DashboardPage() {
       // Use fresh conference data if available, otherwise fallback to context
       const conferenceToUse = freshConference || currentConference
 
-      // Load registrations for current conference
+      // Load registrations for current conference (with fee name from the new fee system)
       const { data: registrations, error: regError } = await supabase
         .from('registrations')
-        .select('*')
+        .select('*, custom_registration_fees(name)')
         .eq('conference_id', conferenceToUse.id)
         .order('created_at', { ascending: false })
 
@@ -526,7 +627,7 @@ export default function DashboardPage() {
           .map(([country, count]) => ({ country, count }))
           .sort((a, b) => b.count - a.count)
 
-        // Revenue by Period (monthly)
+        // Revenue by Period (monthly) – actual payment_amount from registrations
         const revenueByMonthMap = new Map<string, number>()
         registrations
           .filter((r) => r.payment_status === 'paid')
@@ -535,8 +636,7 @@ export default function DashboardPage() {
               month: 'short',
               year: 'numeric',
             })
-            // Default amount - should be fetched from payment data
-            const amount = 50 // This should come from actual payment data
+            const amount = reg.payment_amount ?? 0
             revenueByMonthMap.set(month, (revenueByMonthMap.get(month) || 0) + amount)
           })
         const revenueByPeriod = Array.from(revenueByMonthMap.entries())
@@ -595,19 +695,34 @@ export default function DashboardPage() {
       if (regError) throw regError
 
       const activeConferences = allConferences?.filter(c => c.active && c.published).length || 0
-      const totalRevenue = allRegistrations?.reduce((sum, r) => {
-        return sum + (r.payment_amount || 0)
+      const conferenceTurnover = allRegistrations?.reduce((sum, r) => {
+        return r.payment_status === 'paid' ? sum + (r.payment_amount || 0) : sum
       }, 0) || 0
 
       setPlatformStats({
         totalConferences: allConferences?.length || 0,
         totalUsers: allUsers?.length || 0,
         totalRegistrations: allRegistrations?.length || 0,
-        totalRevenue,
+        conferenceTurnover,
         activeConferences,
       })
     } catch (error) {
       console.error('Error loading platform stats:', error)
+    }
+
+    // Platform's own income (subscriptions) is separate from conference turnover
+    try {
+      const res = await fetch('/api/admin/platform-revenue')
+      if (res.ok) {
+        const data = await res.json()
+        setPlatformRevenue({
+          mrr: data.mrr || 0,
+          currency: data.currency || 'EUR',
+          activeCount: data.activeCount || 0,
+        })
+      }
+    } catch (error) {
+      console.error('Error loading platform revenue:', error)
     }
   }
 
@@ -617,7 +732,39 @@ export default function DashboardPage() {
     if (currentConference) {
       loadStats()
     } else {
-      // No conference selected
+      // No conference selected - clear previous conference's stats/charts so
+      // the "All Conferences" overview never shows stale numbers from
+      // whichever conference was last selected (the Stats Grid/Analytics
+      // section below is only meaningful for a single selected conference).
+      setStats({
+        totalRegistrations: 0,
+        paidRegistrations: 0,
+        pendingPayments: 0,
+        checkedIn: 0,
+        recentRegistrations: [],
+      })
+      setChartData({
+        registrationsByDay: [],
+        paymentStatus: [],
+        registrationsByCountry: [],
+        revenueByPeriod: [],
+      })
+      setNewAnalyticsData((prev) => ({
+        ...prev,
+        registrationsByType: [],
+        abstractStats: { submitted: 0, accepted: 0, rejected: 0, pending: 0 },
+        checkInData: {
+          totalRegistrations: 0,
+          checkedIn: 0,
+          notCheckedIn: 0,
+          checkInRate: 0,
+          noShowRate: 0,
+        },
+        revenueBreakdown: { ...prev.revenueBreakdown, total: 0, byTicketType: [], byPaymentMethod: [], averageTransaction: 0, todayRevenue: 0, weekRevenue: 0, monthRevenue: 0 },
+        engagement: { popularAccommodations: [], customFieldsUsage: [] },
+        comparison: { ...prev.comparison, currentConference: { name: '', registrations: 0, revenue: 0, avgTicketPrice: 0 } },
+      }))
+
       if (isSuperAdmin) {
         // Super admin can see platform overview without conference
         loadPlatformStats()
@@ -799,8 +946,8 @@ export default function DashboardPage() {
   }
 
   // Super Admin Dashboard - Platform Overview
-  // Only show platform overview if super admin AND not impersonating AND no conference selected AND not in overview mode
-  if (isSuperAdmin && !isImpersonating && !currentConference && viewMode !== 'overview') {
+  // Shown only when the super admin explicitly selects the platform view
+  if (isSuperAdmin && !isImpersonating && !currentConference && viewMode === 'platform') {
     return (
       <div>
         <div className="mb-8">
@@ -809,7 +956,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Platform Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
           <StatsCard
             title={t('totalConferences')}
             value={platformStats.totalConferences}
@@ -834,13 +981,22 @@ export default function DashboardPage() {
             color="blue"
             icon={<UsersIcon className="w-6 h-6" />}
           />
+          <Link href="/admin/subscriptions" className="block">
+            <StatsCard
+              title={t('platformRevenueMrr')}
+              value={formatCurrency(platformRevenue.mrr, platformRevenue.currency)}
+              color="green"
+              icon={<DollarSign className="w-6 h-6" />}
+            />
+          </Link>
           <StatsCard
-            title={t('totalRevenue')}
-            value={`€${platformStats.totalRevenue.toLocaleString()}`}
-            color="green"
-            icon={<DollarSign className="w-6 h-6" />}
+            title={t('conferenceTurnover')}
+            value={formatCurrency(platformStats.conferenceTurnover, 'EUR')}
+            color="yellow"
+            icon={<CreditCard className="w-6 h-6" />}
           />
         </div>
+        <p className="text-sm text-gray-500 mb-8">{t('conferenceTurnoverHint')}</p>
 
         {/* Quick Actions */}
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1154,9 +1310,25 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* View Mode Toggle - only show if multiple conferences */}
-            {conferences.length > 1 && (
+            {/* View Mode Toggle - multiple conferences or super admin (platform view) */}
+            {(conferences.length > 1 || (isSuperAdmin && !isImpersonating)) && (
               <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                {isSuperAdmin && !isImpersonating && (
+                  <button
+                    onClick={() => {
+                      setViewMode('platform')
+                      setCurrentConference(null)
+                    }}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      viewMode === 'platform'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4 inline mr-2" />
+                    {t('platformView')}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setViewMode('overview')
@@ -1766,20 +1938,26 @@ export default function DashboardPage() {
                 {t('noRegistrationsYet')}
               </div>
             ) : (
-              stats.recentRegistrations.map((reg) => (
+              stats.recentRegistrations.map((reg) => {
+                const contact = extractContact(reg)
+                const displayName =
+                  [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
+                  reg.registration_number ||
+                  t('noName')
+                return (
                 <div key={reg.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar
-                        name={`${reg.first_name} ${reg.last_name}`}
-                        email={reg.email}
+                        name={displayName}
+                        email={contact.email}
                         size="sm"
                       />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900">
-                          {reg.first_name} {reg.last_name}
+                          {displayName}
                         </p>
-                        <p className="text-sm text-gray-500 truncate">{reg.email}</p>
+                        <p className="text-sm text-gray-500 truncate">{contact.email}</p>
                       </div>
                     </div>
                     <div className="ml-4 flex-shrink-0">
@@ -1804,7 +1982,8 @@ export default function DashboardPage() {
                     {new Date(reg.created_at).toLocaleString()}
                   </p>
                 </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

@@ -1,17 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import {
+  emailLookupRateLimit,
+  checkRateLimit,
+  createRateLimitHeaders,
+  getClientIP,
+} from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/conferences/[slug]/check-registration?email=user@example.com
- * Check if user has an existing registration for this conference
+ * Check if user has an existing registration for this conference.
+ *
+ * Used by the abstract submission form to link an abstract to a registration.
+ * Returns only an opaque registration ID — no personal data — and is
+ * rate-limited to prevent email enumeration.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
+    // Rate limit by IP to prevent email enumeration
+    const rateLimitResult = await checkRateLimit(
+      emailLookupRateLimit,
+      `check-registration:${getClientIP(request)}`
+    )
+    if (rateLimitResult && !rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: createRateLimitHeaders(rateLimitResult) }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
 
@@ -42,7 +64,7 @@ export async function GET(
     // Use maybeSingle() to avoid error logs when no registration found
     const { data: registration, error } = await supabase
       .from('registrations')
-      .select('id, first_name, last_name, status')
+      .select('id')
       .eq('conference_id', conference.id)
       .eq('email', email)
       .order('created_at', { ascending: false })
@@ -58,20 +80,10 @@ export async function GET(
       )
     }
 
-    if (!registration) {
-      // No registration found - this is expected, just return empty
-      return NextResponse.json({
-        found: false,
-        registrationId: null,
-      })
-    }
-
+    // Only expose an opaque ID — never names or other personal data
     return NextResponse.json({
-      found: true,
-      registrationId: registration.id,
-      firstName: registration.first_name,
-      lastName: registration.last_name,
-      status: registration.status,
+      found: !!registration,
+      registrationId: registration?.id ?? null,
     })
   } catch (error) {
     console.error('Error checking registration:', error)

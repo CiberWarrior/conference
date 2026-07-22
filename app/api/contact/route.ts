@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { sendGenericEmail } from '@/lib/email'
 import { log } from '@/lib/logger'
 
@@ -41,6 +41,11 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') || 
                'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
+
+    // Public/anonymous endpoint - contact_inquiries SELECT is super_admin-only
+    // (migration 056), so insert().select() needs the service role client to
+    // read back the inserted row.
+    const supabase = createAdminClient()
 
     // Save to database
     const { data: inquiry, error: dbError } = await supabase

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -48,7 +48,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createServerClient()
+    // Public/anonymous endpoint - registrations RLS is admin-scoped (migration 056),
+    // so this must use the service role client.
+    const supabase = createAdminClient()
 
     // Get registration details
     const { data: registration, error: regError } = await supabase
@@ -62,6 +64,22 @@ export async function POST(request: NextRequest) {
         { error: 'Registration not found' },
         { status: 404 }
       )
+    }
+
+    // Idempotency guard: the Stripe webhook (payment_intent.succeeded) may already
+    // have processed this payment (created the invoice, sent the confirmation email)
+    // before this client-side call arrives. Avoid creating a second Stripe invoice.
+    if (registration.payment_status === 'paid' && registration.invoice_id) {
+      log.info('Payment already confirmed (likely by webhook), skipping duplicate invoice', {
+        registrationId,
+        paymentIntentId,
+        action: 'confirm_payment_idempotent',
+      })
+      return NextResponse.json({
+        success: true,
+        invoiceId: registration.invoice_id,
+        invoiceUrl: registration.invoice_url,
+      })
     }
 
     // Create invoice

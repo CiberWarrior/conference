@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, FileCheck, Loader2 } from 'lucide-react'
 import type { Participant } from '@/types/participant'
 import type { CustomRegistrationField } from '@/types/conference'
 import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
+import { showError } from '@/utils/toast'
 
 interface ParticipantManagerProps {
   participants: Participant[]
@@ -15,6 +16,8 @@ interface ParticipantManagerProps {
   customFields?: CustomRegistrationField[]
   participantLabel?: string
   customFieldsPerParticipant?: boolean
+  /** Conference slug – required to upload 'file' type custom fields */
+  conferenceSlug?: string
 }
 
 export default function ParticipantManager({
@@ -25,11 +28,15 @@ export default function ParticipantManager({
   customFields = [],
   participantLabel,
   customFieldsPerParticipant = true,
+  conferenceSlug,
 }: ParticipantManagerProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
   const displayLabel = participantLabel ?? t('participantLabel')
   const [expandedParticipant, setExpandedParticipant] = useState<number>(0)
+  // Upload state keyed by `${participantIndex}-${fieldName}`
+  const [uploadingKeys, setUploadingKeys] = useState<Record<string, boolean>>({})
+  const [uploadedFileNames, setUploadedFileNames] = useState<Record<string, string>>({})
 
   const addParticipant = () => {
     if (participants.length >= maxParticipants) {
@@ -76,6 +83,49 @@ export default function ParticipantManager({
       /\[([^\]]+)\]\(([^)]+)\)/g,
       '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>'
     )
+  }
+
+  const handleFileUpload = async (
+    index: number,
+    field: CustomRegistrationField,
+    file: File
+  ) => {
+    if (!conferenceSlug) {
+      showError(t('fileUploadUnavailable'))
+      return
+    }
+
+    const key = `${index}-${field.name}`
+    setUploadingKeys((prev) => ({ ...prev, [key]: true }))
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (field.maxFileSize) {
+        formData.append('maxFileSizeMb', String(field.maxFileSize))
+      }
+      if (field.fileTypes && field.fileTypes.length > 0) {
+        formData.append('allowedExtensions', JSON.stringify(field.fileTypes))
+      }
+
+      const response = await fetch(
+        `/api/conferences/${conferenceSlug}/upload-registration-attachment`,
+        { method: 'POST', body: formData }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || t('fileUploadFailed'))
+      }
+
+      updateParticipant(index, field.name, data.url)
+      setUploadedFileNames((prev) => ({ ...prev, [key]: data.fileName || file.name }))
+    } catch (error: any) {
+      showError(error.message || t('fileUploadFailed'))
+    } finally {
+      setUploadingKeys((prev) => ({ ...prev, [key]: false }))
+    }
   }
 
   return (
@@ -176,6 +226,23 @@ export default function ParticipantManager({
                       const fieldValue = participant.customFields?.[field.name] || ''
                       const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
                       const displayLabel = labelKey ? tFieldLabels(labelKey) : (field.label || '')
+
+                      // Section separator: heading only, no input, never required
+                      if (field.type === 'separator') {
+                        return (
+                          <div key={field.id} className="pt-2 pb-1 border-t border-gray-200 first:border-t-0 first:pt-0">
+                            <h4 className="text-base font-bold text-gray-900">{displayLabel}</h4>
+                            {field.description && (
+                              <p className="text-xs text-gray-500 mt-1">{field.description}</p>
+                            )}
+                          </div>
+                        )
+                      }
+
+                      const uploadKey = `${index}-${field.name}`
+                      const isUploading = uploadingKeys[uploadKey]
+                      const uploadedFileName = uploadedFileNames[uploadKey]
+
                       return (
                         <div key={field.id}>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -344,6 +411,65 @@ export default function ParticipantManager({
                                   __html: parseMarkdownToHtml(field.placeholder || displayLabel)
                                 }}
                               />
+                            </div>
+                          )}
+
+                          {/* Long Text (paste-friendly textarea with character counter) */}
+                          {field.type === 'longtext' && (
+                            <div>
+                              <textarea
+                                required={field.required}
+                                value={fieldValue}
+                                onChange={(e) =>
+                                  updateParticipant(index, field.name, e.target.value)
+                                }
+                                placeholder={field.placeholder}
+                                rows={8}
+                                maxLength={field.validation?.maxLength}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                              {field.validation?.maxLength && (
+                                <p className="text-xs text-gray-500 mt-1 text-right">
+                                  {String(fieldValue).length} / {field.validation.maxLength}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* File Upload */}
+                          {field.type === 'file' && (
+                            <div>
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  accept={field.fileTypes?.join(',')}
+                                  disabled={isUploading}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) handleFileUpload(index, field, file)
+                                  }}
+                                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                />
+                              </div>
+                              {field.fileTypes && field.fileTypes.length > 0 && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {t('allowedFileTypesHint', { types: field.fileTypes.join(', ') })}
+                                </p>
+                              )}
+                              {isUploading && (
+                                <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>{t('uploading')}</span>
+                                </div>
+                              )}
+                              {!isUploading && fieldValue && (
+                                <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200 flex items-center gap-2">
+                                  <FileCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                  <span className="text-sm font-medium text-gray-900 truncate">
+                                    {uploadedFileName || t('fileUploaded')}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

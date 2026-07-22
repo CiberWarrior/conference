@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import {
   getCachedConference,
@@ -64,8 +64,11 @@ export async function GET(
         })
       }
 
-      // Get organizer bank account status (not cached, need fresh data)
-      const supabase = await createServerClient()
+      // Get organizer bank account status (not cached, need fresh data).
+      // user_profiles is only readable by its own owner or a super admin, so
+      // this public endpoint must use the service role client to check the
+      // organizer's bank account, otherwise bank transfer is never offered.
+      const supabase = createAdminClient()
       let organizer_has_bank_account = false
       let organizer_default_vat_percentage: number | null = null
       if (conference.owner_id) {
@@ -115,7 +118,7 @@ export async function GET(
 
     log.debug('Conference cache miss', { slug: params.slug })
 
-    const supabase = await createServerClient()
+    const supabase = createAdminClient()
 
     const { data: conference, error } = await supabase
       .from('conferences')

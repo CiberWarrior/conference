@@ -3,7 +3,10 @@
  * Automatically applies discounts for returning participants
  */
 
-import { createServerClient } from './supabase'
+// Loyalty lookups run in anonymous request contexts (public registration
+// form), so they need the service role client under RLS (migration 056).
+// This module is server-only — never import it from client components.
+import { createAdminClient } from './supabase-admin'
 import { log } from './logger'
 import type { LoyaltyTier } from '@/types/participant-account'
 
@@ -29,7 +32,7 @@ export async function checkLoyaltyDiscount(
   originalAmount: number
 ): Promise<LoyaltyDiscountResult> {
   try {
-    const supabase = await createServerClient()
+    const supabase = createAdminClient()
 
     // Get participant profile
     const { data: profile, error: profileError } = await supabase
@@ -145,7 +148,7 @@ export async function applyLoyaltyDiscount(
   discountPercentage: number
 ): Promise<{ success: boolean; discountedAmount: number; discountId?: string }> {
   try {
-    const supabase = await createServerClient()
+    const supabase = createAdminClient()
 
     const discountAmount = (originalAmount * discountPercentage) / 100
     const discountedAmount = originalAmount - discountAmount
@@ -211,7 +214,7 @@ export async function getLoyaltyDiscountInfo(
   message: string
 } | null> {
   try {
-    const supabase = await createServerClient()
+    const supabase = createAdminClient()
 
     const { data: profile } = await supabase
       .from('participant_profiles')

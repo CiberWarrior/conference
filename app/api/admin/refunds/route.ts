@@ -14,6 +14,41 @@ interface RefundRequestBody {
 }
 
 /**
+ * Extract name/email from a registration row, falling back to custom_data /
+ * participants when the legacy first_name/last_name/email columns are null
+ * (new registrations only populate custom_data + participants).
+ */
+function extractContact(registration: Record<string, any>): {
+  email: string
+  firstName: string
+  lastName: string
+} {
+  const customData = registration.custom_data || {}
+  const firstParticipantFields =
+    Array.isArray(registration.participants) && registration.participants.length > 0
+      ? registration.participants[0]?.customFields ?? {}
+      : {}
+
+  const email = registration.email || customData.email || firstParticipantFields.email || ''
+  const firstName =
+    registration.first_name ||
+    customData.first_name ||
+    customData.firstName ||
+    firstParticipantFields.first_name ||
+    firstParticipantFields.firstName ||
+    ''
+  const lastName =
+    registration.last_name ||
+    customData.last_name ||
+    customData.lastName ||
+    firstParticipantFields.last_name ||
+    firstParticipantFields.lastName ||
+    ''
+
+  return { email, firstName, lastName }
+}
+
+/**
  * POST /api/admin/refunds
  * Process a refund request
  */
@@ -230,9 +265,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const enrichedRefunds = (refunds || []).map((r) => {
+      const contact = extractContact(r)
+      return {
+        ...r,
+        first_name: r.first_name || contact.firstName,
+        last_name: r.last_name || contact.lastName,
+        email: r.email || contact.email,
+        currency: r.payment_currency || 'EUR',
+      }
+    })
+
     return NextResponse.json({
-      refunds: refunds || [],
-      total: refunds?.length || 0,
+      refunds: enrichedRefunds,
+      total: enrichedRefunds.length,
     })
   } catch (error) {
     return handleApiError(error, { action: 'get_refunds' })

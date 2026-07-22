@@ -130,6 +130,19 @@ export async function middleware(request: NextRequest) {
     })
   }
 
+  // Check if trying to access participant dashboard (server-side guard;
+  // pages also have a client-side check, but that alone is not sufficient)
+  if (request.nextUrl.pathname.startsWith('/participant/dashboard')) {
+    if (!user) {
+      log.debug('Unauthenticated participant dashboard access attempt', {
+        path: request.nextUrl.pathname,
+      })
+      const loginUrl = new URL('/participant/auth/login', request.url)
+      loginUrl.searchParams.set('redirect_to', request.nextUrl.pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
   return response
 }
 

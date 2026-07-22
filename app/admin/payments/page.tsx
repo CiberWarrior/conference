@@ -17,6 +17,7 @@ interface Refund {
   first_name: string
   last_name: string
   email: string
+  currency: string
   payment_status: string
   refund_requested: boolean
   refund_amount: number | null
@@ -24,6 +25,14 @@ interface Refund {
   refund_status: string
   refund_requested_at: string | null
   refund_processed_at: string | null
+}
+
+function formatMoney(amount: number, currency?: string | null): string {
+  return new Intl.NumberFormat('hr-HR', {
+    style: 'currency',
+    currency: currency || 'EUR',
+    maximumFractionDigits: 2,
+  }).format(amount)
 }
 
 interface PaymentHistory {
@@ -83,8 +92,11 @@ function PaymentsPageContent() {
   }, [activeTab, currentConference])
 
   const loadReminderStats = async () => {
+    if (!currentConference) return
     try {
-      const response = await fetch('/api/admin/payment-reminders')
+      const response = await fetch(
+        `/api/admin/payment-reminders?conference_id=${currentConference.id}`
+      )
       const data = await response.json()
       if (response.ok) {
         setReminderStats(data)
@@ -129,10 +141,11 @@ function PaymentsPageContent() {
   }
 
   const sendReminders = async (dryRun = false) => {
+    if (!currentConference) return
     try {
       setProcessing(true)
       const response = await fetch(
-        `/api/admin/payment-reminders?daysSinceRegistration=3&maxReminders=3&dryRun=${dryRun}`,
+        `/api/admin/payment-reminders?conference_id=${currentConference.id}&daysSinceRegistration=3&maxReminders=3&dryRun=${dryRun}`,
         { method: 'POST' }
       )
       const data = await response.json()
@@ -349,7 +362,7 @@ function PaymentsPageContent() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">{refund.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        ${refund.refund_amount?.toFixed(2) || '0.00'}
+                        {formatMoney(refund.refund_amount || 0, refund.currency)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -475,7 +488,8 @@ function PaymentsPageContent() {
                         <span
                           className={entry.amount < 0 ? 'text-red-600' : 'text-green-600'}
                         >
-                          {entry.amount < 0 ? '-' : '+'}${Math.abs(entry.amount).toFixed(2)}
+                          {entry.amount < 0 ? '-' : '+'}
+                          {formatMoney(Math.abs(entry.amount), entry.currency)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

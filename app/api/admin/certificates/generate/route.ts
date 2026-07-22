@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError } from '@/lib/api-error'
 import jsPDF from 'jspdf'
 import { log } from '@/lib/logger'
 
@@ -59,7 +60,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createServerClient()
+    // ✅ Require admin access to this conference with certificate permission
+    const { supabase } = await requireConferencePermission(
+      conferenceId,
+      'can_generate_certificates'
+    )
 
     // Get registration details and verify it belongs to the conference
     const { data: registration, error: regError } = await supabase
@@ -275,14 +280,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    log.error('Certificate generation error', error instanceof Error ? error : undefined, {
-      registrationId: body?.registrationId || 'unknown',
+    return handleApiError(error, {
       action: 'certificate_generation',
+      registrationId: body?.registrationId || 'unknown',
     })
-    return NextResponse.json(
-      { error: 'Failed to generate certificate' },
-      { status: 500 }
-    )
   }
 }
 

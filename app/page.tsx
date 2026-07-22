@@ -313,6 +313,184 @@ function ContactForm() {
   )
 }
 
+interface PublicPlan {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  price_monthly: number
+  price_yearly: number
+  currency: string
+  max_conferences: number
+  max_registrations_per_conference: number | null
+  max_storage_gb: number | null
+  features: string[]
+}
+
+function PricingSection() {
+  const t = useTranslations('home.pricing')
+  const [plans, setPlans] = useState<PublicPlan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly')
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/plans')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.plans)) {
+          setPlans(data.plans)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const formatPrice = (amount: number, currency: string) =>
+    new Intl.NumberFormat('hr-HR', {
+      style: 'currency',
+      currency: currency || 'EUR',
+      maximumFractionDigits: 0,
+    }).format(amount)
+
+  return (
+    <section id="pricing" className="py-24 bg-gradient-to-b from-white to-gray-50 scroll-mt-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            {t('title')}
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">{t('subtitle')}</p>
+
+          {/* Billing cycle toggle */}
+          <div className="mt-8 inline-flex items-center gap-1 bg-gray-100 rounded-full p-1">
+            <button
+              onClick={() => setCycle('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                cycle === 'monthly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {t('monthly')}
+            </button>
+            <button
+              onClick={() => setCycle('yearly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                cycle === 'yearly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {t('yearly')}
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-center text-gray-400">{t('loading')}</p>
+        ) : plans.length === 0 ? (
+          <p className="text-center text-gray-400">{t('noPlans')}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto items-stretch">
+            {plans.map((plan, index) => {
+              const highlighted = index === 1
+              const price =
+                cycle === 'monthly' ? plan.price_monthly : plan.price_yearly
+              const unlimitedConf = plan.max_conferences >= 999
+              const unlimitedReg =
+                plan.max_registrations_per_conference == null ||
+                plan.max_registrations_per_conference >= 999999
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative flex flex-col rounded-2xl border bg-white p-8 shadow-sm ${
+                    highlighted
+                      ? 'border-indigo-500 ring-2 ring-indigo-200 shadow-lg'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {highlighted && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold">
+                      {t('mostPopular')}
+                    </span>
+                  )}
+                  <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                  {plan.description && (
+                    <p className="mt-2 text-sm text-gray-500">{plan.description}</p>
+                  )}
+                  <div className="mt-6">
+                    <span className="text-4xl font-black text-gray-900">
+                      {formatPrice(price, plan.currency)}
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {cycle === 'monthly' ? t('perMonth') : t('perYear')}
+                    </span>
+                  </div>
+                  {cycle === 'yearly' && (
+                    <p className="mt-1 text-xs text-gray-400">{t('billedYearly')}</p>
+                  )}
+
+                  <ul className="mt-6 space-y-3 flex-1">
+                    <li className="flex items-start gap-2 text-sm text-gray-700">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span>
+                        {unlimitedConf
+                          ? t('conferencesUnlimited')
+                          : `${plan.max_conferences} ${t('conferences')}`}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-gray-700">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span>
+                        {unlimitedReg
+                          ? t('registrationsUnlimited')
+                          : `${plan.max_registrations_per_conference} ${t('registrationsPerConference')}`}
+                      </span>
+                    </li>
+                    {plan.max_storage_gb != null && (
+                      <li className="flex items-start gap-2 text-sm text-gray-700">
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span>{t('storage', { gb: plan.max_storage_gb })}</span>
+                      </li>
+                    )}
+                    {plan.features.map((feature, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-sm text-gray-700"
+                      >
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href={`/subscribe?plan=${plan.slug}&cycle=${cycle}`}
+                    className={`mt-8 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-colors ${
+                      highlighted
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                    }`}
+                  >
+                    {t('choosePlan')}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function Home() {
   const tHero = useTranslations('home.hero')
   const tFeatures = useTranslations('home.features')
@@ -517,6 +695,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Pricing Section */}
+      <PricingSection />
 
       {/* Contact Us Section */}
       <section id="contact" className="py-24 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 scroll-mt-16">

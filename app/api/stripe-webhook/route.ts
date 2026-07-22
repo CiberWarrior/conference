@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createServerClient } from '@/lib/supabase'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { sendPaymentConfirmation, sendWelcomeEmail } from '@/lib/email'
 import Stripe from 'stripe'
@@ -52,13 +51,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const supabase = await createServerClient()
+  // Webhook is server-to-server from Stripe - there is never a user session.
+  // registrations/contact_inquiries RLS is admin-scoped (migration 056), so
+  // this must always use the service role client.
+  const supabase = createAdminClient()
 
   // Handle checkout session completed (for redirect-based payments)
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
     
-    // Check if this is a subscription payment (from Payment Link)
+    // Self-service platform subscription checkout
+    if (session.metadata?.order_id) {
+      return await handleSelfServiceOrderPayment(session, supabase)
+    }
+
+    // Admin-sent Payment Link from CRM inquiries
     if (session.metadata?.inquiry_id) {
       return await handleSubscriptionPayment(session, supabase)
     }
@@ -274,6 +281,19 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
             { error: 'Registration not found' },
             { status: 404 }
           )
+        }
+
+        // Idempotency guard: the client-side /api/confirm-payment call may already
+        // have processed this payment (created the invoice, updated the status)
+        // before this webhook arrives. Avoid creating a second Stripe invoice /
+        // duplicate payment_history entry / duplicate confirmation email.
+        if (registration.payment_status === 'paid' && registration.invoice_id) {
+          log.info('Payment already confirmed (likely by client), skipping duplicate invoice', {
+            registrationId,
+            paymentIntentId: paymentIntent.id,
+            action: 'webhook_payment_intent_idempotent',
+          })
+          return NextResponse.json({ received: true })
         }
 
         const contact = extractRegistrationContact(registration)
@@ -525,16 +545,212 @@ View in admin panel: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000
 }
 
 /**
+ * Handle self-service subscription checkout (from /subscribe → Stripe Checkout).
+ */
+async function handleSelfServiceOrderPayment(
+  session: Stripe.Checkout.Session,
+  supabase: ReturnType<typeof createAdminClient>
+) {
+  try {
+    const orderId = session.metadata!.order_id
+    const planId = session.metadata!.plan_id
+    const billingCycle = session.metadata!.billing_cycle as 'monthly' | 'yearly'
+    const customerEmail = session.metadata!.customer_email
+    const customerName = session.metadata!.customer_name
+    const organization = session.metadata!.organization || null
+
+    const { data: order, error: orderError } = await supabase
+      .from('subscription_orders')
+      .select('*')
+      .eq('id', orderId)
+      .single()
+
+    if (orderError || !order) {
+      log.error('Subscription order not found', orderError, { orderId })
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    if (order.status === 'paid') {
+      return NextResponse.json({ received: true, alreadyPaid: true })
+    }
+
+    const provisioned = await provisionConferenceAdmin({
+      supabase,
+      email: customerEmail,
+      fullName: customerName,
+      organization,
+      planId,
+      billingCycle,
+      price: (session.amount_total || 0) / 100,
+      currency: session.currency?.toUpperCase() || 'EUR',
+      stripeCustomerId: typeof session.customer === 'string' ? session.customer : null,
+      stripePaymentIntentId:
+        typeof session.payment_intent === 'string' ? session.payment_intent : null,
+      inquiryId: null,
+    })
+
+    if (!provisioned.ok) {
+      return NextResponse.json({ error: provisioned.error }, { status: 500 })
+    }
+
+    await supabase
+      .from('subscription_orders')
+      .update({
+        status: 'paid',
+        user_id: provisioned.userId,
+        subscription_id: provisioned.subscriptionId,
+      })
+      .eq('id', orderId)
+
+    log.info('Self-service subscription order paid', {
+      orderId,
+      userId: provisioned.userId,
+      subscriptionId: provisioned.subscriptionId,
+    })
+
+    return NextResponse.json({
+      received: true,
+      subscriptionId: provisioned.subscriptionId,
+    })
+  } catch (error) {
+    log.error('Error handling self-service order payment', error, {
+      sessionId: session.id,
+    })
+    return NextResponse.json(
+      { error: 'Failed to process subscription payment' },
+      { status: 500 }
+    )
+  }
+}
+
+async function provisionConferenceAdmin(params: {
+  supabase: ReturnType<typeof createAdminClient>
+  email: string
+  fullName: string
+  organization: string | null
+  planId: string
+  billingCycle: 'monthly' | 'yearly'
+  price: number
+  currency: string
+  stripeCustomerId?: string | null
+  stripePaymentIntentId?: string | null
+  inquiryId?: string | null
+}): Promise<
+  | { ok: true; userId: string; subscriptionId: string }
+  | { ok: false; error: string }
+> {
+  const {
+    supabase,
+    email,
+    fullName,
+    organization,
+    planId,
+    billingCycle,
+    price,
+    currency,
+    stripeCustomerId,
+    stripePaymentIntentId,
+    inquiryId,
+  } = params
+
+  const { data: existingUser } = await supabase.auth.admin.listUsers()
+  const userExists = existingUser?.users?.find(
+    (u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase()
+  )
+
+  let userId: string
+  let createdNew = false
+  let tempPassword: string | null = null
+
+  if (userExists) {
+    userId = userExists.id
+  } else {
+    tempPassword = generateSecurePassword()
+    const { data: newUser, error: createUserError } =
+      await supabase.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          organization: organization,
+          created_via: 'subscription_payment',
+        },
+      })
+
+    if (createUserError || !newUser.user) {
+      log.error('Failed to create user', createUserError, { email })
+      return { ok: false, error: 'Failed to create user' }
+    }
+
+    userId = newUser.user.id
+    createdNew = true
+
+    const { error: profileError } = await supabase.from('user_profiles').insert({
+      id: userId,
+      email,
+      full_name: fullName,
+      role: 'conference_admin',
+      active: true,
+      organization: organization,
+    })
+
+    if (profileError) {
+      log.error('Failed to create user profile', profileError, { userId, email })
+      return { ok: false, error: 'Failed to create user profile' }
+    }
+  }
+
+  if (createdNew && tempPassword) {
+    try {
+      await sendWelcomeEmail(email, fullName, tempPassword, 'Conference Platform')
+    } catch (emailError) {
+      log.error('Failed to send welcome email', emailError, { userId, email })
+    }
+  }
+
+  const startsAt = new Date()
+  const expiresAt = new Date()
+  if (billingCycle === 'monthly') {
+    expiresAt.setMonth(expiresAt.getMonth() + 1)
+  } else {
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+  }
+
+  const { data: subscription, error: subError } = await supabase
+    .from('subscriptions')
+    .insert({
+      user_id: userId,
+      plan_id: planId,
+      inquiry_id: inquiryId || null,
+      status: 'active',
+      billing_cycle: billingCycle,
+      price,
+      currency,
+      stripe_customer_id: stripeCustomerId || null,
+      stripe_payment_intent_id: stripePaymentIntentId || null,
+      starts_at: startsAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single()
+
+  if (subError || !subscription) {
+    log.error('Failed to create subscription', subError, { userId, planId })
+    return { ok: false, error: 'Failed to create subscription' }
+  }
+
+  return { ok: true, userId, subscriptionId: subscription.id }
+}
+
+/**
  * Handle subscription payment from Payment Link
  * Auto-creates Conference Admin user and sends credentials
  */
 async function handleSubscriptionPayment(
   session: Stripe.Checkout.Session,
-  supabase: ReturnType<typeof createServerClient> extends Promise<infer T> ? T : never
+  supabase: ReturnType<typeof createAdminClient>
 ) {
-  // Auth admin operations require the service role key
-  const adminClient = createAdminClient()
-
   try {
     const inquiryId = session.metadata!.inquiry_id
     const planId = session.metadata!.plan_id
@@ -566,7 +782,7 @@ async function handleSubscriptionPayment(
     }
 
     // Check if user already exists (requires service role)
-    const { data: existingUser } = await adminClient.auth.admin.listUsers()
+    const { data: existingUser } = await supabase.auth.admin.listUsers()
     const userExists = existingUser?.users?.find((u: { email?: string }) => u.email === customerEmail)
 
     let userId: string
@@ -578,7 +794,7 @@ async function handleSubscriptionPayment(
       // Create Conference Admin user in Supabase Auth (requires service role)
       const tempPassword = generateSecurePassword()
       
-      const { data: newUser, error: createUserError } = await adminClient.auth.admin.createUser({
+      const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email: customerEmail,
         password: tempPassword,
         email_confirm: true,

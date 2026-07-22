@@ -16,34 +16,8 @@ function MyComponent() {
 }
 ```
 
-### `useConference`
-Provides access to conference selection context.
-
-```typescript
-import { useConference } from '@/hooks/useConference'
-
-function MyComponent() {
-  const { selectedConferenceId, setSelectedConferenceId } = useConference()
-  // ...
-}
-```
-
-### `usePermissions`
-Provides easy access to user permissions based on current context.
-
-```typescript
-import { usePermissions } from '@/hooks/usePermissions'
-
-function MyComponent() {
-  const {
-    isSuperAdmin,
-    canViewRegistrations,
-    canManagePayments,
-    // ... other permissions
-  } = usePermissions()
-  // ...
-}
-```
+Note: most of the app uses the richer `useAuth` from `contexts/AuthContext`
+and `useConference` from `contexts/ConferenceContext` directly.
 
 ### Toast Notifications
 Toast notifications are provided via `utils/toast.ts` (not a hook).
@@ -67,4 +41,3 @@ When adding a new hook:
 3. Export the hook as a named export
 4. Add documentation comments
 5. Update this README
-

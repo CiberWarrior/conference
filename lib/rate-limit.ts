@@ -147,6 +147,19 @@ export const abstractUploadRateLimit = isConfigured && redis
   : null
 
 /**
+ * Email lookup rate limiter: 10 lookups per minute
+ * Protects endpoints that check whether an email exists (enumeration attacks)
+ */
+export const emailLookupRateLimit = isConfigured && redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '1 m'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/email-lookup',
+    })
+  : null
+
+/**
  * Helper function to check rate limit
  * Returns null if rate limiting is disabled or not configured
  */

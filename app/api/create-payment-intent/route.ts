@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import {
   paymentIntentRateLimit,
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createServerClient()
+    // Public/anonymous endpoint - registrations RLS is admin-scoped (migration 056),
+    // so this must use the service role client.
+    const supabase = createAdminClient()
 
     // Load registration (conference_id, registration_fee_id for amount)
     const { data: registration, error: regError } = await supabase

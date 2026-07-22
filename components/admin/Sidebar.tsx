@@ -112,6 +112,28 @@ const navigationSections: NavSection[] = [
           </svg>
         ),
       },
+      {
+        name: 'Subscriptions',
+        sidebarKey: 'subscriptions',
+        href: '/admin/subscriptions',
+        superAdminOnly: true,
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3v18h18M9 17V9m4 8V5m4 12v-6" />
+          </svg>
+        ),
+      },
+      {
+        name: 'Plans & Pricing',
+        sidebarKey: 'plans',
+        href: '/admin/plans',
+        superAdminOnly: true,
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        ),
+      },
     ]
   },
   {

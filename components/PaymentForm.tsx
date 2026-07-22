@@ -61,7 +61,9 @@ function PaymentFormContent({
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/success`,
+          // Redirect only happens for payment methods that require it (e.g. 3D Secure
+          // fallback); `/success` no longer exists, so fall back to the current page.
+          return_url: window.location.href,
         },
         redirect: 'if_required',
       })

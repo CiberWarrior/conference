@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import { z } from 'zod'
 
@@ -27,9 +28,12 @@ export async function POST(request: NextRequest) {
     const validatedData = signupSchema.parse(body)
 
     const supabase = await createServerClient()
+    // Profile lookup/writes happen before the user session exists,
+    // so they must use the service role client under RLS (migration 056).
+    const adminDb = createAdminClient()
 
     // Check if email already exists in participant_profiles
-    const { data: existingProfile, error: checkError } = await supabase
+    const { data: existingProfile, error: checkError } = await adminDb
       .from('participant_profiles')
       .select('id, email, has_account, phone, country, institution')
       .eq('email', validatedData.email)
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     // If participant profile already exists (guest), update it
     if (existingProfile) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminDb
         .from('participant_profiles')
         .update({
           auth_user_id: authData.user.id,
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // Create new participant profile
-      const { error: profileError } = await supabase
+      const { error: profileError } = await adminDb
         .from('participant_profiles')
         .insert({
           auth_user_id: authData.user.id,

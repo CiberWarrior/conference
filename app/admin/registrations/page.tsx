@@ -5,10 +5,13 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Registration } from '@/types/registration'
 import * as XLSX from 'xlsx'
 import { QRCodeSVG } from 'qrcode.react'
 import { showSuccess, showError, showInfo } from '@/utils/toast'
+import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 
 // Force dynamic rendering for this page (uses searchParams)
 export const dynamic = 'force-dynamic'
@@ -17,7 +20,10 @@ function RegistrationsPageContent() {
   const searchParams = useSearchParams()
   const t = useTranslations('admin.registrations')
   const c = useTranslations('admin.common')
+  const tDashboard = useTranslations('admin.dashboard')
+  const tConferences = useTranslations('admin.conferences')
   const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } = useConference()
+  const { isSuperAdmin } = useAuth()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +43,7 @@ function RegistrationsPageContent() {
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [selectedQRRegistration, setSelectedQRRegistration] = useState<Registration | null>(null)
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null)
   // B3: Pagination – avoid loading all registrations at once
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
@@ -56,11 +63,15 @@ function RegistrationsPageContent() {
   }, [searchParams, conferences])
 
   useEffect(() => {
+    if (conferenceLoading) return
     if (currentConference) {
       loadRegistrations(page)
+    } else {
+      // No conference selected - stop the spinner and show the empty state below.
+      setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConference, page])
+  }, [currentConference, page, conferenceLoading])
 
   const loadRegistrations = async (pageNum: number) => {
     if (!currentConference) {
@@ -89,6 +100,9 @@ function RegistrationsPageContent() {
             phone,
             country,
             institution
+          ),
+          custom_registration_fees (
+            name
           )
         `,
           { count: 'exact' }
@@ -144,8 +158,12 @@ function RegistrationsPageContent() {
             arrivalDate: r.arrival_date || r.accommodation?.arrival_date || findField(['Arrival Date', 'arrival_date', 'Check In', 'check_in'], undefined, (k) => k.includes('arrival') || (k.includes('check') && k.includes('in'))),
             departureDate: r.departure_date || r.accommodation?.departure_date || findField(['Departure Date', 'departure_date', 'Check Out', 'check_out'], undefined, (k) => k.includes('departure') || (k.includes('check') && k.includes('out'))),
             accommodation: r.accommodation || null, // Store accommodation data
-            registrationFeeType: r.registration_fee_type ?? null,
+            // New fee system (custom_registration_fees via registration_fee_id) takes priority;
+            // fall back to the legacy registration_fee_type column for older registrations
+            registrationFeeType: r.custom_registration_fees?.name ?? r.registration_fee_type ?? null,
             paymentMethod: r.payment_method ?? null,
+            bank_transfer_proof_url: r.bank_transfer_proof_url ?? null,
+            bank_transfer_verified: r.bank_transfer_verified ?? false,
             paymentRequired: r.payment_required,
             paymentByCard: r.payment_by_card || false,
             accompanyingPersons: r.accompanying_persons || false,
@@ -477,6 +495,41 @@ function RegistrationsPageContent() {
     }
   }
 
+  const handleConfirmBankPayment = async (reg: Registration, verified: boolean) => {
+    const name = `${reg.firstName} ${reg.lastName}`.trim()
+    const confirmMessage = verified
+      ? t('confirmBankPaymentPrompt', { name })
+      : t('undoBankPaymentConfirmationPrompt', { name })
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      setConfirmingPaymentId(reg.id)
+      const response = await fetch(`/api/admin/registrations/${reg.id}/confirm-bank-payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        const message =
+          typeof result?.error === 'string' ? result.error : result?.error?.message
+        throw new Error(message || t('bankPaymentUpdateFailed'))
+      }
+
+      showSuccess(verified ? t('bankPaymentConfirmed') : t('bankPaymentUndone'))
+      loadRegistrations(page)
+    } catch (error) {
+      showError(error instanceof Error ? error.message : t('bankPaymentUpdateFailed'))
+    } finally {
+      setConfirmingPaymentId(null)
+    }
+  }
+
   const handleBulkSendEmail = async () => {
     if (selectedIds.size === 0) return
 
@@ -554,6 +607,26 @@ function RegistrationsPageContent() {
 
     setSelectedIds(new Set())
     setBulkActionMenuOpen(false)
+  }
+
+  if (!currentConference && !conferenceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{tDashboard('noConferenceSelected')}</h2>
+          <p className="text-gray-600 mb-6">{t('noConference')}</p>
+          <Link
+            href="/admin/conferences"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+          >
+            {tConferences('title')}
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -664,16 +737,18 @@ function RegistrationsPageContent() {
             )}
           </div>
           
-          <a
-            href="/api/admin/backup?format=csv"
-            download
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            {t('fullBackup')}
-          </a>
+          {isSuperAdmin && (
+            <a
+              href="/api/admin/backup?format=csv"
+              download
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {t('fullBackup')}
+            </a>
+          )}
         </div>
       </div>
 
@@ -1000,6 +1075,38 @@ function RegistrationsPageContent() {
                             ? t('pendingPayment')
                             : t('notRequired')}
                       </span>
+                      {reg.paymentMethod === 'bank_transfer' && (
+                        <div className="mt-1 flex flex-col items-start gap-1">
+                          {reg.bank_transfer_proof_url && (
+                            <a
+                              href={reg.bank_transfer_proof_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {t('viewProof')}
+                            </a>
+                          )}
+                          {reg.paymentStatus === 'pending' && (
+                            <button
+                              onClick={() => handleConfirmBankPayment(reg, true)}
+                              disabled={confirmingPaymentId === reg.id}
+                              className="text-xs font-medium text-green-700 hover:text-green-900 disabled:opacity-50"
+                            >
+                              {t('confirmBankPayment')}
+                            </button>
+                          )}
+                          {reg.paymentStatus === 'paid' && reg.bank_transfer_verified && (
+                            <button
+                              onClick={() => handleConfirmBankPayment(reg, false)}
+                              disabled={confirmingPaymentId === reg.id}
+                              className="text-xs font-medium text-gray-500 hover:text-red-700 disabled:opacity-50"
+                            >
+                              {t('undoBankPaymentConfirmation')}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.checkedIn ? (

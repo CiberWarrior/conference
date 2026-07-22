@@ -1,10 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireSuperAdmin } from '@/lib/api-auth'
-import { handleApiError } from '@/lib/api-error'
+import { requireConferencePermission } from '@/lib/api-auth'
+import { handleApiError, ApiError } from '@/lib/api-error'
 import { sendPaymentReminder } from '@/lib/email'
-import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Extract contact details from a registration. New registrations store data in
+ * `participants[0].customFields` / `custom_data`; the legacy first_name/last_name
+ * columns are null, so fall back across all of them.
+ */
+function extractContact(reg: Record<string, any>): {
+  email: string
+  firstName: string
+  lastName: string
+} {
+  const customData = reg.custom_data || {}
+  const firstParticipant =
+    Array.isArray(reg.participants) && reg.participants.length > 0
+      ? reg.participants[0]?.customFields ?? {}
+      : {}
+
+  const pick = (keys: string[]): string => {
+    for (const source of [reg, customData, firstParticipant]) {
+      for (const key of keys) {
+        const value = source?.[key]
+        if (value != null && String(value).trim()) return String(value).trim()
+      }
+    }
+    return ''
+  }
+
+  return {
+    email: pick(['email', 'Email', 'E-mail', 'e_mail', 'EMAIL']),
+    firstName: pick(['first_name', 'firstName', 'First Name', 'ime', 'Ime']),
+    lastName: pick(['last_name', 'lastName', 'Last Name', 'prezime', 'Prezime', 'surname']),
+  }
+}
 
 /**
  * POST /api/admin/payment-reminders
@@ -17,10 +49,16 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Use centralized auth helper (Super Admin only)
-    const { supabase } = await requireSuperAdmin()
-
     const searchParams = request.nextUrl.searchParams
+    const conferenceId = searchParams.get('conference_id')
+
+    if (!conferenceId) {
+      throw ApiError.validationError('Conference ID is required')
+    }
+
+    // ✅ Scope to a single conference (matches refunds / payment-history routes)
+    const { supabase } = await requireConferencePermission(conferenceId, 'can_manage_payments')
+
     const daysSinceRegistration = parseInt(searchParams.get('daysSinceRegistration') || '3')
     const maxReminders = parseInt(searchParams.get('maxReminders') || '3')
     const dryRun = searchParams.get('dryRun') === 'true'
@@ -34,11 +72,12 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         conference:conferences (
-          email_settings
+          email_settings,
+          slug
         )
       `)
+      .eq('conference_id', conferenceId)
       .eq('payment_status', 'pending')
-      .eq('payment_required', true)
       .lte('created_at', cutoffDate.toISOString())
       .or(`last_payment_reminder_sent_at.is.null,last_payment_reminder_sent_at.lt.${cutoffDate.toISOString()}`)
       .lt('payment_reminder_count', maxReminders)
@@ -86,8 +125,19 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Generate payment URL (you may need to adjust this based on your payment flow)
-        const paymentUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/payment/${reg.id}`
+        // Contact details live in participants/custom_data in the current model;
+        // the legacy first_name/last_name columns are null for new registrations.
+        const contact = extractContact(reg)
+        if (!contact.email) {
+          results.skipped++
+          continue
+        }
+
+        // Link back to the public conference page (the old /payment/[id] route
+        // does not exist). Bank transfer instructions were already emailed at signup.
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+        const slug = (reg as any).conference?.slug
+        const paymentUrl = slug ? `${baseUrl}/conferences/${slug}` : undefined
 
         // Get email settings from conference (if available)
         const emailSettings = (reg as any).conference?.email_settings || undefined
@@ -95,9 +145,9 @@ export async function POST(request: NextRequest) {
         // Send reminder email
         await sendPaymentReminder(
           reg.id,
-          reg.email,
-          reg.first_name,
-          reg.last_name,
+          contact.email,
+          contact.firstName,
+          contact.lastName,
           paymentUrl,
           `This is reminder ${(reg.payment_reminder_count || 0) + 1} of ${maxReminders}. Please complete your payment to secure your spot.`,
           emailSettings
@@ -116,7 +166,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         results.failed++
         results.errors.push(
-          `Failed to send reminder to ${reg.email}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `Failed to send reminder to ${extractContact(reg).email || reg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
       }
     }
@@ -129,13 +179,7 @@ export async function POST(request: NextRequest) {
       ...results,
     })
   } catch (error) {
-    log.error('Payment reminders error', error instanceof Error ? error : undefined, {
-      action: 'payment_reminders',
-    })
-    return NextResponse.json(
-      { error: 'Failed to process payment reminders' },
-      { status: 500 }
-    )
+    return handleApiError(error, { action: 'payment_reminders' })
   }
 }
 
@@ -143,15 +187,24 @@ export async function POST(request: NextRequest) {
  * GET /api/admin/payment-reminders
  * Get statistics about payment reminders
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // ✅ Use centralized auth helper (Super Admin only)
-    const { supabase } = await requireSuperAdmin()
+    const conferenceId = request.nextUrl.searchParams.get('conference_id')
 
+    if (!conferenceId) {
+      throw ApiError.validationError('Conference ID is required')
+    }
+
+    // ✅ Scope to a single conference (matches refunds / payment-history routes)
+    const { supabase } = await requireConferencePermission(conferenceId, 'can_manage_payments')
+
+    // Pending payments are the reliable signal in the current data model
+    // (payment_status is set for both card and bank transfer with a non-free fee).
     const { data: stats, error } = await supabase
       .from('registrations')
       .select('payment_status, payment_reminder_count, last_payment_reminder_sent_at')
-      .eq('payment_required', true)
+      .eq('conference_id', conferenceId)
+      .eq('payment_status', 'pending')
 
     if (error) {
       return NextResponse.json(

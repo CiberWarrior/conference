@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { CreditCard, Building2, User, Upload } from 'lucide-react'
+import { CreditCard, Building2, User, Upload, FileCheck, Loader2 } from 'lucide-react'
+import { showError } from '@/utils/toast'
 import type { PaymentSettings as PaymentSettingsType } from '@/types/conference'
 
 interface PaymentSectionProps {
@@ -28,8 +30,10 @@ interface PaymentSectionProps {
   onCompanyAddressChange: (v: string) => void
   companyPhone: string
   onCompanyPhoneChange: (v: string) => void
-  bankTransferProofFile: File | null
-  onBankTransferProofFileChange: (v: File | null) => void
+  /** Conference slug – required to upload the bank transfer proof */
+  conferenceSlug?: string
+  bankTransferProofUrl: string | null
+  onBankTransferProofUrlChange: (v: string | null) => void
 }
 
 export default function PaymentSection({
@@ -55,10 +59,45 @@ export default function PaymentSection({
   onCompanyAddressChange,
   companyPhone,
   onCompanyPhoneChange,
-  bankTransferProofFile,
-  onBankTransferProofFileChange,
+  conferenceSlug,
+  bankTransferProofUrl,
+  onBankTransferProofUrlChange,
 }: PaymentSectionProps) {
   const t = useTranslations('registrationForm')
+  const [isUploadingProof, setIsUploadingProof] = useState(false)
+  const [proofFileName, setProofFileName] = useState<string | null>(null)
+
+  const handleProofFileChange = async (file: File | null) => {
+    if (!file) return
+
+    if (!conferenceSlug) {
+      showError(t('fileUploadUnavailable'))
+      return
+    }
+
+    setIsUploadingProof(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(
+        `/api/conferences/${conferenceSlug}/upload-registration-attachment`,
+        { method: 'POST', body: formData }
+      )
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || t('fileUploadFailed'))
+      }
+
+      onBankTransferProofUrlChange(data.url)
+      setProofFileName(data.fileName || file.name)
+    } catch (error: any) {
+      showError(error.message || t('fileUploadFailed'))
+    } finally {
+      setIsUploadingProof(false)
+    }
+  }
 
   return (
     <div className="pt-6 border-t-2 border-gray-100 space-y-8">
@@ -369,15 +408,20 @@ export default function PaymentSection({
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => onBankTransferProofFileChange(e.target.files?.[0] ?? null)}
-              className="w-full px-4 py-3 border-2 border-dashed border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700"
+              disabled={isUploadingProof}
+              onChange={(e) => handleProofFileChange(e.target.files?.[0] ?? null)}
+              className="w-full px-4 py-3 border-2 border-dashed border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
             />
-            {bankTransferProofFile && (
+            {isUploadingProof && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-amber-800">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{t('uploading')}</span>
+              </div>
+            )}
+            {!isUploadingProof && bankTransferProofUrl && (
               <div className="mt-3 p-3 bg-white rounded-lg border border-amber-200 flex items-center gap-3">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm font-medium text-gray-900">{bankTransferProofFile.name}</span>
+                <FileCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-900">{proofFileName || t('fileUploaded')}</span>
               </div>
             )}
           </div>

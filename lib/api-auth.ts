@@ -148,13 +148,10 @@ export async function requireConferencePermission(
       throw ApiError.forbidden(`You do not have permission to ${permission.replace('can_', '').replace(/_/g, ' ')} for this conference`)
     }
 
-    // Check if the specific permission is granted
-    // Note: Simplified permission model - if user has access, they have all permissions
-    // except can_edit_conference and can_delete_data which are super admin only
-    const hasPermission = permissionData[permission] === true || 
-                          (permission !== 'can_edit_conference' && permission !== 'can_delete_data')
-
-    if (!hasPermission) {
+    // Check the actual permission column. Operational permissions default to
+    // true when access is granted, so this only blocks users whose permission
+    // was explicitly revoked by a super admin.
+    if (permissionData[permission] !== true) {
       throw ApiError.forbidden(`You do not have permission to ${permission.replace('can_', '').replace(/_/g, ' ')} for this conference`)
     }
   }
