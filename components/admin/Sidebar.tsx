@@ -18,60 +18,44 @@ interface NavItem {
 }
 
 interface NavSection {
-  title?: string
   titleKey?: string
   items: NavItem[]
   superAdminOnly?: boolean
 }
 
+// Two logical groups only:
+// 1. "Platform" – super admin's own business (all conferences, users, billing of the platform itself)
+// 2. "This Conference" – tools scoped to whichever conference is currently selected
 const navigationSections: NavSection[] = [
   {
     items: [
       {
         name: 'Dashboard',
         sidebarKey: 'dashboard',
-        href: '/admin/dashboard',
-        superAdminOnly: true,
+        href: '/admin/dashboard', // overridden per role in render
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
         ),
       },
-      {
-        name: 'My Account',
-        sidebarKey: 'myAccount',
-        href: '/admin/account',
-        superAdminOnly: true,
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        ),
-      },
-    ]
+    ],
   },
   {
-    title: 'Conference Management',
-    titleKey: 'conferenceManagement',
+    titleKey: 'platformSection',
+    superAdminOnly: true,
     items: [
       {
-        name: 'My Conferences',
-        sidebarKey: 'myConferences',
-        href: '/admin/conferences', // Will be overridden for Conference Admin in render
+        name: 'All Conferences',
+        sidebarKey: 'allConferencesManage',
+        href: '/admin/conferences',
+        superAdminOnly: true,
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         ),
       },
-    ]
-  },
-  {
-    title: 'System',
-    titleKey: 'system',
-    superAdminOnly: true,
-    items: [
       {
         name: 'Users',
         sidebarKey: 'users',
@@ -94,13 +78,6 @@ const navigationSections: NavSection[] = [
           </svg>
         ),
       },
-    ]
-  },
-  {
-    title: 'Sales & Leads',
-    titleKey: 'salesLeads',
-    superAdminOnly: true,
-    items: [
       {
         name: 'Inquiries',
         sidebarKey: 'inquiries',
@@ -113,7 +90,7 @@ const navigationSections: NavSection[] = [
         ),
       },
       {
-        name: 'Subscriptions',
+        name: 'Platform Subscriptions',
         sidebarKey: 'subscriptions',
         href: '/admin/subscriptions',
         superAdminOnly: true,
@@ -134,10 +111,22 @@ const navigationSections: NavSection[] = [
           </svg>
         ),
       },
-    ]
+    ],
   },
   {
+    titleKey: 'conferenceSection',
     items: [
+      {
+        name: 'Conference Overview',
+        sidebarKey: 'conferenceOverview',
+        href: '/admin/dashboard?view=single',
+        superAdminOnly: true, // conference admins already have "Dashboard" above pointing here
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+        ),
+      },
       {
         name: 'Registrations',
         sidebarKey: 'registrations',
@@ -159,7 +148,7 @@ const navigationSections: NavSection[] = [
         ),
       },
       {
-        name: 'Payments',
+        name: 'Registration Payments',
         sidebarKey: 'payments',
         href: '/admin/payments',
         icon: (
@@ -168,12 +157,6 @@ const navigationSections: NavSection[] = [
           </svg>
         ),
       },
-    ]
-  },
-  {
-    title: 'Tools',
-    titleKey: 'tools',
-    items: [
       {
         name: 'Check-In',
         sidebarKey: 'checkIn',
@@ -204,7 +187,18 @@ const navigationSections: NavSection[] = [
           </svg>
         ),
       },
-    ]
+      {
+        name: 'Conference Settings',
+        sidebarKey: 'conferenceSettings',
+        href: '/admin/conferences', // overridden with conference id in render
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
+    ],
   },
 ]
 
@@ -212,9 +206,13 @@ export default function Sidebar() {
   const pathname = usePathname()
   const t = useTranslations('admin.sidebar')
   const [mounted, setMounted] = useState(false)
-  const { isSuperAdmin, role, loading: authLoading, profile } = useAuth()
+  const { isSuperAdmin, isImpersonating, role, loading: authLoading, profile } = useAuth()
   const { currentConference } = useConference()
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({})
+
+  // While impersonating, the sidebar should behave exactly like the impersonated
+  // conference admin sees it – not like the underlying super admin account.
+  const effectiveSuperAdmin = isSuperAdmin && !isImpersonating
 
   useEffect(() => {
     setMounted(true)
@@ -239,39 +237,48 @@ export default function Sidebar() {
   // Prevent hydration mismatch by not rendering active state until mounted
   const getIsActive = (href: string, sidebarKey?: string) => {
     if (!mounted || !pathname) return false
-    // For "My Conferences" when Conference Admin is on Dashboard
-    if (sidebarKey === 'myConferences' && !isSuperAdmin && pathname === '/admin/dashboard') {
-      return true
-    }
+    if (sidebarKey === 'dashboard' && pathname === '/admin/dashboard') return true
     return pathname === href || (href !== '/admin' && href !== '/admin/dashboard' && pathname.startsWith(href))
   }
 
-  // Filter sections based on user role
+  // Resolve dynamic hrefs / labels that depend on role or the currently selected conference
+  const resolveHref = (item: NavItem): string => {
+    if (item.sidebarKey === 'dashboard') {
+      return effectiveSuperAdmin ? '/admin/dashboard?view=platform' : '/admin/dashboard'
+    }
+    if (item.sidebarKey === 'conferenceSettings' && currentConference) {
+      return `/admin/conferences/${currentConference.id}/settings`
+    }
+    return item.href
+  }
+
+  // Filter sections based on user role and whether a conference is currently in scope
   const getFilteredSections = () => {
     if (authLoading) return []
-    
+
     return navigationSections
-      .filter(section => {
-        // If section is superAdminOnly, only show to super admins
-        if (section.superAdminOnly && !isSuperAdmin) return false
+      .filter((section) => {
+        if (section.superAdminOnly && !effectiveSuperAdmin) return false
+        // "This Conference" tools only make sense once a conference is in scope.
+        // Conference admins are always scoped to a conference; super admins need to pick one first.
+        if (section.titleKey === 'conferenceSection' && effectiveSuperAdmin && !currentConference) {
+          return false
+        }
         return true
       })
-      .map(section => ({
+      .map((section) => ({
         ...section,
-        items: section.items.filter(item => {
-          // If item is superAdminOnly, only show to super admins
-          if (item.superAdminOnly && !isSuperAdmin) return false
-          // Check permission requirement
+        items: section.items.filter((item) => {
+          if (item.superAdminOnly && !effectiveSuperAdmin) return false
+          if (item.sidebarKey === 'conferenceSettings' && !currentConference) return false
           if (item.requiresPermission) {
-            // Super admin has all permissions
-            if (isSuperAdmin) return true
-            // Check if user has the specific permission
+            if (effectiveSuperAdmin) return true
             return userPermissions[item.requiresPermission] === true
           }
           return true
-        })
+        }),
       }))
-      .filter(section => section.items.length > 0) // Remove empty sections
+      .filter((section) => section.items.length > 0)
   }
 
   return (
@@ -306,11 +313,7 @@ export default function Sidebar() {
                   )}
                   <div className="space-y-1">
                     {section.items.map((item) => {
-                      // For Conference Admin, "My Conferences" should link to Dashboard
-                      let href = item.href
-                      if (!isSuperAdmin && item.sidebarKey === 'myConferences') {
-                        href = '/admin/dashboard'
-                      }
+                      const href = resolveHref(item)
                       const isActive = getIsActive(href, item.sidebarKey)
                       const activeBgColor = isSuperAdmin
                         ? 'bg-gradient-to-r from-yellow-600 to-yellow-500'
@@ -387,4 +390,3 @@ export default function Sidebar() {
     </div>
   )
 }
-

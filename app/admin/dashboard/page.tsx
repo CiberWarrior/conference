@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
@@ -114,8 +114,10 @@ const formatCurrency = (amount: number, currency: string) =>
     maximumFractionDigits: 2,
   }).format(amount)
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get('view')
   const t = useTranslations('admin.dashboard')
   const c = useTranslations('admin.common')
   const { currentConference, conferences, loading: conferenceLoading, setCurrentConference } = useConference()
@@ -139,6 +141,7 @@ export default function DashboardPage() {
     mrr: 0,
     currency: 'EUR',
     activeCount: 0,
+    pendingOrderCount: 0,
   })
   const [inquiryStats, setInquiryStats] = useState({
     newInquiries: 0,
@@ -220,7 +223,9 @@ export default function DashboardPage() {
   const [loadingConferenceStats, setLoadingConferenceStats] = useState(false)
   const [conferenceSearchTerm, setConferenceSearchTerm] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all')
-  const [analyticsExpanded, setAnalyticsExpanded] = useState(true)
+  // Detailed charts are useful for analysis, but should not push daily
+  // operational work below the fold when an organizer opens a conference.
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(false)
   const [openTicketsCount, setOpenTicketsCount] = useState<number | null>(null)
 
   // Auto-select if only one conference
@@ -236,6 +241,26 @@ export default function DashboardPage() {
       setViewMode('overview')
     }
   }, [conferences, currentConference, conferenceLoading, setCurrentConference, viewMode])
+
+  // Sidebar links pass an explicit ?view= so navigating here from another admin
+  // page always lands on the intended mode, instead of whatever was last selected.
+  useEffect(() => {
+    if (conferenceLoading || !requestedView) return
+
+    if (requestedView === 'platform' && isSuperAdmin) {
+      setViewMode('platform')
+      setCurrentConference(null)
+    } else if (requestedView === 'overview') {
+      setViewMode('overview')
+      setCurrentConference(null)
+    } else if (requestedView === 'single') {
+      setViewMode('single')
+      if (!currentConference && conferences.length > 0) {
+        setCurrentConference(conferences[0])
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedView, conferenceLoading, isSuperAdmin])
 
   // Load conference admins for super admin
   useEffect(() => {
@@ -719,6 +744,7 @@ export default function DashboardPage() {
           mrr: data.mrr || 0,
           currency: data.currency || 'EUR',
           activeCount: data.activeCount || 0,
+          pendingOrderCount: data.pendingOrders?.length || 0,
         })
       }
     } catch (error) {
@@ -955,48 +981,129 @@ export default function DashboardPage() {
           <p className="mt-2 text-gray-600">{t('welcomeBack', { name: profile?.full_name || 'Super Admin' })}</p>
         </div>
 
-        {/* Platform Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
-          <StatsCard
-            title={t('totalConferences')}
-            value={platformStats.totalConferences}
-            color="blue"
-            icon={<Building2 className="w-6 h-6" />}
-          />
-          <StatsCard
-            title={t('activeConferences')}
-            value={platformStats.activeConferences}
-            color="green"
-            icon={<Activity className="w-6 h-6" />}
-          />
-          <StatsCard
-            title={t('totalUsers')}
-            value={platformStats.totalUsers}
-            color="purple"
-            icon={<UsersIcon className="w-6 h-6" />}
-          />
-          <StatsCard
-            title={t('totalRegistrations')}
-            value={platformStats.totalRegistrations}
-            color="blue"
-            icon={<UsersIcon className="w-6 h-6" />}
-          />
-          <Link href="/admin/subscriptions" className="block">
+        {/* Action queue comes first: it contains only work that needs a decision,
+            not another collection of historical totals. */}
+        {(platformRevenue.pendingOrderCount > 0 || inquiryStats.newInquiries > 0) && (
+          <section className="mb-8">
+            <div className="flex items-end justify-between gap-4 mb-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{t('needsAttention')}</h3>
+                <p className="text-sm text-gray-600">{t('needsAttentionHint')}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {platformRevenue.pendingOrderCount > 0 && (
+                <Link
+                  href="/admin/subscriptions"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100"
+                >
+                  <div>
+                    <p className="font-semibold text-amber-950">{t('pendingSubscriptionOrders')}</p>
+                    <p className="text-sm text-amber-800 mt-1">
+                      {t('pendingSubscriptionOrdersHint', {
+                        count: platformRevenue.pendingOrderCount,
+                      })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-amber-200 px-3 py-1 text-sm font-bold text-amber-900">
+                    {platformRevenue.pendingOrderCount}
+                  </span>
+                </Link>
+              )}
+              {inquiryStats.newInquiries > 0 && (
+                <Link
+                  href="/admin/inquiries"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4 transition-colors hover:bg-blue-100"
+                >
+                  <div>
+                    <p className="font-semibold text-blue-950">{t('newInquiries')}</p>
+                    <p className="text-sm text-blue-800 mt-1">
+                      {t('newInquiriesHint', { count: inquiryStats.newInquiries })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-blue-200 px-3 py-1 text-sm font-bold text-blue-900">
+                    {inquiryStats.newInquiries}
+                  </span>
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Financial figures are deliberately separated from activity metrics:
+            conference turnover is organizers' money, while MRR is MeetFlow income. */}
+        <section className="mb-8">
+          <div className="flex items-end justify-between gap-4 mb-3">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{t('platformBusiness')}</h3>
+              <p className="text-sm text-gray-600">{t('platformBusinessHint')}</p>
+            </div>
+            <Link
+              href="/admin/subscriptions"
+              className="hidden sm:inline-flex text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {t('manageSubscriptions')}
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link href="/admin/subscriptions" className="block">
+              <StatsCard
+                title={t('platformRevenueMrr')}
+                value={formatCurrency(platformRevenue.mrr, platformRevenue.currency)}
+                color="green"
+                icon={<DollarSign className="w-6 h-6" />}
+              />
+            </Link>
+            <Link href="/admin/subscriptions" className="block">
+              <StatsCard
+                title={t('activeSubscriptions')}
+                value={platformRevenue.activeCount}
+                color="purple"
+                icon={<CreditCard className="w-6 h-6" />}
+              />
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-8">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">{t('platformActivity')}</h3>
+            <p className="text-sm text-gray-600">{t('platformActivityHint')}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatsCard
-              title={t('platformRevenueMrr')}
-              value={formatCurrency(platformRevenue.mrr, platformRevenue.currency)}
-              color="green"
-              icon={<DollarSign className="w-6 h-6" />}
+              title={t('totalConferences')}
+              value={platformStats.totalConferences}
+              color="blue"
+              icon={<Building2 className="w-6 h-6" />}
             />
-          </Link>
-          <StatsCard
-            title={t('conferenceTurnover')}
-            value={formatCurrency(platformStats.conferenceTurnover, 'EUR')}
-            color="yellow"
-            icon={<CreditCard className="w-6 h-6" />}
-          />
-        </div>
-        <p className="text-sm text-gray-500 mb-8">{t('conferenceTurnoverHint')}</p>
+            <StatsCard
+              title={t('activeConferences')}
+              value={platformStats.activeConferences}
+              color="green"
+              icon={<Activity className="w-6 h-6" />}
+            />
+            <StatsCard
+              title={t('totalUsers')}
+              value={platformStats.totalUsers}
+              color="purple"
+              icon={<UsersIcon className="w-6 h-6" />}
+            />
+            <StatsCard
+              title={t('totalRegistrations')}
+              value={platformStats.totalRegistrations}
+              color="blue"
+              icon={<UsersIcon className="w-6 h-6" />}
+            />
+            <StatsCard
+              title={t('conferenceTurnover')}
+              value={formatCurrency(platformStats.conferenceTurnover, 'EUR')}
+              color="yellow"
+              icon={<CreditCard className="w-6 h-6" />}
+            />
+          </div>
+          <p className="text-sm text-gray-500 mt-3">{t('conferenceTurnoverHint')}</p>
+        </section>
 
         {/* Quick Actions */}
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1113,15 +1220,14 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-500">{t('loadingTeam')}</p>
                 </div>
               ) : conferenceAdmins.length === 0 ? (
-                <div className="text-center py-8">
-                  <UserCog className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-2">{t('noConferenceAdminsFound')}</p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    {t('createConferenceAdminsHint')}
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                  <div>
+                    <p className="font-medium text-gray-900">{t('noConferenceAdminsFound')}</p>
+                    <p className="text-sm text-gray-600 mt-1">{t('createConferenceAdminsHint')}</p>
+                  </div>
                   <Link
                     href="/admin/users/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     {t('createConferenceAdmin')}
@@ -1665,7 +1771,7 @@ export default function DashboardPage() {
       )}
 
       {/* Team (Conference Admins) – table with Avatar (Telerik-style) */}
-      {isSuperAdmin && !isImpersonating && (
+      {isSuperAdmin && !isImpersonating && !currentConference && (
         <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1789,57 +1895,61 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Conference Stats Heading */}
-      {inquiryStats.totalInquiries > 0 && isSuperAdmin && (
-        <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900">
-            {currentConference ? `${currentConference.name} Statistics` : 'Conference Statistics'}
-          </h3>
-        </div>
-      )}
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-gray-900">{t('conferenceSnapshot')}</h3>
+        <p className="mt-1 text-sm text-gray-600">{t('conferenceSnapshotHint')}</p>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title={t('totalRegistrations')}
-          value={stats.totalRegistrations}
-          color="blue"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title={t('paid')}
-          value={stats.paidRegistrations}
-          color="green"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title={t('pendingPayments')}
-          value={stats.pendingPayments}
-          color="yellow"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title={t('checkedIn')}
-          value={stats.checkedIn || 0}
-          color="blue"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
+        <Link href="/admin/registrations" className="block">
+          <StatsCard
+            title={t('totalRegistrations')}
+            value={stats.totalRegistrations}
+            color="blue"
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            }
+          />
+        </Link>
+        <Link href="/admin/payments" className="block">
+          <StatsCard
+            title={t('paid')}
+            value={stats.paidRegistrations}
+            color="green"
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+        </Link>
+        <Link href="/admin/payments" className="block">
+          <StatsCard
+            title={t('pendingPayments')}
+            value={stats.pendingPayments}
+            color="yellow"
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+        </Link>
+        <Link href="/admin/checkin" className="block">
+          <StatsCard
+            title={t('checkedIn')}
+            value={stats.checkedIn || 0}
+            color="blue"
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+        </Link>
       </div>
 
       {/* Analytics & Insights – collapsible (ExpansionPanel-style) */}
@@ -1990,5 +2100,19 @@ export default function DashboardPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   )
 }
