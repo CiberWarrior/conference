@@ -9,6 +9,7 @@ interface StatsCardProps {
     isPositive: boolean
   }
   color?: 'blue' | 'green' | 'yellow' | 'purple' | 'red'
+  hint?: string
 }
 
 export default function StatsCard({
@@ -17,48 +18,54 @@ export default function StatsCard({
   icon,
   trend,
   color = 'blue',
+  hint,
 }: StatsCardProps) {
-  const colorClasses = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500',
-    purple: 'bg-purple-500',
-    red: 'bg-red-500',
-  }
-
   const iconBgClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    purple: 'bg-purple-100 text-purple-600',
-    red: 'bg-red-100 text-red-600',
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    yellow: 'bg-amber-50 text-amber-600',
+    purple: 'bg-violet-50 text-violet-600',
+    red: 'bg-red-50 text-red-600',
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+    <div className="h-full bg-white rounded-lg border border-gray-200 p-5 transition-colors hover:border-gray-300">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {title}
+          </p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">
+            {value}
+          </p>
           {trend && (
-            <p className={`text-sm mt-2 flex items-center ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            <p
+              className={`mt-2 inline-flex items-center text-xs font-medium ${
+                trend.isPositive ? 'text-emerald-600' : 'text-red-600'
+              }`}
+            >
               <svg
-                className={`w-4 h-4 mr-1 ${trend.isPositive ? '' : 'rotate-180'}`}
+                className={`mr-1 h-3.5 w-3.5 ${trend.isPositive ? '' : 'rotate-180'}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
               </svg>
               {trend.value}
             </p>
           )}
+          {!trend && hint && (
+            <p className="mt-2 text-xs text-gray-500">{hint}</p>
+          )}
         </div>
-        <div className={`p-3 rounded-lg ${iconBgClasses[color]}`}>
-          {icon}
-        </div>
+        <div className={`rounded-md p-2.5 ${iconBgClasses[color]}`}>{icon}</div>
       </div>
     </div>
   )
 }
-

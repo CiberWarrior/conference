@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import StatsCard from '@/components/admin/StatsCard'
+import PaymentStatusBadge from '@/components/admin/PaymentStatusBadge'
+import StatusBadge, { type StatusBadgeTone } from '@/components/admin/StatusBadge'
 import {
   RegistrationsByDayChart,
   PaymentStatusChart,
@@ -34,8 +36,6 @@ import {
   MapPin,
   Globe,
   Eye,
-  CheckCircle,
-  XCircle,
   Building2,
   TrendingUp,
   DollarSign,
@@ -114,6 +114,42 @@ const formatCurrency = (amount: number, currency: string) =>
     maximumFractionDigits: 2,
   }).format(amount)
 
+type Trend = { value: string; isPositive: boolean }
+
+function countInWindow<T extends { created_at: string }>(
+  items: T[],
+  start: Date,
+  end: Date,
+  predicate?: (item: T) => boolean
+) {
+  return items.filter((item) => {
+    const created = new Date(item.created_at).getTime()
+    if (created < start.getTime() || created >= end.getTime()) return false
+    return predicate ? predicate(item) : true
+  }).length
+}
+
+function buildWeekTrend(
+  current: number,
+  previous: number,
+  labels: { thanLastWeek: string; newThisWeek: string; unchanged: string },
+  higherIsBetter = true
+): Trend | undefined {
+  if (current === 0 && previous === 0) return undefined
+  if (previous === 0) {
+    return { value: labels.newThisWeek, isPositive: higherIsBetter }
+  }
+  const pct = Math.round(((current - previous) / previous) * 100)
+  if (pct === 0) {
+    return { value: labels.unchanged, isPositive: true }
+  }
+  const improved = higherIsBetter ? pct > 0 : pct < 0
+  return {
+    value: `${pct > 0 ? '+' : ''}${pct}% ${labels.thanLastWeek}`,
+    isPositive: improved,
+  }
+}
+
 function DashboardPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -128,6 +164,11 @@ function DashboardPageContent() {
     pendingPayments: 0,
     checkedIn: 0,
     recentRegistrations: [] as any[],
+    trends: {
+      totalRegistrations: undefined as Trend | undefined,
+      paidRegistrations: undefined as Trend | undefined,
+      pendingPayments: undefined as Trend | undefined,
+    },
   })
   const [platformStats, setPlatformStats] = useState({
     totalConferences: 0,
@@ -668,12 +709,68 @@ function DashboardPageContent() {
           .map(([period, revenue]) => ({ period, revenue }))
           .sort((a, b) => a.period.localeCompare(b.period))
 
+        const now = new Date()
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+        const trendLabels = {
+          thanLastWeek: t('thanLastWeek'),
+          newThisWeek: t('newThisWeek'),
+          unchanged: t('trendUnchanged'),
+        }
+
+        const regsThisWeek = countInWindow(registrations, weekAgo, now)
+        const regsPrevWeek = countInWindow(registrations, twoWeeksAgo, weekAgo)
+        const paidThisWeek = countInWindow(
+          registrations,
+          weekAgo,
+          now,
+          (r) => r.payment_status === 'paid'
+        )
+        const paidPrevWeek = countInWindow(
+          registrations,
+          twoWeeksAgo,
+          weekAgo,
+          (r) => r.payment_status === 'paid'
+        )
+        const pendingThisWeek = countInWindow(
+          registrations,
+          weekAgo,
+          now,
+          (r) => r.payment_status === 'pending'
+        )
+        const pendingPrevWeek = countInWindow(
+          registrations,
+          twoWeeksAgo,
+          weekAgo,
+          (r) => r.payment_status === 'pending'
+        )
+
         setStats({
           totalRegistrations: registrations.length,
           paidRegistrations: paid,
           pendingPayments: pending,
           checkedIn: checkedIn,
-          recentRegistrations: registrations.slice(0, 5),
+          recentRegistrations: registrations.slice(0, 8),
+          trends: {
+            totalRegistrations: buildWeekTrend(
+              regsThisWeek,
+              regsPrevWeek,
+              trendLabels,
+              true
+            ),
+            paidRegistrations: buildWeekTrend(
+              paidThisWeek,
+              paidPrevWeek,
+              trendLabels,
+              true
+            ),
+            pendingPayments: buildWeekTrend(
+              pendingThisWeek,
+              pendingPrevWeek,
+              trendLabels,
+              false
+            ),
+          },
         })
 
         setChartData({
@@ -768,6 +865,11 @@ function DashboardPageContent() {
         pendingPayments: 0,
         checkedIn: 0,
         recentRegistrations: [],
+        trends: {
+          totalRegistrations: undefined,
+          paidRegistrations: undefined,
+          pendingPayments: undefined,
+        },
       })
       setChartData({
         registrationsByDay: [],
@@ -1045,13 +1147,13 @@ function DashboardPageContent() {
               {t('manageSubscriptions')}
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Link href="/admin/subscriptions" className="block">
               <StatsCard
                 title={t('platformRevenueMrr')}
                 value={formatCurrency(platformRevenue.mrr, platformRevenue.currency)}
                 color="green"
-                icon={<DollarSign className="w-6 h-6" />}
+                icon={<DollarSign className="w-5 h-5" />}
               />
             </Link>
             <Link href="/admin/subscriptions" className="block">
@@ -1059,7 +1161,7 @@ function DashboardPageContent() {
                 title={t('activeSubscriptions')}
                 value={platformRevenue.activeCount}
                 color="purple"
-                icon={<CreditCard className="w-6 h-6" />}
+                icon={<CreditCard className="w-5 h-5" />}
               />
             </Link>
           </div>
@@ -1070,72 +1172,81 @@ function DashboardPageContent() {
             <h3 className="text-lg font-semibold text-gray-900">{t('platformActivity')}</h3>
             <p className="text-sm text-gray-600">{t('platformActivityHint')}</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <StatsCard
               title={t('totalConferences')}
               value={platformStats.totalConferences}
               color="blue"
-              icon={<Building2 className="w-6 h-6" />}
+              icon={<Building2 className="w-5 h-5" />}
             />
             <StatsCard
               title={t('activeConferences')}
               value={platformStats.activeConferences}
               color="green"
-              icon={<Activity className="w-6 h-6" />}
+              icon={<Activity className="w-5 h-5" />}
             />
             <StatsCard
               title={t('totalUsers')}
               value={platformStats.totalUsers}
               color="purple"
-              icon={<UsersIcon className="w-6 h-6" />}
+              icon={<UsersIcon className="w-5 h-5" />}
             />
             <StatsCard
               title={t('totalRegistrations')}
               value={platformStats.totalRegistrations}
               color="blue"
-              icon={<UsersIcon className="w-6 h-6" />}
+              icon={<UsersIcon className="w-5 h-5" />}
             />
             <StatsCard
               title={t('conferenceTurnover')}
               value={formatCurrency(platformStats.conferenceTurnover, 'EUR')}
               color="yellow"
-              icon={<CreditCard className="w-6 h-6" />}
+              icon={<CreditCard className="w-5 h-5" />}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-3">{t('conferenceTurnoverHint')}</p>
+          <p className="mt-3 text-sm text-gray-500">{t('conferenceTurnoverHint')}</p>
         </section>
 
-        {/* Quick Actions */}
-        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('quickActions')}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Quick Actions – one primary + calm secondary links */}
+        <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 bg-gray-50/80 px-4 py-2.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t('quickActions')}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 p-3">
             <Link
               href="/admin/conferences/new"
-              className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
-              <Plus className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">{t('createConference')}</span>
+              <Plus className="w-4 h-4" />
+              {t('createConference')}
             </Link>
             <Link
               href="/admin/users"
-              className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <UsersIcon className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">{t('manageUsers')}</span>
+              <UsersIcon className="w-4 h-4" />
+              {t('manageUsers')}
             </Link>
             <Link
               href="/admin/inquiries"
-              className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <Mail className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-gray-900">{t('viewInquiries')}</span>
+              <Mail className="w-4 h-4" />
+              {t('viewInquiries')}
+              {inquiryStats.newInquiries > 0 && (
+                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-semibold text-blue-800">
+                  {inquiryStats.newInquiries}
+                </span>
+              )}
             </Link>
             <Link
               href="/admin/conferences"
-              className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <BarChart3 className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-900">{t('allConferencesLink')}</span>
+              <BarChart3 className="w-4 h-4" />
+              {t('allConferencesLink')}
             </Link>
           </div>
         </div>
@@ -1341,30 +1452,24 @@ function DashboardPageContent() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-gray-100">
                 {conferences.slice(0, 5).map((conf) => (
                   <Link
                     key={conf.id}
                     href={`/admin/conferences/${conf.id}/settings`}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all"
+                    className="flex items-center justify-between gap-3 px-1 py-3 transition-colors hover:bg-gray-50/80"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{conf.name}</h4>
-                      <p className="text-sm text-gray-500 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-sm font-medium text-gray-900">{conf.name}</h4>
+                      <p className="mt-0.5 text-xs text-gray-500">
                         {conf.location || t('noLocationSet')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {conf.published ? (
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          {t('published')}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                          {t('draft')}
-                        </span>
-                      )}
-                      <Eye className="w-4 h-4 text-gray-400" />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge tone={conf.published ? 'success' : 'neutral'}>
+                        {conf.published ? t('published') : t('draft')}
+                      </StatusBadge>
+                      <Eye className="h-4 w-4 text-gray-400" />
                     </div>
                   </Link>
                 ))}
@@ -1396,6 +1501,40 @@ function DashboardPageContent() {
       (conf.slug && conf.slug.toLowerCase().includes(searchLower))
     )
   })
+
+  const eventTypeLabel = (eventType?: string | null) => {
+    switch (eventType) {
+      case 'conference':
+        return t('eventTypeConference')
+      case 'workshop':
+        return t('eventTypeWorkshop')
+      case 'seminar':
+        return t('eventTypeSeminar')
+      case 'webinar':
+        return t('eventTypeWebinar')
+      case 'training':
+        return t('eventTypeTraining')
+      default:
+        return t('eventTypeOther')
+    }
+  }
+
+  const eventTypeTone = (eventType?: string | null): StatusBadgeTone => {
+    switch (eventType) {
+      case 'workshop':
+        return 'violet'
+      case 'seminar':
+        return 'success'
+      case 'webinar':
+        return 'warning'
+      case 'training':
+        return 'info'
+      case 'conference':
+        return 'info'
+      default:
+        return 'neutral'
+    }
+  }
 
   return (
     <div>
@@ -1497,37 +1636,34 @@ function DashboardPageContent() {
       {/* Overview Mode - All Conferences Table */}
       {shouldShowOverview && (
         <>
-          {/* Search and Filter */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Search */}
+          <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 bg-white p-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder={t('searchConferencesPlaceholder')}
                   value={conferenceSearchTerm}
                   onChange={(e) => setConferenceSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-9 text-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                 />
                 {conferenceSearchTerm && (
                   <button
                     onClick={() => setConferenceSearchTerm('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                     aria-label="Clear search"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
 
-              {/* Event Type Filter */}
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
+                <Filter className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <select
                   value={eventTypeFilter}
                   onChange={(e) => setEventTypeFilter(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer outline-none"
+                  className="w-full cursor-pointer appearance-none rounded-md border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">{t('eventTypeAll')}</option>
                   <option value="conference">{t('eventTypeConference')}</option>
@@ -1541,70 +1677,71 @@ function DashboardPageContent() {
             </div>
           </div>
 
-          {/* Conferences Table */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {t('allEventsCount', { count: filteredConferences.length })}
+          <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {t('allEventsCount', { count: filteredConferences.length })}
+                </h3>
                 {eventTypeFilter !== 'all' && (
-                  <span className="ml-2 text-sm font-normal text-gray-500">
-                    — {t('filteredBy', { type: eventTypeFilter })}
-                  </span>
+                  <p className="text-xs text-gray-500">
+                    {t('filteredBy', { type: eventTypeFilter })}
+                  </p>
                 )}
-              </h3>
+              </div>
               <Link
                 href="/admin/conferences"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 {t('manageAll')}
               </Link>
             </div>
             {loadingConferenceStats ? (
-              <div className="p-12 text-center">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Loading statistics...</p>
+              <div className="px-4 py-10 text-center">
+                <div className="mx-auto mb-2 h-7 w-7 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                <p className="text-sm text-gray-500">{t('loadingStatistics')}</p>
               </div>
             ) : filteredConferences.length === 0 ? (
-              <div className="p-12 text-center">
-                <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">
+              <div className="px-4 py-10 text-center">
+                <Building2 className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+                <p className="text-sm text-gray-500">
                   {eventTypeFilter !== 'all' || conferenceSearchTerm
-                    ? 'No events match your filters'
-                    : 'No events found'}
+                    ? t('noEventsMatch')
+                    : t('noEventsFound')}
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('eventHeader')}
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('typeHeader')}
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {c('status')}
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('registrationsHeader')}
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('paid')}
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        {t('pendingPayments')}
+                      <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {t('statusPending')}
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('checkedIn')}
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {t('actionsHeader')}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-100 bg-white">
                     {filteredConferences.map((conf) => {
                       const confStats = conferenceStats[conf.id] || {
                         totalRegistrations: 0,
@@ -1615,102 +1752,62 @@ function DashboardPageContent() {
                       return (
                         <tr
                           key={conf.id}
-                          className="hover:bg-blue-50 transition-colors cursor-pointer"
+                          className="cursor-pointer hover:bg-gray-50/80"
                           onClick={() => {
                             setCurrentConference(conf)
                             setViewMode('single')
                           }}
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-start">
-                              <Building2 className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <div className="text-sm font-medium text-gray-900 truncate">
-                                  {conf.name}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {conf.location || t('noLocationSet')}
-                                </div>
+                          <td className="px-4 py-2.5">
+                            <div className="min-w-0">
+                              <div className="truncate font-medium text-gray-900">
+                                {conf.name}
+                              </div>
+                              <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                                <MapPin className="h-3 w-3" />
+                                {conf.location || t('noLocationSet')}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              conf.event_type === 'conference'
-                                ? 'bg-blue-100 text-blue-800'
-                                : conf.event_type === 'workshop'
-                                ? 'bg-purple-100 text-purple-800'
-                                : conf.event_type === 'seminar'
-                                ? 'bg-green-100 text-green-800'
-                                : conf.event_type === 'webinar'
-                                ? 'bg-orange-100 text-orange-800'
-                                : conf.event_type === 'training'
-                                ? 'bg-indigo-100 text-indigo-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {conf.event_type === 'conference'
-                                ? t('eventTypeConference')
-                                : conf.event_type === 'workshop'
-                                ? t('eventTypeWorkshop')
-                                : conf.event_type === 'seminar'
-                                ? t('eventTypeSeminar')
-                                : conf.event_type === 'webinar'
-                                ? t('eventTypeWebinar')
-                                : conf.event_type === 'training'
-                                ? t('eventTypeTraining')
-                                : t('eventTypeOther')}
-                            </span>
+                          <td className="whitespace-nowrap px-4 py-2.5">
+                            <StatusBadge tone={eventTypeTone(conf.event_type)}>
+                              {eventTypeLabel(conf.event_type)}
+                            </StatusBadge>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {conf.published ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                {t('published')}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {t('draft')}
-                              </span>
-                            )}
+                          <td className="whitespace-nowrap px-4 py-2.5">
+                            <StatusBadge tone={conf.published ? 'success' : 'neutral'}>
+                              {conf.published ? t('published') : t('draft')}
+                            </StatusBadge>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {confStats.totalRegistrations}
-                            </span>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-center font-medium text-gray-900">
+                            {confStats.totalRegistrations}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm font-medium text-green-600">
-                              {confStats.paidRegistrations}
-                            </span>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-center text-emerald-700">
+                            {confStats.paidRegistrations}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm font-medium text-yellow-600">
-                              {confStats.pendingPayments}
-                            </span>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-center text-amber-700">
+                            {confStats.pendingPayments}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm font-medium text-blue-600">
-                              {confStats.checkedIn}
-                            </span>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-center text-blue-700">
+                            {confStats.checkedIn}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setCurrentConference(conf)
                                 setViewMode('single')
                               }}
-                              className="text-blue-600 hover:text-blue-700 font-medium mr-4"
+                              className="mr-3 font-medium text-blue-600 hover:text-blue-700"
                             >
-                              View Details
+                              {t('viewDetails')}
                             </button>
                             <Link
                               href={`/admin/conferences/${conf.id}/settings`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-gray-600 hover:text-gray-900"
+                              className="text-gray-500 hover:text-gray-800"
                             >
-                              <Settings className="w-4 h-4 inline" />
+                              <Settings className="inline h-4 w-4" />
                             </Link>
                           </td>
                         </tr>
@@ -1724,47 +1821,55 @@ function DashboardPageContent() {
         </>
       )}
 
-      {/* Quick Actions – Toolbar (Telerik-style) */}
+      {/* Quick Actions – compact operational toolbar */}
       {currentConference && !shouldShowOverview && (
-        <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/80">
-            <span className="text-sm font-semibold text-gray-700">{t('quickActions')}</span>
+        <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 bg-gray-50/80 px-4 py-2.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t('quickActions')}
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 p-4">
+          <div className="flex flex-wrap items-center gap-2 p-3">
             <Link
               href="/admin/registrations"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
               <UsersIcon className="w-4 h-4" />
               {t('registrationsLabel')}
             </Link>
             <Link
               href="/admin/abstracts"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               <FileText className="w-4 h-4" />
               {t('abstractsLabel')}
             </Link>
             <Link
               href="/admin/payments"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               <CreditCard className="w-4 h-4" />
               {t('paymentsLabel')}
+              {stats.pendingPayments > 0 && (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                  {stats.pendingPayments}
+                </span>
+              )}
             </Link>
             <Link
               href={`/admin/conferences/${currentConference.id}/settings`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               <Settings className="w-4 h-4" />
               {t('settings')}
             </Link>
             <Link
               href="/admin/tickets"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
               <Ticket className="w-4 h-4" />
-              {t('ticketsLabel')}{openTicketsCount !== null && openTicketsCount > 0 ? ` (${openTicketsCount})` : ''}
+              {t('ticketsLabel')}
+              {openTicketsCount !== null && openTicketsCount > 0 ? ` (${openTicketsCount})` : ''}
             </Link>
           </div>
         </div>
@@ -1895,20 +2000,23 @@ function DashboardPageContent() {
         </div>
       )}
 
-      <div className="mb-4">
-        <h3 className="text-xl font-bold text-gray-900">{t('conferenceSnapshot')}</h3>
-        <p className="mt-1 text-sm text-gray-600">{t('conferenceSnapshotHint')}</p>
+      {currentConference && !shouldShowOverview && (
+      <>
+      <div className="mb-3">
+        <h3 className="text-base font-semibold text-gray-900">{t('conferenceSnapshot')}</h3>
+        <p className="mt-1 text-sm text-gray-500">{t('conferenceSnapshotHint')}</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Link href="/admin/registrations" className="block">
           <StatsCard
             title={t('totalRegistrations')}
             value={stats.totalRegistrations}
+            trend={stats.trends.totalRegistrations}
             color="blue"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             }
@@ -1918,9 +2026,10 @@ function DashboardPageContent() {
           <StatsCard
             title={t('paid')}
             value={stats.paidRegistrations}
+            trend={stats.trends.paidRegistrations}
             color="green"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
@@ -1930,9 +2039,11 @@ function DashboardPageContent() {
           <StatsCard
             title={t('pendingPayments')}
             value={stats.pendingPayments}
+            trend={stats.trends.pendingPayments}
+            hint={stats.pendingPayments > 0 ? t('pendingNeedsReview') : undefined}
             color="yellow"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
@@ -1943,8 +2054,17 @@ function DashboardPageContent() {
             title={t('checkedIn')}
             value={stats.checkedIn || 0}
             color="blue"
+            hint={
+              stats.totalRegistrations > 0
+                ? t('checkInRateHint', {
+                    rate: Math.round(
+                      ((stats.checkedIn || 0) / stats.totalRegistrations) * 100
+                    ),
+                  })
+                : undefined
+            }
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
@@ -1952,153 +2072,147 @@ function DashboardPageContent() {
         </Link>
       </div>
 
-      {/* Analytics & Insights – collapsible (ExpansionPanel-style) */}
-      <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Operational table first — same pattern as real admin panels */}
+      <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">{t('recentRegistrations')}</h3>
+            <p className="text-xs text-gray-500">{t('recentRegistrationsHint')}</p>
+          </div>
+          <Link
+            href="/admin/registrations"
+            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            {t('viewAllLink')}
+          </Link>
+        </div>
+        {stats.recentRegistrations.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-gray-500">
+            {t('noRegistrationsYet')}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {t('member')}
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {t('email')}
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {c('status')}
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {t('dateHeader')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {stats.recentRegistrations.map((reg) => {
+                  const contact = extractContact(reg)
+                  const displayName =
+                    [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
+                    reg.registration_number ||
+                    t('noName')
+                  return (
+                    <tr key={reg.id} className="hover:bg-gray-50/80">
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={displayName} email={contact.email} size="sm" />
+                          <span className="font-medium text-gray-900">{displayName}</span>
+                        </div>
+                      </td>
+                      <td className="max-w-[220px] truncate px-4 py-2.5 text-gray-600">
+                        {contact.email || '—'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        <PaymentStatusBadge
+                          status={reg.payment_status || 'pending'}
+                          labels={{
+                            paid: t('paid'),
+                            pending: t('statusPending'),
+                            notRequired: t('statusNotRequired'),
+                          }}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-500">
+                        {new Date(reg.created_at).toLocaleDateString('hr-HR')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Analytics & Insights – secondary, collapsed by default */}
+      <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
         <button
           type="button"
           onClick={() => setAnalyticsExpanded(!analyticsExpanded)}
-          className="w-full px-6 py-4 flex items-center justify-between bg-gray-50/80 hover:bg-gray-100 transition-colors text-left"
+          className="flex w-full items-center justify-between bg-gray-50/80 px-4 py-3 text-left transition-colors hover:bg-gray-100"
         >
-          <h3 className="text-lg font-bold text-gray-900">{t('analyticsInsights')}</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">{t('analyticsInsights')}</h3>
+            <p className="text-xs text-gray-500">{t('analyticsInsightsHint')}</p>
+          </div>
           {analyticsExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
+            <ChevronUp className="h-5 w-5 text-gray-500" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
+            <ChevronDown className="h-5 w-5 text-gray-500" />
           )}
         </button>
         {analyticsExpanded && (
-          <div className="p-6 pt-0">
-        {/* Original Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {chartData.registrationsByDay.length > 0 && (
-            <RegistrationsByDayChart data={chartData.registrationsByDay} />
-          )}
-          {chartData.paymentStatus.length > 0 && (
-            <PaymentStatusChart data={chartData.paymentStatus} />
-          )}
-        </div>
-        
-        {/* Revenue Overview */}
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          {chartData.revenueByPeriod.length > 0 && (
-            <RevenueByPeriodChart data={chartData.revenueByPeriod} />
-          )}
-        </div>
+          <div className="space-y-6 border-t border-gray-200 p-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {chartData.registrationsByDay.length > 0 && (
+                <RegistrationsByDayChart data={chartData.registrationsByDay} />
+              )}
+              {chartData.paymentStatus.length > 0 && (
+                <PaymentStatusChart data={chartData.paymentStatus} />
+              )}
+            </div>
 
-        {/* 3. Registrations by Type & 5. Check-in Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {newAnalyticsData.registrationsByType.length > 0 && (
-            <RegistrationsByTypeChart data={newAnalyticsData.registrationsByType} />
-          )}
-          {newAnalyticsData.checkInData.totalRegistrations > 0 && (
-            <CheckInAnalytics data={newAnalyticsData.checkInData} />
-          )}
-        </div>
+            {chartData.revenueByPeriod.length > 0 && (
+              <RevenueByPeriodChart data={chartData.revenueByPeriod} />
+            )}
 
-        {/* 6. Revenue Breakdown */}
-        {(newAnalyticsData.revenueBreakdown.total > 0 ||
-          (newAnalyticsData.revenueBreakdown.vatPercentage &&
-            newAnalyticsData.revenueBreakdown.vatPercentage > 0)) && (
-          <div className="mb-6">
-            <RevenueBreakdown data={newAnalyticsData.revenueBreakdown} />
-          </div>
-        )}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {newAnalyticsData.registrationsByType.length > 0 && (
+                <RegistrationsByTypeChart data={newAnalyticsData.registrationsByType} />
+              )}
+              {newAnalyticsData.checkInData.totalRegistrations > 0 && (
+                <CheckInAnalytics data={newAnalyticsData.checkInData} />
+              )}
+            </div>
 
-        {/* 4. Abstract Submission Analytics */}
-        {newAnalyticsData.abstractStats.submitted > 0 && (
-          <div className="mb-6">
-            <AbstractSubmissionStats data={newAnalyticsData.abstractStats} />
-          </div>
-        )}
+            {(newAnalyticsData.revenueBreakdown.total > 0 ||
+              (newAnalyticsData.revenueBreakdown.vatPercentage &&
+                newAnalyticsData.revenueBreakdown.vatPercentage > 0)) && (
+              <RevenueBreakdown data={newAnalyticsData.revenueBreakdown} />
+            )}
 
-        {/* 8. Engagement Metrics */}
-        {(newAnalyticsData.engagement.popularAccommodations.length > 0 || 
-          newAnalyticsData.engagement.customFieldsUsage.length > 0) && (
-          <div className="mb-6">
-            <EngagementMetrics data={newAnalyticsData.engagement} />
-          </div>
-        )}
+            {newAnalyticsData.abstractStats.submitted > 0 && (
+              <AbstractSubmissionStats data={newAnalyticsData.abstractStats} />
+            )}
 
-        {/* 9. Comparison Insights */}
-        {newAnalyticsData.comparison.currentConference.registrations > 0 && (
-          <div className="mb-6">
-            <ComparisonInsights data={newAnalyticsData.comparison} />
-          </div>
-        )}
-          </div>
-        )}
-      </div>
+            {(newAnalyticsData.engagement.popularAccommodations.length > 0 ||
+              newAnalyticsData.engagement.customFieldsUsage.length > 0) && (
+              <EngagementMetrics data={newAnalyticsData.engagement} />
+            )}
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Registrations */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">{t('recentRegistrations')}</h3>
-            <Link
-              href="/admin/registrations"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              {t('viewAllLink')}
-            </Link>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {stats.recentRegistrations.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">
-                {t('noRegistrationsYet')}
-              </div>
-            ) : (
-              stats.recentRegistrations.map((reg) => {
-                const contact = extractContact(reg)
-                const displayName =
-                  [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
-                  reg.registration_number ||
-                  t('noName')
-                return (
-                <div key={reg.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Avatar
-                        name={displayName}
-                        email={contact.email}
-                        size="sm"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {displayName}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">{contact.email}</p>
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          reg.payment_status === 'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : reg.payment_status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {reg.payment_status === 'paid'
-                          ? t('paid')
-                          : reg.payment_status === 'pending'
-                            ? t('pendingPayments')
-                            : reg.payment_status}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {new Date(reg.created_at).toLocaleString()}
-                  </p>
-                </div>
-                )
-              })
+            {newAnalyticsData.comparison.currentConference.registrations > 0 && (
+              <ComparisonInsights data={newAnalyticsData.comparison} />
             )}
           </div>
-        </div>
-
+        )}
       </div>
+      </>
+      )}
     </div>
   )
 }
