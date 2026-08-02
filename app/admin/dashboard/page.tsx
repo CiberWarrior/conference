@@ -8,6 +8,7 @@ import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 import StatsCard from '@/components/admin/StatsCard'
 import PaymentStatusBadge from '@/components/admin/PaymentStatusBadge'
+import PaymentMethodBadge from '@/components/admin/PaymentMethodBadge'
 import StatusBadge, { type StatusBadgeTone } from '@/components/admin/StatusBadge'
 import {
   RegistrationsByDayChart,
@@ -19,6 +20,7 @@ import {
   AbstractSubmissionStats,
   CheckInAnalytics,
   RevenueBreakdown,
+  TopFeeTypes,
   EngagementMetrics,
   ComparisonInsights,
 } from '@/components/admin/NewAnalytics'
@@ -213,7 +215,7 @@ function DashboardPageContent() {
     },
     revenueBreakdown: {
       total: 0,
-      byTicketType: [] as { type: string; amount: number }[],
+      byTicketType: [] as { type: string; amount: number; count: number }[],
       byPaymentMethod: [] as { method: string; amount: number }[],
       averageTransaction: 0,
       todayRevenue: 0,
@@ -420,17 +422,21 @@ function DashboardPageContent() {
       const totalRevenue = paidRegs.reduce((sum, r) => sum + getAmount(r), 0)
 
       // By ticket type – new fee system (custom_registration_fees) first, legacy column as fallback
-      const ticketTypeRevenue = new Map<string, number>()
+      const ticketTypeRevenue = new Map<string, { amount: number; count: number }>()
       paidRegs.forEach((reg) => {
         const amount = getAmount(reg)
         const type =
           (reg.custom_registration_fees?.name as string) ||
           (reg.registration_fee_type as string) ||
           'Regular'
-        ticketTypeRevenue.set(type, (ticketTypeRevenue.get(type) || 0) + amount)
+        const prev = ticketTypeRevenue.get(type) || { amount: 0, count: 0 }
+        ticketTypeRevenue.set(type, {
+          amount: prev.amount + amount,
+          count: prev.count + 1,
+        })
       })
       const byTicketType = Array.from(ticketTypeRevenue.entries())
-        .map(([type, amount]) => ({ type, amount }))
+        .map(([type, { amount, count }]) => ({ type, amount, count }))
         .sort((a, b) => b.amount - a.amount)
 
       // By payment method – use actual payment_method from registrations
@@ -2104,6 +2110,9 @@ function DashboardPageContent() {
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     {c('status')}
                   </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {t('paidBy')}
+                  </th>
                   <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     {t('dateHeader')}
                   </th>
@@ -2137,6 +2146,18 @@ function DashboardPageContent() {
                           }}
                         />
                       </td>
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        <PaymentMethodBadge
+                          method={reg.payment_method}
+                          labels={{
+                            card: t('methodCard'),
+                            bankTransfer: t('methodBankTransfer'),
+                            cash: t('methodCash'),
+                            other: t('methodOther'),
+                            unknown: t('methodUnknown'),
+                          }}
+                        />
+                      </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-500">
                         {new Date(reg.created_at).toLocaleDateString('hr-HR')}
                       </td>
@@ -2148,6 +2169,17 @@ function DashboardPageContent() {
           </div>
         )}
       </div>
+
+      {(newAnalyticsData.revenueBreakdown.byTicketType.length > 0 ||
+        newAnalyticsData.registrationsByType.length > 0) && (
+        <div className="mb-6">
+          <TopFeeTypes
+            byRevenue={newAnalyticsData.revenueBreakdown.byTicketType}
+            byVolume={newAnalyticsData.registrationsByType}
+            currency={newAnalyticsData.revenueBreakdown.currency || 'EUR'}
+          />
+        </div>
+      )}
 
       {/* Analytics & Insights – secondary, collapsed by default */}
       <div className="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white">

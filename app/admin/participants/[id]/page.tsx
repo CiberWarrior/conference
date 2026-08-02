@@ -8,6 +8,8 @@ import Link from 'next/link'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { ArrowLeft, Mail, Phone, MapPin, Building2, Award, Calendar, CheckCircle, XCircle, Clock, Edit2 } from 'lucide-react'
 import { formatPriceWithoutZeros } from '@/utils/pricing'
+import StatusBadge, { type StatusBadgeTone } from '@/components/admin/StatusBadge'
+import PaymentStatusBadge from '@/components/admin/PaymentStatusBadge'
 
 interface ParticipantDetail {
   id: string
@@ -142,32 +144,26 @@ export default function AdminParticipantDetailPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-300">{t('statusConfirmed')}</span>
-      case 'cancelled':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-300">{t('statusCancelled')}</span>
-      case 'attended':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-300">{t('statusAttended')}</span>
-      case 'no_show':
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300">{t('statusNoShow')}</span>
-      default:
-        return <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('statusUnknown')}</span>
+    const map: Record<string, { tone: StatusBadgeTone; label: string }> = {
+      confirmed: { tone: 'success', label: t('statusConfirmed') },
+      cancelled: { tone: 'danger', label: t('statusCancelled') },
+      attended: { tone: 'info', label: t('statusAttended') },
+      no_show: { tone: 'neutral', label: t('statusNoShow') },
     }
+    const mapped = map[status] || { tone: 'neutral' as StatusBadgeTone, label: t('statusUnknown') }
+    return <StatusBadge tone={mapped.tone}>{mapped.label}</StatusBadge>
   }
 
-  const getPaymentStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">{t('paymentPaid')}</span>
-      case 'pending':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{t('paymentPending')}</span>
-      case 'not_required':
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('paymentNotRequired')}</span>
-      default:
-        return <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>
-    }
-  }
+  const getPaymentStatusBadge = (status: string) => (
+    <PaymentStatusBadge
+      status={status}
+      labels={{
+        paid: t('paymentPaid'),
+        pending: t('paymentPending'),
+        notRequired: t('paymentNotRequired'),
+      }}
+    />
+  )
 
   if (authLoading || loading) {
     return <LoadingSpinner />

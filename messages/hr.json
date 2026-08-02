@@ -400,7 +400,9 @@
       "errorGeneric": "Došlo je do greške. Pokušajte ponovno.",
       "pleaseEnterEmail": "Unesite prvo svoju e-poštu",
       "resetEmailFailed": "Slanje e-pošte za reset nije uspjelo",
-      "resetEmailSent": "✓ E-pošta za reset lozinke poslana! Provjerite pristiglu poštu."
+      "resetEmailSent": "✓ E-pošta za reset lozinke poslana! Provjerite pristiglu poštu.",
+      "showPassword": "Prikaži lozinku",
+      "hidePassword": "Sakrij lozinku"
     },
     "resetPassword": {
       "title": "Resetiranje lozinke",
@@ -425,7 +427,9 @@
       "errorResetFailed": "Resetiranje lozinke nije uspjelo. Poveznica je možda istekla.",
       "promptEmail": "Unesite svoju e-poštu:",
       "alertResetSent": "E-pošta za reset lozinke poslana! Provjerite pristiglu poštu.",
-      "loadingFallback": "Učitavanje..."
+      "loadingFallback": "Učitavanje...",
+      "showPassword": "Prikaži lozinku",
+      "hidePassword": "Sakrij lozinku"
     },
     "participantLogin": {
       "title": "Prijava sudionika",
@@ -448,6 +452,11 @@
     "participantSignup": {
       "title": "Kreiranje računa sudionika",
       "subtitle": "Registrirajte se za praćenje događaja i upravljanje profilom",
+      "panelTitle": "Vaš profil za događaje na jednom mjestu",
+      "panelSubtitle": "Pratite prijave, potvrde i komunikaciju oko konferencija na kojima sudjelujete.",
+      "panelPoint1": "Pregled prijava i statusa plaćanja",
+      "panelPoint2": "Brži pristup potvrdama i detaljima događaja",
+      "panelPoint3": "Jedan profil za više konferencija",
       "firstName": "Ime *",
       "lastName": "Prezime *",
       "email": "E-pošta *",
@@ -462,6 +471,8 @@
       "alreadyHaveAccount": "Već imate račun?",
       "login": "Prijava",
       "backToHome": "← Natrag na početnu",
+      "showPassword": "Prikaži lozinku",
+      "hidePassword": "Sakrij lozinku",
       "errorPasswordsMismatch": "Lozinke se ne podudaraju",
       "errorSignupFailed": "Registracija nije uspjela",
       "errorGeneric": "Došlo je do neočekivane greške"
@@ -691,7 +702,11 @@
       "conferenceSettings": "Postavke konferencije",
       "homepage": "Početna",
       "superAdmin": "Super admin",
-      "conferenceAdmin": "Admin konferencije"
+      "conferenceAdmin": "Admin konferencije",
+      "collapseSidebar": "Skupi izbornik",
+      "expandSidebar": "Proširi izbornik",
+      "openMenu": "Otvori izbornik",
+      "closeMenu": "Zatvori izbornik"
     },
     "subscriptions": {
       "title": "Pretplate / Moja zarada",
@@ -907,7 +922,14 @@
       "noDateSet": "Datum nije postavljen",
       "manageConferencesLink": "Upravljanje konferencijama",
       "viewAllConferences": "Prikaži svih {count} konferencija →",
-      "placeholderPhone": "+385 1 234 5678"
+      "placeholderPhone": "+385 1 234 5678",
+      "roleSuperAdmin": "Super admin",
+      "roleConferenceAdmin": "Admin konferencije",
+      "accountInfo": "Podaci o računu",
+      "roleLabel": "Uloga",
+      "memberSince": "Član od",
+      "lastLogin": "Zadnja prijava",
+      "unknown": "Nepoznato"
     },
     "dashboard": {
       "title": "Kontrolna ploča",
@@ -1016,6 +1038,12 @@
       "checkInRateHint": "{rate}% prijavljenih",
       "recentRegistrationsHint": "Najnovije prijave za ovu konferenciju",
       "dateHeader": "Datum",
+      "paidBy": "Plaćeno putem",
+      "methodCard": "Kartica",
+      "methodBankTransfer": "Bankovni transfer",
+      "methodCash": "Gotovina",
+      "methodOther": "Ostalo",
+      "methodUnknown": "Nepoznato",
       "statusPending": "Na čekanju",
       "statusNotRequired": "Nije potrebno",
       "analyticsInsightsHint": "Detaljni grafikoni i uvidi — po potrebi",
@@ -1066,6 +1094,12 @@
       "totalRevenue": "Ukupan prihod",
       "withoutVat": "bez PDV-a",
       "byTicketType": "Po tipu ulaznice",
+      "topFeeTypesByRevenue": "Tipovi kotizacija po prihodu",
+      "topFeeTypesByRevenueHint": "Plaćene prijave — najviši prihod",
+      "topFeeTypesByVolume": "Tipovi kotizacija po broju",
+      "topFeeTypesByVolumeHint": "Sve prijave — najčešći tipovi",
+      "feeTypePaidCount": "{count} plaćenih",
+      "noFeeTypeData": "Nema podataka o tipovima kotizacija",
       "byPaymentMethod": "Po načinu plaćanja",
       "engagementMetrics": "Metrike angažmana",
       "popularAccommodations": "Popularni smještaji",
@@ -1674,6 +1708,12 @@
       "hotel": "Hotel",
       "payment": "Plaćanje",
       "card": "Kartica",
+      "paymentMethod": "Način plaćanja",
+      "methodCard": "Kartica",
+      "methodBankTransfer": "Bankovni transfer",
+      "methodCash": "Gotovina",
+      "methodOther": "Ostalo",
+      "methodUnknown": "Nepoznato",
       "status": "Status",
       "checkIn": "Check-in",
       "qrCode": "QR kod",
@@ -1814,6 +1854,12 @@
       "noPaymentHistoryFound": "Nema povijesti plaćanja",
       "date": "Datum",
       "type": "Vrsta",
+      "paymentMethod": "Način plaćanja",
+      "methodCard": "Kartica",
+      "methodBankTransfer": "Bankovni transfer",
+      "methodCash": "Gotovina",
+      "methodOther": "Ostalo",
+      "methodUnknown": "Nepoznato",
       "description": "Opis",
       "refundAmount": "Iznos povrata",
       "refundAmountPlaceholder": "Unesite iznos (ostavite prazno za puni povrat)",

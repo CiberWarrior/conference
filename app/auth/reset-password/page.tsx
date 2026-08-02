@@ -1,31 +1,57 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Building2, Lock, AlertCircle, CheckCircle } from 'lucide-react'
+import { Building2, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+
+function AuthBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-20" />
+      <div className="absolute top-1/4 left-[10%] h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute bottom-1/4 right-[10%] h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
+    </div>
+  )
+}
+
+function BrandHeader({ subtitle }: { subtitle: string }) {
+  return (
+    <div className="mb-8 text-center">
+      <Link href="/" className="mb-4 inline-flex items-center justify-center gap-3 group">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 opacity-75 blur transition-opacity group-hover:opacity-100" />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-lg">
+            <Building2 className="h-7 w-7 text-white" />
+          </div>
+        </div>
+        <span className="text-2xl font-black text-white">MeetFlow</span>
+      </Link>
+      <p className="text-sm text-slate-400">{subtitle}</p>
+    </div>
+  )
+}
 
 function ResetPasswordContent() {
   const t = useTranslations('auth.resetPassword')
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null)
 
   useEffect(() => {
-    // Check if we have a valid token from Supabase
     const checkToken = async () => {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const accessToken = hashParams.get('access_token')
       const type = hashParams.get('type')
 
-      // Also check URL search params (Supabase sometimes uses query params)
       const urlParams = new URLSearchParams(window.location.search)
       const token = urlParams.get('token') || accessToken
       const resetType = urlParams.get('type') || type
@@ -33,16 +59,15 @@ function ResetPasswordContent() {
       if (token && resetType === 'recovery') {
         setIsValidToken(true)
       } else if (accessToken) {
-        // If we have access_token in hash, it's a valid recovery link
         setIsValidToken(true)
       } else {
         setIsValidToken(false)
-        setError('Invalid or expired reset link. Please request a new password reset.')
+        setError(t('errorInvalidLink'))
       }
     }
 
     checkToken()
-  }, [])
+  }, [t])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,12 +86,10 @@ function ResetPasswordContent() {
     setLoading(true)
 
     try {
-      // Get token from URL hash or search params
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
 
-      // If we have tokens in hash, set the session first
       if (accessToken && refreshToken) {
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -78,7 +101,6 @@ function ResetPasswordContent() {
         }
       }
 
-      // Update password
       const { error: updateError } = await supabase.auth.updateUser({
         password: password,
       })
@@ -90,7 +112,6 @@ function ResetPasswordContent() {
       setSuccess(true)
       setError('')
 
-      // Redirect to admin login after 2 seconds
       setTimeout(() => {
         router.push('/auth/admin-login?message=password_reset_success')
       }, 2000)
@@ -103,9 +124,10 @@ function ResetPasswordContent() {
 
   if (isValidToken === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 p-4">
+        <AuthBackground />
+        <div className="relative text-center">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
           <p className="text-slate-400">{t('verifyingLink')}</p>
         </div>
       </div>
@@ -114,40 +136,40 @@ function ResetPasswordContent() {
 
   if (isValidToken === false) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 p-4">
+        <AuthBackground />
         <div className="relative w-full max-w-md">
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-8 h-8 text-red-500" />
+          <BrandHeader subtitle={t('title')} />
+          <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 shadow-2xl backdrop-blur-xl">
+            <div className="mb-6 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-red-500/15 ring-1 ring-red-500/30">
+                <AlertCircle className="h-7 w-7 text-red-400" />
               </div>
-              <h1 className="text-2xl font-black text-white mb-2">Invalid Reset Link</h1>
-              <p className="text-slate-400 mb-6">
-                This password reset link is invalid or has expired.
-              </p>
+              <h1 className="mb-2 text-2xl font-black text-white">{t('invalidLinkTitle')}</h1>
+              <p className="text-sm text-slate-400">{t('invalidLinkMessage')}</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Link
                 href="/auth/admin-login"
-                className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-bold hover:from-blue-700 hover:to-purple-700 transition-all text-center"
+                className="block w-full rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3 text-center font-bold text-white transition-all hover:from-blue-700 hover:to-purple-700"
               >
-                Back to Login
+                {t('backToLogin')}
               </Link>
               <button
+                type="button"
                 onClick={() => {
-                  // Request new reset email
-                  const email = prompt('Enter your email address:')
+                  const email = prompt(t('promptEmail'))
                   if (email) {
                     supabase.auth.resetPasswordForEmail(email, {
                       redirectTo: `${window.location.origin}/auth/reset-password`,
                     })
-                    alert('Password reset email sent! Check your inbox.')
+                    alert(t('alertResetSent'))
                   }
                 }}
-                className="block w-full bg-slate-700 text-white py-3 px-4 rounded-lg font-semibold hover:bg-slate-600 transition-all text-center"
+                className="block w-full rounded-lg bg-slate-700 px-4 py-3 text-center font-semibold text-white transition-all hover:bg-slate-600"
               >
-                Request New Reset Link
+                {t('requestNewLink')}
               </button>
             </div>
           </div>
@@ -157,109 +179,106 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-      {/* Background elements */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
-        <div className="absolute top-1/4 left-[10%] w-96 h-96 bg-blue-500/20 rounded-full filter blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-[10%] w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl"></div>
-      </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 p-4">
+      <AuthBackground />
 
       <div className="relative w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center gap-3 mb-4 group">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Building2 className="w-7 h-7 text-white" />
-              </div>
-            </div>
-            <span className="text-2xl font-black text-white">
-              MeetFlow
-            </span>
-          </Link>
-          <p className="text-slate-400">{t('title')}</p>
-        </div>
+        <BrandHeader subtitle={t('title')} />
 
-        {/* Reset Password Card */}
-        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 p-8">
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 shadow-2xl backdrop-blur-xl">
           {success ? (
             <div className="text-center">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-500" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-green-500/15 ring-1 ring-green-500/30">
+                <CheckCircle className="h-7 w-7 text-green-400" />
               </div>
-              <h2 className="text-2xl font-black text-white mb-2">{t('successTitle')}</h2>
-              <p className="text-slate-400 mb-6">
-                {t('successMessage')}
-              </p>
+              <h2 className="mb-2 text-2xl font-black text-white">{t('successTitle')}</h2>
+              <p className="text-sm text-slate-400">{t('successMessage')}</p>
             </div>
           ) : (
             <>
               <div className="mb-6">
-                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-8 h-8 text-blue-500" />
-                </div>
-                <h1 className="text-3xl font-black text-white mb-2 text-center">{t('title')}</h1>
-                <p className="text-slate-400 text-center">{t('enterNewPassword')}</p>
+                <h1 className="mb-2 text-3xl font-black text-white">{t('title')}</h1>
+                <p className="text-sm text-slate-400">{t('enterNewPassword')}</p>
               </div>
 
               {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
                   <p className="text-sm text-red-400">{error}</p>
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-slate-300 mb-2">
-                    New Password
+                  <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-300">
+                    {t('newPassword')}
                   </label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    placeholder="Enter new password (min. 8 characters)"
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-3 pr-12 text-white placeholder-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={t('placeholderNew')}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition-colors hover:text-white"
+                      aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-300 mb-2">
-                    Confirm Password
+                  <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-slate-300">
+                    {t('confirmPassword')}
                   </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    placeholder="Confirm new password"
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      className="w-full rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-3 pr-12 text-white placeholder-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={t('placeholderConfirm')}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition-colors hover:text-white"
+                      aria-label={showConfirmPassword ? t('hidePassword') : t('showPassword')}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg shadow-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3 font-bold text-white shadow-lg shadow-blue-600/30 transition-all duration-300 hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Resetting password...</span>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      <span>{t('resetting')}</span>
                     </>
                   ) : (
                     <>
-                      <Lock className="w-5 h-5" />
-                      <span>Reset Password</span>
+                      <Lock className="h-5 w-5" />
+                      <span>{t('resetButton')}</span>
                     </>
                   )}
                 </button>
@@ -267,12 +286,12 @@ function ResetPasswordContent() {
             </>
           )}
 
-          <div className="mt-6 pt-6 border-t border-slate-700/50">
+          <div className="mt-6 border-t border-slate-700/50 pt-6">
             <Link
               href="/auth/admin-login"
-              className="text-sm text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+              className="flex items-center justify-center text-sm text-slate-400 transition-colors hover:text-white"
             >
-              ← Back to login
+              {t('linkBackToLogin')}
             </Link>
           </div>
         </div>
@@ -284,9 +303,10 @@ function ResetPasswordContent() {
 function ResetPasswordFallback() {
   const t = useTranslations('auth.resetPassword')
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 p-4">
+      <AuthBackground />
+      <div className="relative text-center">
+        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         <p className="text-slate-400">{t('loadingFallback')}</p>
       </div>
     </div>

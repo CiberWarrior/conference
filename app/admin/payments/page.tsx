@@ -8,6 +8,7 @@ import { useConference } from '@/contexts/ConferenceContext'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
 import { showSuccess, showError } from '@/utils/toast'
+import PaymentMethodBadge from '@/components/admin/PaymentMethodBadge'
 
 // Force dynamic rendering for this page (uses searchParams)
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,7 @@ interface PaymentHistory {
   amount: number
   currency: string
   status: string
+  payment_method: string | null
   description: string | null
   created_at: string
 }
@@ -460,9 +462,9 @@ function PaymentsPageContent() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('date')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('type')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('amount')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('paymentMethod')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('description')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -491,6 +493,18 @@ function PaymentsPageContent() {
                           {entry.amount < 0 ? '-' : '+'}
                           {formatMoney(Math.abs(entry.amount), entry.currency)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <PaymentMethodBadge
+                          method={entry.payment_method}
+                          labels={{
+                            card: t('methodCard'),
+                            bankTransfer: t('methodBankTransfer'),
+                            cash: t('methodCash'),
+                            other: t('methodOther'),
+                            unknown: t('methodUnknown'),
+                          }}
+                        />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

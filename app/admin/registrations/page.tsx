@@ -12,6 +12,9 @@ import { QRCodeSVG } from 'qrcode.react'
 import { showSuccess, showError, showInfo } from '@/utils/toast'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
+import PaymentMethodBadge from '@/components/admin/PaymentMethodBadge'
+import PaymentStatusBadge from '@/components/admin/PaymentStatusBadge'
+import StatusBadge from '@/components/admin/StatusBadge'
 
 // Force dynamic rendering for this page (uses searchParams)
 export const dynamic = 'force-dynamic'
@@ -943,7 +946,7 @@ function RegistrationsPageContent() {
                   {t('payment')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('card')}
+                  {t('paymentMethod')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('status')}
@@ -1052,29 +1055,27 @@ function RegistrationsPageContent() {
                         <span className="text-gray-400 text-sm">{t('no')}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {reg.paymentByCard ? (
-                        <span className="text-green-600 text-lg">✓</span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <PaymentMethodBadge
+                        method={reg.paymentMethod}
+                        labels={{
+                          card: t('methodCard'),
+                          bankTransfer: t('methodBankTransfer'),
+                          cash: t('methodCash'),
+                          other: t('methodOther'),
+                          unknown: t('methodUnknown'),
+                        }}
+                      />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          reg.paymentStatus === 'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : reg.paymentStatus === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {reg.paymentStatus === 'paid'
-                          ? t('paid')
-                          : reg.paymentStatus === 'pending'
-                            ? t('pendingPayment')
-                            : t('notRequired')}
-                      </span>
+                      <PaymentStatusBadge
+                        status={reg.paymentStatus || 'pending'}
+                        labels={{
+                          paid: t('paid'),
+                          pending: t('pendingPayment'),
+                          notRequired: t('notRequired'),
+                        }}
+                      />
                       {reg.paymentMethod === 'bank_transfer' && (
                         <div className="mt-1 flex flex-col items-start gap-1">
                           {reg.bank_transfer_proof_url && (
@@ -1109,18 +1110,9 @@ function RegistrationsPageContent() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {reg.checkedIn ? (
-                        <span className="px-2 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {t('checkedIn')}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          {t('notCheckedIn')}
-                        </span>
-                      )}
+                      <StatusBadge tone={reg.checkedIn ? 'success' : 'neutral'}>
+                        {reg.checkedIn ? t('checkedIn') : t('notCheckedIn')}
+                      </StatusBadge>
                       {reg.checkedInAt && (
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(reg.checkedInAt).toLocaleString()}

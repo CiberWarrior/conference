@@ -400,7 +400,9 @@
       "errorGeneric": "An error occurred. Please try again.",
       "pleaseEnterEmail": "Please enter your email address first",
       "resetEmailFailed": "Failed to send reset email",
-      "resetEmailSent": "✓ Password reset email sent! Check your inbox."
+      "resetEmailSent": "✓ Password reset email sent! Check your inbox.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "resetPassword": {
       "title": "Reset Password",
@@ -425,7 +427,9 @@
       "errorResetFailed": "Failed to reset password. The link may have expired.",
       "promptEmail": "Enter your email address:",
       "alertResetSent": "Password reset email sent! Check your inbox.",
-      "loadingFallback": "Loading..."
+      "loadingFallback": "Loading...",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "participantLogin": {
       "title": "Participant Login",
@@ -448,6 +452,11 @@
     "participantSignup": {
       "title": "Create Participant Account",
       "subtitle": "Register to track your events and manage your profile",
+      "panelTitle": "Your event profile in one place",
+      "panelSubtitle": "Track registrations, confirmations, and conference communication in a single account.",
+      "panelPoint1": "View registrations and payment status",
+      "panelPoint2": "Faster access to confirmations and event details",
+      "panelPoint3": "One profile across multiple conferences",
       "firstName": "First Name *",
       "lastName": "Last Name *",
       "email": "Email *",
@@ -462,6 +471,8 @@
       "alreadyHaveAccount": "Already have an account?",
       "login": "Login",
       "backToHome": "← Back to home",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "errorPasswordsMismatch": "Passwords do not match",
       "errorSignupFailed": "Signup failed",
       "errorGeneric": "An unexpected error occurred"
@@ -691,7 +702,11 @@
       "conferenceSettings": "Conference Settings",
       "homepage": "Homepage",
       "superAdmin": "Super Admin",
-      "conferenceAdmin": "Conference Admin"
+      "conferenceAdmin": "Conference Admin",
+      "collapseSidebar": "Collapse menu",
+      "expandSidebar": "Expand menu",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
     },
     "subscriptions": {
       "title": "Subscriptions / My earnings",
@@ -907,7 +922,14 @@
       "noDateSet": "No date set",
       "manageConferencesLink": "Manage Conferences",
       "viewAllConferences": "View all {count} conferences →",
-      "placeholderPhone": "+385 1 234 5678"
+      "placeholderPhone": "+385 1 234 5678",
+      "roleSuperAdmin": "Super Admin",
+      "roleConferenceAdmin": "Conference Admin",
+      "accountInfo": "Account Info",
+      "roleLabel": "Role",
+      "memberSince": "Member Since",
+      "lastLogin": "Last Login",
+      "unknown": "Unknown"
     },
     "dashboard": {
       "title": "Dashboard",
@@ -1016,6 +1038,12 @@
       "checkInRateHint": "{rate}% checked in",
       "recentRegistrationsHint": "Latest registrations for this conference",
       "dateHeader": "Date",
+      "paidBy": "Paid by",
+      "methodCard": "Card",
+      "methodBankTransfer": "Bank transfer",
+      "methodCash": "Cash",
+      "methodOther": "Other",
+      "methodUnknown": "Unknown",
       "statusPending": "Pending",
       "statusNotRequired": "Not required",
       "analyticsInsightsHint": "Detailed charts and insights — expand when needed",
@@ -1066,6 +1094,12 @@
       "totalRevenue": "Total Revenue",
       "withoutVat": "without VAT",
       "byTicketType": "By Ticket Type",
+      "topFeeTypesByRevenue": "Fee types by revenue",
+      "topFeeTypesByRevenueHint": "Paid registrations — highest revenue",
+      "topFeeTypesByVolume": "Fee types by volume",
+      "topFeeTypesByVolumeHint": "All registrations — most common types",
+      "feeTypePaidCount": "{count} paid",
+      "noFeeTypeData": "No fee type data yet",
       "byPaymentMethod": "By Payment Method",
       "engagementMetrics": "Engagement Metrics",
       "popularAccommodations": "Popular Accommodations",
@@ -1674,6 +1708,12 @@
       "hotel": "Hotel",
       "payment": "Payment",
       "card": "Card",
+      "paymentMethod": "Paid by",
+      "methodCard": "Card",
+      "methodBankTransfer": "Bank transfer",
+      "methodCash": "Cash",
+      "methodOther": "Other",
+      "methodUnknown": "Unknown",
       "status": "Status",
       "checkIn": "Check-In",
       "qrCode": "QR Code",
@@ -1814,6 +1854,12 @@
       "noPaymentHistoryFound": "No payment history found",
       "date": "Date",
       "type": "Type",
+      "paymentMethod": "Paid by",
+      "methodCard": "Card",
+      "methodBankTransfer": "Bank transfer",
+      "methodCash": "Cash",
+      "methodOther": "Other",
+      "methodUnknown": "Unknown",
       "description": "Description",
       "refundAmount": "Refund Amount",
       "refundAmountPlaceholder": "Enter amount (leave empty for full refund)",

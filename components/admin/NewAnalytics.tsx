@@ -210,10 +210,106 @@ export function CheckInAnalytics({ data }: { data: CheckInData }) {
   )
 }
 
+// Top fee types – compact lists (by revenue / by volume)
+interface TopFeeTypesProps {
+  byRevenue: { type: string; amount: number; count?: number }[]
+  byVolume: { type: string; count: number }[]
+  currency?: string
+}
+
+export function TopFeeTypes({
+  byRevenue,
+  byVolume,
+  currency = 'EUR',
+}: TopFeeTypesProps) {
+  const t = useTranslations('admin.analytics')
+  const revenueItems = byRevenue.slice(0, 5)
+  const volumeItems = byVolume.slice(0, 5)
+  const maxRevenue = revenueItems[0]?.amount || 0
+  const maxVolume = volumeItems[0]?.count || 0
+
+  if (revenueItems.length === 0 && volumeItems.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900">{t('topFeeTypesByRevenue')}</h3>
+        <p className="mt-0.5 text-xs text-gray-500">{t('topFeeTypesByRevenueHint')}</p>
+        {revenueItems.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">{t('noFeeTypeData')}</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {revenueItems.map((item) => {
+              const pct = maxRevenue > 0 ? (item.amount / maxRevenue) * 100 : 0
+              return (
+                <li key={`rev-${item.type}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{item.type}</p>
+                      {typeof item.count === 'number' && (
+                        <p className="text-xs text-gray-500">
+                          {t('feeTypePaidCount', { count: item.count })}
+                        </p>
+                      )}
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-gray-900">
+                      {formatPrice(item.amount, currency)}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full bg-blue-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900">{t('topFeeTypesByVolume')}</h3>
+        <p className="mt-0.5 text-xs text-gray-500">{t('topFeeTypesByVolumeHint')}</p>
+        {volumeItems.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">{t('noFeeTypeData')}</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {volumeItems.map((item) => {
+              const pct = maxVolume > 0 ? (item.count / maxVolume) * 100 : 0
+              return (
+                <li key={`vol-${item.type}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-medium text-gray-900">
+                      {item.type}
+                    </p>
+                    <p className="shrink-0 text-sm font-semibold text-gray-900">
+                      {item.count}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // 6. Revenue Breakdown
 interface RevenueBreakdownData {
   total: number
-  byTicketType: { type: string; amount: number }[]
+  byTicketType: { type: string; amount: number; count?: number }[]
   byPaymentMethod: { method: string; amount: number }[]
   averageTransaction: number
   todayRevenue: number

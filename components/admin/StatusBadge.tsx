@@ -6,6 +6,7 @@ export type StatusBadgeTone =
   | 'neutral'
   | 'info'
   | 'violet'
+  | 'danger'
 
 const TONE_STYLES: Record<StatusBadgeTone, string> = {
   success: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20',
@@ -13,6 +14,7 @@ const TONE_STYLES: Record<StatusBadgeTone, string> = {
   neutral: 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/20',
   info: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20',
   violet: 'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20',
+  danger: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20',
 }
 
 interface StatusBadgeProps {

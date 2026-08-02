@@ -7,24 +7,20 @@ import { useConference } from '@/contexts/ConferenceContext'
 import { supabase } from '@/lib/supabase'
 import { showSuccess, showError } from '@/utils/toast'
 import {
-  User,
   Mail,
   Building2,
   Phone,
-  Calendar,
-  Shield,
   Key,
   Save,
   Edit,
   X,
-  CheckCircle,
   AlertCircle,
   Eye,
   EyeOff,
-  Receipt,
-  CreditCard,
 } from 'lucide-react'
 import Link from 'next/link'
+import Avatar from '@/components/admin/Avatar'
+import StatusBadge from '@/components/admin/StatusBadge'
 
 export default function AccountPage() {
   const { user, profile, refreshProfile } = useAuth()
@@ -248,82 +244,98 @@ export default function AccountPage() {
     )
   }
 
+  const roleLabel =
+    profile.role === 'super_admin' ? t('roleSuperAdmin') : t('roleConferenceAdmin')
+
+  const fieldClass =
+    'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500'
+  const readonlyClass =
+    'w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700'
+  const labelClass = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500'
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-        <p className="text-gray-600 mt-2">{t('subtitle')}</p>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile & Security */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Profile Information */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{t('profileInformation')}</h2>
-                    <p className="text-sm text-gray-600">{t('yourPersonalDetails')}</p>
-                  </div>
-                </div>
-                {!isEditing && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    {c('edit')}
-                  </button>
-                )}
+      {/* Who am I — only what MeetFlow needs */}
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar
+              name={profile.full_name || profile.email}
+              email={profile.email}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold text-gray-900">
+                {profile.full_name || t('title')}
+              </h1>
+              <p className="truncate text-sm text-gray-500">{profile.email}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <StatusBadge tone={profile.role === 'super_admin' ? 'warning' : 'info'}>
+                  {roleLabel}
+                </StatusBadge>
+                <StatusBadge tone={profile.active ? 'success' : 'neutral'}>
+                  {profile.active ? t('active') : t('inactive')}
+                </StatusBadge>
               </div>
             </div>
+          </div>
+          <p className="text-sm text-gray-500 sm:max-w-xs sm:text-right">{t('subtitle')}</p>
+        </div>
+      </div>
 
-            <div className="p-6 space-y-4">
-              {/* Email (read-only) */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {/* Profile Information */}
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
+                <h2 className="text-sm font-semibold text-gray-900">{t('profileInformation')}</h2>
+                <p className="text-xs text-gray-500">{t('yourPersonalDetails')}</p>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4" />
+                  {c('edit')}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4 p-4">
+              <div>
+                <label className={labelClass}>
+                  <Mail className="mr-1 inline h-3.5 w-3.5" />
                   {t('emailAddress')}
                 </label>
                 <input
                   type="email"
                   value={profile.email}
                   disabled
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-600 cursor-not-allowed"
+                  className={`${readonlyClass} cursor-not-allowed`}
                 />
-                <p className="text-xs text-gray-500 mt-1">{t('emailCannotBeChanged')}</p>
+                <p className="mt-1 text-xs text-gray-500">{t('emailCannotBeChanged')}</p>
               </div>
 
-              {/* Full Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('fullName')}
-                </label>
+                <label className={labelClass}>{t('fullName')}</label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className={fieldClass}
                     placeholder={t('yourFullName')}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.full_name || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.full_name || t('notSet')}</p>
                 )}
               </div>
 
-              {/* Organization */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Building2 className="w-4 h-4 inline mr-2" />
+                <label className={labelClass}>
+                  <Building2 className="mr-1 inline h-3.5 w-3.5" />
                   {t('organization')}
                 </label>
                 {isEditing ? (
@@ -331,20 +343,17 @@ export default function AccountPage() {
                     type="text"
                     value={formData.organization}
                     onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className={fieldClass}
                     placeholder={t('yourOrganization')}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.organization || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.organization || t('notSet')}</p>
                 )}
               </div>
 
-              {/* Phone */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline mr-2" />
+                <label className={labelClass}>
+                  <Phone className="mr-1 inline h-3.5 w-3.5" />
                   {t('phoneNumber')}
                 </label>
                 {isEditing ? (
@@ -352,52 +361,29 @@ export default function AccountPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className={fieldClass}
                     placeholder={t('placeholderPhone')}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.phone || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.phone || t('notSet')}</p>
                 )}
               </div>
 
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('accountStatus')}
-                </label>
-                <div className="flex items-center gap-2">
-                  {profile.active ? (
-                    <>
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-green-700 font-medium">{t('active')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-red-600" />
-                      <span className="text-red-700 font-medium">{t('inactive')}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Edit Actions */}
               {isEditing && (
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2 border-t border-gray-200 pt-4">
                   <button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         {t('saving')}
                       </>
                     ) : (
                       <>
-                        <Save className="w-4 h-4" />
+                        <Save className="h-4 w-4" />
                         {t('saveChanges')}
                       </>
                     )}
@@ -411,9 +397,9 @@ export default function AccountPage() {
                         phone: profile.phone || '',
                       })
                     }}
-                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                     {c('cancel')}
                   </button>
                 </div>
@@ -422,118 +408,142 @@ export default function AccountPage() {
           </div>
 
           {/* Security Settings */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{t('security')}</h2>
-                  <p className="text-sm text-gray-600">{t('securitySubtitle')}</p>
-                </div>
-              </div>
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">{t('security')}</h2>
+              <p className="text-xs text-gray-500">{t('securitySubtitle')}</p>
             </div>
 
-            <div className="p-6">
+            <div className="p-4">
               {!showPasswordForm ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">{t('password')}</h3>
-                      <p className="text-sm text-gray-600">{t('lastChanged')} {profile.last_login ? new Date(profile.last_login).toLocaleDateString() : t('never')}</p>
-                    </div>
-                    <button
-                      onClick={() => setShowPasswordForm(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Key className="w-4 h-4" />
-                      {t('changePassword')}
-                    </button>
+                <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">{t('password')}</h3>
+                    <p className="text-xs text-gray-500">
+                      {t('lastChanged')}{' '}
+                      {profile.last_login
+                        ? new Date(profile.last_login).toLocaleDateString()
+                        : t('never')}
+                    </p>
                   </div>
+                  <button
+                    onClick={() => setShowPasswordForm(true)}
+                    className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    <Key className="h-4 w-4" />
+                    {t('changePassword')}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t('currentPassword')}
-                    </label>
+                    <label className={labelClass}>{t('currentPassword')}</label>
                     <div className="relative">
                       <input
                         type={showPasswords.current ? 'text' : 'password'}
                         value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                        }
+                        className={`${fieldClass} pr-10`}
                         placeholder={t('placeholderCurrentPassword')}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                        onClick={() =>
+                          setShowPasswords({
+                            ...showPasswords,
+                            current: !showPasswords.current,
+                          })
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        {showPasswords.current ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPasswords.current ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t('newPassword')}
-                    </label>
+                    <label className={labelClass}>{t('newPassword')}</label>
                     <div className="relative">
                       <input
                         type={showPasswords.new ? 'text' : 'password'}
                         value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, newPassword: e.target.value })
+                        }
+                        className={`${fieldClass} pr-10`}
                         placeholder={t('placeholderNewPassword')}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                        onClick={() =>
+                          setShowPasswords({ ...showPasswords, new: !showPasswords.new })
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPasswords.new ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t('confirmPassword')}
-                    </label>
+                    <label className={labelClass}>{t('confirmPassword')}</label>
                     <div className="relative">
                       <input
                         type={showPasswords.confirm ? 'text' : 'password'}
                         value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                        onChange={(e) =>
+                          setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                        }
+                        className={`${fieldClass} pr-10`}
                         placeholder={t('placeholderConfirmPassword')}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                        onClick={() =>
+                          setShowPasswords({
+                            ...showPasswords,
+                            confirm: !showPasswords.confirm,
+                          })
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPasswords.confirm ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2 border-t border-gray-200 pt-4">
                     <button
                       onClick={handleChangePassword}
-                      disabled={changingPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                      className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                      disabled={
+                        changingPassword ||
+                        !passwordData.newPassword ||
+                        !passwordData.confirmPassword
+                      }
+                      className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                       {changingPassword ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                           {t('changing')}
                         </>
                       ) : (
                         <>
-                          <Key className="w-4 h-4" />
+                          <Key className="h-4 w-4" />
                           {t('changePassword')}
                         </>
                       )}
@@ -547,9 +557,9 @@ export default function AccountPage() {
                           confirmPassword: '',
                         })
                       }}
-                      className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="h-4 w-4" />
                       {c('cancel')}
                     </button>
                   </div>
@@ -559,72 +569,59 @@ export default function AccountPage() {
           </div>
 
           {/* Organization Settings (VAT) */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
-                    <Receipt className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{t('organizationSettings')}</h2>
-                    <p className="text-sm text-gray-600">{t('vatSubtitle')}</p>
-                  </div>
-                </div>
-                {!isEditingVAT && (
-                  <button
-                    onClick={() => setIsEditingVAT(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    {c('edit')}
-                  </button>
-                )}
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">{t('organizationSettings')}</h2>
+                <p className="text-xs text-gray-500">{t('vatSubtitle')}</p>
               </div>
+              {!isEditingVAT && (
+                <button
+                  onClick={() => setIsEditingVAT(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4" />
+                  {c('edit')}
+                </button>
+              )}
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="space-y-4 p-4">
+              <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2.5">
                 <p className="text-sm text-blue-900">
                   <strong>{t('vatTipLabel')}</strong> {t('vatTip')}
                 </p>
               </div>
 
-              {/* VAT Percentage */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('defaultVatPercentage')}
-                </label>
+                <label className={labelClass}>{t('defaultVatPercentage')}</label>
                 {isEditingVAT ? (
                   <>
                     <input
                       type="number"
                       value={vatData.default_vat_percentage}
-                      onChange={(e) => setVatData({ ...vatData, default_vat_percentage: e.target.value })}
+                      onChange={(e) =>
+                        setVatData({ ...vatData, default_vat_percentage: e.target.value })
+                      }
                       min="0"
                       max="100"
                       step="0.01"
                       placeholder={t('vatPercentagePlaceholder')}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className={fieldClass}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {t('vatLeaveEmpty')}
-                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{t('vatLeaveEmpty')}</p>
                   </>
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.default_vat_percentage 
-                      ? `${profile.default_vat_percentage}%` 
+                  <p className={readonlyClass}>
+                    {profile.default_vat_percentage
+                      ? `${profile.default_vat_percentage}%`
                       : t('notSet')}
                   </p>
                 )}
               </div>
 
-              {/* VAT Label */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('vatLabelOptional')}
-                </label>
+                <label className={labelClass}>{t('vatLabelOptional')}</label>
                 {isEditingVAT ? (
                   <>
                     <input
@@ -632,35 +629,30 @@ export default function AccountPage() {
                       value={vatData.vat_label}
                       onChange={(e) => setVatData({ ...vatData, vat_label: e.target.value })}
                       placeholder={t('vatPlaceholder')}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className={fieldClass}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {t('vatFriendlyName')}
-                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{t('vatFriendlyName')}</p>
                   </>
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.vat_label || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.vat_label || t('notSet')}</p>
                 )}
               </div>
 
-              {/* Edit Actions */}
               {isEditingVAT && (
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2 border-t border-gray-200 pt-4">
                   <button
                     onClick={handleSaveVAT}
                     disabled={savingVAT}
-                    className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {savingVAT ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         {t('saving')}
                       </>
                     ) : (
                       <>
-                        <Save className="w-4 h-4" />
+                        <Save className="h-4 w-4" />
                         {t('saveVatSettings')}
                       </>
                     )}
@@ -669,13 +661,14 @@ export default function AccountPage() {
                     onClick={() => {
                       setIsEditingVAT(false)
                       setVatData({
-                        default_vat_percentage: profile.default_vat_percentage?.toString() || '',
+                        default_vat_percentage:
+                          profile.default_vat_percentage?.toString() || '',
                         vat_label: profile.vat_label || '',
                       })
                     }}
-                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                     {c('cancel')}
                   </button>
                 </div>
@@ -683,150 +676,132 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Bank Account Settings */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-teal-600 rounded-lg flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{t('bankSettingsTitle')}</h2>
-                    <p className="text-sm text-gray-600">{t('bankSettingsSubtitle')}</p>
-                  </div>
-                </div>
-                {!isEditingBank && (
-                  <button
-                    onClick={() => setIsEditingBank(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    {c('edit')}
-                  </button>
-                )}
+          {/* Bank Account Settings — conference registration fees only */}
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">{t('bankSettingsTitle')}</h2>
+                <p className="text-xs text-gray-500">{t('bankSettingsSubtitle')}</p>
               </div>
+              {!isEditingBank && (
+                <button
+                  onClick={() => setIsEditingBank(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4" />
+                  {c('edit')}
+                </button>
+              )}
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-yellow-900">
+            <div className="space-y-4 p-4">
+              <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2.5">
+                <p className="text-sm text-amber-900">
                   <strong>{t('bankInfoLabel')}</strong> {t('bankInfo')}
                 </p>
               </div>
 
-              {/* Bank Account Number (IBAN) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('bankAccountNumber')}
-                </label>
+                <label className={labelClass}>{t('bankAccountNumber')}</label>
                 {isEditingBank ? (
                   <input
                     type="text"
                     value={bankData.bank_account_number}
-                    onChange={(e) => setBankData({ ...bankData, bank_account_number: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
+                    onChange={(e) =>
+                      setBankData({ ...bankData, bank_account_number: e.target.value })
+                    }
+                    className={`${fieldClass} font-mono`}
                     placeholder={t('bankPlaceholderIban')}
                     maxLength={34}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
+                  <p className={`${readonlyClass} font-mono`}>
                     {profile.bank_account_number || t('notSet')}
                   </p>
                 )}
               </div>
 
-              {/* Account Holder Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('accountHolderName')}
-                </label>
+                <label className={labelClass}>{t('accountHolderName')}</label>
                 {isEditingBank ? (
                   <input
                     type="text"
                     value={bankData.bank_account_holder}
-                    onChange={(e) => setBankData({ ...bankData, bank_account_holder: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    onChange={(e) =>
+                      setBankData({ ...bankData, bank_account_holder: e.target.value })
+                    }
+                    className={fieldClass}
                     placeholder={t('bankPlaceholderHolder')}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
+                  <p className={readonlyClass}>
                     {profile.bank_account_holder || t('notSet')}
                   </p>
                 )}
               </div>
 
-              {/* Bank Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('bankName')}
-                </label>
+                <label className={labelClass}>{t('bankName')}</label>
                 {isEditingBank ? (
                   <input
                     type="text"
                     value={bankData.bank_name}
                     onChange={(e) => setBankData({ ...bankData, bank_name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    className={fieldClass}
                     placeholder={t('bankPlaceholderName')}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_name || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.bank_name || t('notSet')}</p>
                 )}
               </div>
 
-              {/* SWIFT/BIC Code */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('swiftBic')}
-                </label>
+                <label className={labelClass}>{t('swiftBic')}</label>
                 {isEditingBank ? (
                   <input
                     type="text"
                     value={bankData.swift_bic}
-                    onChange={(e) => setBankData({ ...bankData, swift_bic: e.target.value.toUpperCase() })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono"
+                    onChange={(e) =>
+                      setBankData({
+                        ...bankData,
+                        swift_bic: e.target.value.toUpperCase(),
+                      })
+                    }
+                    className={`${fieldClass} font-mono`}
                     placeholder={t('bankPlaceholderSwift')}
                     maxLength={11}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 font-mono">
+                  <p className={`${readonlyClass} font-mono`}>
                     {profile.swift_bic || t('notSet')}
                   </p>
                 )}
               </div>
 
-              {/* Bank Address */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('bankAddressOptional')}
-                </label>
+                <label className={labelClass}>{t('bankAddressOptional')}</label>
                 {isEditingBank ? (
                   <textarea
                     value={bankData.bank_address}
                     onChange={(e) => setBankData({ ...bankData, bank_address: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    className={fieldClass}
                     placeholder={t('bankPlaceholderAddress')}
                     rows={2}
                   />
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_address || t('notSet')}
-                  </p>
+                  <p className={readonlyClass}>{profile.bank_address || t('notSet')}</p>
                 )}
               </div>
 
-              {/* Account Currency */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('accountCurrency')}
-                </label>
+                <label className={labelClass}>{t('accountCurrency')}</label>
                 {isEditingBank ? (
                   <select
                     value={bankData.bank_account_currency}
-                    onChange={(e) => setBankData({ ...bankData, bank_account_currency: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                    onChange={(e) =>
+                      setBankData({ ...bankData, bank_account_currency: e.target.value })
+                    }
+                    className={fieldClass}
                   >
                     <option value="EUR">EUR (€)</option>
                     <option value="USD">USD ($)</option>
@@ -835,28 +810,25 @@ export default function AccountPage() {
                     <option value="HRK">HRK (kn)</option>
                   </select>
                 ) : (
-                  <p className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900">
-                    {profile.bank_account_currency || 'EUR'}
-                  </p>
+                  <p className={readonlyClass}>{profile.bank_account_currency || 'EUR'}</p>
                 )}
               </div>
 
-              {/* Edit Actions */}
               {isEditingBank && (
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2 border-t border-gray-200 pt-4">
                   <button
                     onClick={handleSaveBank}
                     disabled={savingBank}
-                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {savingBank ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         {t('saving')}
                       </>
                     ) : (
                       <>
-                        <Save className="w-4 h-4" />
+                        <Save className="h-4 w-4" />
                         {t('saveBankSettings')}
                       </>
                     )}
@@ -873,9 +845,9 @@ export default function AccountPage() {
                         bank_account_currency: profile.bank_account_currency || 'EUR',
                       })
                     }}
-                    className="flex items-center gap-2 px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                     {c('cancel')}
                   </button>
                 </div>
@@ -884,45 +856,37 @@ export default function AccountPage() {
           </div>
         </div>
 
-        {/* Right Column - Conferences */}
         <div className="space-y-6">
-          {/* My Conferences */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{t('myConferences')}</h2>
-                  <p className="text-sm text-gray-600">{t('conferencesCount', { count: conferences.length })}</p>
-                </div>
-              </div>
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">{t('myConferences')}</h2>
+              <p className="text-xs text-gray-500">
+                {t('conferencesCount', { count: conferences.length })}
+              </p>
             </div>
-
-            <div className="p-6">
+            <div className="p-4">
               {conferences.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-600">{t('noConferencesAssigned')}</p>
-                </div>
+                <p className="py-2 text-sm text-gray-500">{t('noConferencesAssigned')}</p>
               ) : (
-                <div className="space-y-3">
+                <div className="divide-y divide-gray-100">
                   {conferences.slice(0, 5).map((conference) => (
                     <Link
                       key={conference.id}
                       href={`/admin/conferences/${conference.id}/settings`}
-                      className="block p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                      className="block py-2.5 transition-colors hover:bg-gray-50/80"
                     >
-                      <p className="font-semibold text-gray-900">{conference.name}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {conference.start_date ? new Date(conference.start_date).toLocaleDateString() : t('noDateSet')}
+                      <p className="text-sm font-medium text-gray-900">{conference.name}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {conference.start_date
+                          ? new Date(conference.start_date).toLocaleDateString()
+                          : t('noDateSet')}
                       </p>
                     </Link>
                   ))}
                   {conferences.length > 5 && (
                     <Link
                       href="/admin/conferences"
-                      className="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium py-2"
+                      className="block py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
                     >
                       {t('viewAllConferences', { count: conferences.length })}
                     </Link>
@@ -932,27 +896,26 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Account Info */}
-          <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Account Info</h2>
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">{t('accountInfo')}</h2>
             </div>
-            <div className="p-6 space-y-3 text-sm">
+            <div className="space-y-3 p-4 text-sm">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
-                <p className="text-gray-900 font-medium">
-                  {profile.role === 'super_admin' ? 'Super Admin' : 'Conference Admin'}
-                </p>
+                <label className={labelClass}>{t('roleLabel')}</label>
+                <p className="font-medium text-gray-900">{roleLabel}</p>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Member Since</label>
+                <label className={labelClass}>{t('memberSince')}</label>
                 <p className="text-gray-900">
-                  {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                  {profile.created_at
+                    ? new Date(profile.created_at).toLocaleDateString()
+                    : t('unknown')}
                 </p>
               </div>
               {profile.last_login && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Last Login</label>
+                  <label className={labelClass}>{t('lastLogin')}</label>
                   <p className="text-gray-900">
                     {new Date(profile.last_login).toLocaleString()}
                   </p>
