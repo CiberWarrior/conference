@@ -4,15 +4,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users, X, Menu } from 'lucide-react'
+import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users, X } from 'lucide-react'
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 
-interface HeaderProps {
-  onMenuClick?: () => void
-}
-
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header() {
   const router = useRouter()
   const t = useTranslations('admin.header')
   const tSidebar = useTranslations('admin.sidebar')
@@ -84,19 +80,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </button>
         </div>
       )}
-      <header className={`border-b-2 bg-white/95 shadow-sm backdrop-blur ${headerBorderColor}`}>
-        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-gray-700 transition-colors hover:bg-gray-50 md:hidden"
-            aria-label={tSidebar('openMenu')}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+      <header className={`bg-white shadow-sm border-b-2 ${headerBorderColor}`}>
+        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-6">
           {role && (
-            <div className="hidden items-center gap-2 rounded-lg border border-blue-400 bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-bold text-white shadow-lg sm:flex">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400">
               {isSuperAdmin ? (
                 <>
                   <Shield className="w-4 h-4" />
@@ -169,33 +157,33 @@ export default function Header({ onMenuClick }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           {currentConference?.published && (
             <Link
               href={`/conferences/${currentConference.slug}`}
               target="_blank"
-              className="hidden items-center gap-2 rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-700 sm:flex"
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all font-medium border border-blue-200"
             >
               <ExternalLink className="w-4 h-4" />
-              <span className="hidden lg:inline">{t('viewConferenceSite')}</span>
+              {t('viewConferenceSite')}
             </Link>
           )}
           <Link
             href="/admin/account"
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-green-700 hover:to-green-800 sm:px-4"
+            className="text-sm text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            <span className="hidden sm:inline">{t('account')}</span>
+            {t('account')}
           </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-3 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-red-700 hover:to-red-800 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+            className="text-sm text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">{loggingOut ? t('loggingOut') : t('logout')}</span>
+            {loggingOut ? t('loggingOut') : t('logout')}
           </button>
         </div>
       </div>
