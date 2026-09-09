@@ -10,12 +10,14 @@ import type {
   HotelOption,
   PaymentSettings,
   RoomType,
+  RegistrationAddon,
 } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
 import { showSuccess, showError, showWarning } from '@/utils/toast'
 import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
+import RegistrationAddonsSection from '@/components/admin/RegistrationAddonsSection'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
@@ -56,6 +58,7 @@ export default function ConferenceSettingsPage() {
   const [expandedAbstractFieldId, setExpandedAbstractFieldId] = useState<string | null>(null)
   const [draggedAbstractFieldIndex, setDraggedAbstractFieldIndex] = useState<number | null>(null)
   const [hotelOptions, setHotelOptions] = useState<HotelOption[]>([])
+  const [registrationAddons, setRegistrationAddons] = useState<RegistrationAddon[]>([])
   const [draggedHotelIndex, setDraggedHotelIndex] = useState<number | null>(null)
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null)
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(DEFAULT_PAYMENT_SETTINGS)
@@ -260,6 +263,7 @@ The Abstract has to be related to one of the conference topics.
 Important: Authors who submit abstracts for presentation are not automatically registered for the meeting.`)
         setShowParticipantSettings(conf.settings?.participant_settings?.enabled || false)
         setHotelOptions(conf.settings?.hotel_options || [])
+        setRegistrationAddons(conf.settings?.registration_addons || [])
       }
     } catch (error) {
       console.error('Failed to load conference:', error)
@@ -593,6 +597,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
             registration_info_text: registrationInfoText || undefined,
             abstract_info_text: abstractInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
+            registration_addons:
+              registrationAddons.length > 0 ? registrationAddons : undefined,
           },
           email_settings: {
             from_email: formData.from_email || undefined,
@@ -1180,6 +1186,7 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     onRemove={removeCustomRegistrationField}
                     isExpanded={expandedFieldId === field.id}
                     onToggleExpand={() => setExpandedFieldId(expandedFieldId === field.id ? null : field.id)}
+                    allFields={formData.custom_registration_fields}
                   />
                 </div>
               ))}
@@ -1264,6 +1271,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
             </div>
           </div>
         </div>
+
+        <RegistrationAddonsSection
+          addons={registrationAddons}
+          onChange={setRegistrationAddons}
+          currency={formData.currency || 'EUR'}
+        />
 
         {/* Hotel Options for Accommodation */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1728,9 +1741,10 @@ Important: Authors who submit abstracts for presentation are not automatically r
                     onRemove={removeCustomAbstractField}
                     isExpanded={expandedAbstractFieldId === field.id}
                     onToggleExpand={() => setExpandedAbstractFieldId(expandedAbstractFieldId === field.id ? null : field.id)}
+                    allFields={formData.custom_abstract_fields}
                   />
                 </div>
-              )              )}
+              ))}
             </div>
           )}
         </div>

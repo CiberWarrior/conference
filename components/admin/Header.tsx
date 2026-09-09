@@ -8,7 +8,7 @@ import { LogOut, ExternalLink, ChevronDown, CheckCircle, Shield, Users, X } from
 import { useConference } from '@/contexts/ConferenceContext'
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function Header() {
+export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter()
   const t = useTranslations('admin.header')
   const tSidebar = useTranslations('admin.sidebar')
@@ -81,10 +81,22 @@ export default function Header() {
         </div>
       )}
       <header className={`bg-white shadow-sm border-b-2 ${headerBorderColor}`}>
-        <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          {onMenuClick && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className="md:hidden p-2 -ml-1 rounded-lg text-gray-700 hover:bg-gray-100"
+              aria-label={tSidebar('openMenu')}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
           {role && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400">
+            <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400">
               {isSuperAdmin ? (
                 <>
                   <Shield className="w-4 h-4" />

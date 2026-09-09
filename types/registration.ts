@@ -48,6 +48,7 @@ export interface Registration extends RegistrationData {
     number_of_nights: number
     hotel_id?: string | null // Selected hotel ID
   } | null // Accommodation details
+  selectedAddons?: Array<{ id: string; quantity?: number }>
   // Multi-currency & bank transfer support
   payment_method?: 'card' | 'bank_transfer' | 'cash' | 'other' // Method of payment
   payment_reference?: string | null // Unique payment reference (poziv na broj)

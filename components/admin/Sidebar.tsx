@@ -148,6 +148,16 @@ const navigationSections: NavSection[] = [
         ),
       },
       {
+        name: 'Program',
+        sidebarKey: 'program',
+        href: '/admin/program',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
+      },
+      {
         name: 'Registration Payments',
         sidebarKey: 'payments',
         href: '/admin/payments',
@@ -202,7 +212,13 @@ const navigationSections: NavSection[] = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean
+  onClose?: () => void
+}) {
   const pathname = usePathname()
   const t = useTranslations('admin.sidebar')
   const [mounted, setMounted] = useState(false)
@@ -281,12 +297,10 @@ export default function Sidebar() {
       .filter((section) => section.items.length > 0)
   }
 
-  return (
-    <div className="hidden md:flex md:flex-shrink-0">
-      <div className="flex flex-col w-64">
-        <div className={`dark-sidebar flex flex-col flex-grow pt-5 pb-4 overflow-y-auto ${sidebarBgColor} border-r ${sidebarBorderColor}`}>
-          <div className="flex items-center flex-shrink-0 px-4 mb-8">
-            <Link href="/admin/dashboard" className="flex items-center">
+  const navContent = (
+    <>
+          <div className="flex items-center flex-shrink-0 px-4 mb-8 justify-between">
+            <Link href="/admin/dashboard" className="flex items-center" onClick={onClose}>
               <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gradient-to-br from-slate-600 to-slate-700'} rounded-lg flex items-center justify-center mr-3 shadow-lg`}>
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -294,6 +308,18 @@ export default function Sidebar() {
               </div>
               <span className="text-xl font-bold text-white">MeetFlow</span>
             </Link>
+            {onClose && (
+              <button
+                type="button"
+                className="md:hidden text-gray-300 hover:text-white p-2"
+                onClick={onClose}
+                aria-label={t('closeMenu')}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
           <div className="flex-1 flex flex-col">
             {authLoading ? (
@@ -325,6 +351,7 @@ export default function Sidebar() {
                         <Link
                           key={item.sidebarKey}
                           href={href}
+                          onClick={onClose}
                           className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
                             isActive
                               ? `${activeBgColor} text-white shadow-lg`
@@ -344,7 +371,6 @@ export default function Sidebar() {
             </nav>
             )}
             
-            {/* Role Badge */}
             {!authLoading && role && (
               <div className={`px-4 py-3 border-t ${isSuperAdmin ? 'border-gray-700' : 'border-slate-700'}`}>
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
@@ -385,8 +411,34 @@ export default function Sidebar() {
               </div>
             </Link>
           </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop */}
+      <div className="hidden md:flex md:flex-shrink-0">
+        <div className="flex flex-col w-64">
+          <div className={`dark-sidebar flex flex-col flex-grow pt-5 pb-4 overflow-y-auto h-full ${sidebarBgColor} border-r ${sidebarBorderColor}`}>
+            {navContent}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label={t('closeMenu')}
+            onClick={onClose}
+          />
+          <div className={`relative z-10 flex flex-col w-72 max-w-[85vw] h-full pt-5 pb-4 overflow-y-auto ${sidebarBgColor} border-r ${sidebarBorderColor} shadow-xl`}>
+            {navContent}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

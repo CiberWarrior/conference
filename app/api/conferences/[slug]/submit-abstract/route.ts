@@ -227,21 +227,19 @@ export async function POST(
       action: 'submit_abstract',
     })
 
-    // Send confirmation email to submitter (optional - if email service is configured)
-    // TODO: Uncomment when ready to send confirmation emails
-    // try {
-    //   const { sendEmail } = await import('@/lib/email')
-    //   await sendEmail({
-    //     emailType: 'abstract_submission_confirmation',
-    //     email,
-    //     abstractId: abstractRecord.id,
-    //     fileName: file.name,
-    //     conferenceName: conference.name,
-    //     emailSettings: conference.email_settings,
-    //   })
-    // } catch (emailError) {
-    //   log.warn('Failed to send abstract confirmation email', emailError)
-    // }
+    // Send confirmation email to submitter
+    try {
+      const { sendAbstractSubmissionConfirmation } = await import('@/lib/email')
+      await sendAbstractSubmissionConfirmation({
+        email,
+        abstractId: abstractRecord.id,
+        fileName: file.name,
+        conferenceName: conference.name,
+        emailSettings: conference.email_settings,
+      })
+    } catch (emailError) {
+      log.warn('Failed to send abstract confirmation email', emailError)
+    }
 
     // Send notification to conference team (if reply_to email is configured)
     if (conference.email_settings?.reply_to) {

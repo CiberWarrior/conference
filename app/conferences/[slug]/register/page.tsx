@@ -235,6 +235,7 @@ export default function ConferenceRegisterPage() {
               conferenceDate={conference.start_date ? new Date(conference.start_date).toLocaleDateString() : undefined}
               conferenceLocation={conference.location || conference.venue}
               registrationFees={registrationFees?.fees ?? null}
+              registrationAddons={conference.settings?.registration_addons || []}
             />
           </div>
         </div>

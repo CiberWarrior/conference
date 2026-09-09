@@ -168,6 +168,24 @@ export interface CustomRegistrationField {
     maxLength?: number // Maksimalna duljina za text/textarea/longtext (max 5000 za longtext)
     pattern?: string // Regex pattern za validaciju
   }
+  /** Show this field only when another field matches (conditional logic) */
+  showIf?: {
+    fieldName: string
+    operator?: 'equals' | 'not_equals' | 'contains'
+    value: string
+  }
+}
+
+/** Optional paid extras (workshops, dinners) configured per conference */
+export interface RegistrationAddon {
+  id: string
+  name: string
+  label: string
+  description?: string
+  price: number
+  currency?: string
+  maxQuantity?: number
+  active?: boolean
 }
 
 export interface ParticipantSettings {
@@ -204,6 +222,7 @@ export interface ConferenceSettings {
   participant_settings?: ParticipantSettings // Settings for multiple participants
   hotel_options?: HotelOption[] // Dostupni hoteli za accommodation
   payment_settings?: PaymentSettings // Payment options and preferences
+  registration_addons?: RegistrationAddon[] // Optional paid extras at registration
 }
 
 export interface EmailSettings {

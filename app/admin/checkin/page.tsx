@@ -204,7 +204,7 @@ export default function CheckInPage() {
               <div className="flex-1">
                 <p className="font-semibold">{result.message}</p>
                 {result.registration && (
-                  <div className="mt-2 text-sm">
+                  <div className="mt-2 text-sm space-y-2">
                     <p>
                       <strong>{t('nameLabel')}</strong> {result.registration.name}
                     </p>
@@ -216,6 +216,36 @@ export default function CheckInPage() {
                         <strong>{t('checkedInAtLabel')}</strong>{' '}
                         {new Date(result.registration.checkedInAt).toLocaleString()}
                       </p>
+                    )}
+                    {currentConference && (
+                      <button
+                        type="button"
+                        className="mt-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-white"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/admin/badges/generate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                registrationId: result.registration!.id,
+                                conferenceId: currentConference.id,
+                              }),
+                            })
+                            if (!res.ok) throw new Error('Badge failed')
+                            const blob = await res.blob()
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `badge-${result.registration!.id.slice(0, 8)}.pdf`
+                            a.click()
+                            URL.revokeObjectURL(url)
+                          } catch {
+                            alert(t('badgeFailed'))
+                          }
+                        }}
+                      >
+                        {t('downloadBadge')}
+                      </button>
                     )}
                   </div>
                 )}

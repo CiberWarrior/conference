@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import LoadingSpinner from './LoadingSpinner'
 import { showSuccess, showError } from '@/utils/toast'
 import { formatPriceWithoutZeros } from '@/utils/pricing'
-import type { CustomRegistrationField, ParticipantSettings, HotelOption, PaymentSettings } from '@/types/conference'
+import type { CustomRegistrationField, ParticipantSettings, HotelOption, PaymentSettings, RegistrationAddon } from '@/types/conference'
 import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import type { Participant } from '@/types/participant'
 import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
@@ -40,6 +40,7 @@ interface RegistrationFormProps {
   conferenceLocation?: string
   /** Custom registration fees from GET /api/conferences/[slug]/registration-fees (custom_registration_fees) */
   registrationFees?: RegistrationFeeOption[] | null
+  registrationAddons?: RegistrationAddon[]
 }
 
 export default function RegistrationForm({
@@ -59,6 +60,7 @@ export default function RegistrationForm({
   conferenceDate,
   conferenceLocation,
   registrationFees,
+  registrationAddons = [],
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
   const tFieldLabels = useTranslations('admin.conferences')
@@ -68,6 +70,12 @@ export default function RegistrationForm({
   const [selectedFee, setSelectedFee] = useState<string>('') // Selected fee: custom_registration_fees.id (UUID)
   const [feeConfirmed, setFeeConfirmed] = useState(false)
   const [activeTab, setActiveTab] = useState<'registration' | 'accommodation'>('registration')
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([])
+
+  const activeAddons = (registrationAddons || []).filter((a) => a.active !== false)
+  const addonsTotal = activeAddons
+    .filter((a) => selectedAddonIds.includes(a.id))
+    .reduce((sum, a) => sum + Number(a.price || 0), 0)
 
   const hasFees = !!(registrationFees && registrationFees.length > 0)
 
@@ -129,6 +137,8 @@ export default function RegistrationForm({
     const opt = registrationFees.find((f) => f.id === selectedFee)
     return opt ? opt.price_gross : 0
   })()
+  const chargeTotal = selectedFeeAmount + addonsTotal
+  const paymentRequired = chargeTotal > 0
   
   // Accommodation state
   const [arrivalDate, setArrivalDate] = useState<string>('')
@@ -215,13 +225,13 @@ export default function RegistrationForm({
     }
 
     // Check if payment method is selected when payment is required
-    if (hasFees && selectedFeeAmount > 0 && !paymentPreference) {
+    if (paymentRequired && !paymentPreference) {
       showError(t('pleaseSelectPaymentMethod'))
       return false
     }
 
     // Check if payer type is selected when payment is required
-    if (hasFees && selectedFeeAmount > 0 && !payerType) {
+    if (paymentRequired && !payerType) {
       showError(t('pleaseSelectPayerType'))
       return false
     }
@@ -296,6 +306,7 @@ export default function RegistrationForm({
         custom_data: {},
         participants: participants,
         registration_fee_id: selectedFee || null,
+        selected_addons: selectedAddonIds.map((id) => ({ id, quantity: 1 })),
         // Empty string when fee is free (payment section not shown) – send undefined so the API default applies
         payment_preference: paymentPreference || undefined,
         locale: locale === 'hr' ? 'hr' : 'en', // Za e-mail potvrde (HR/EN)
@@ -527,6 +538,50 @@ export default function RegistrationForm({
             </div>
           )}
 
+          {activeAddons.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">{t('optionalAddons')}</h2>
+              <ul className="space-y-2">
+                {activeAddons.map((addon) => (
+                  <li key={addon.id}>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedAddonIds.includes(addon.id)}
+                        onChange={(e) => {
+                          setSelectedAddonIds((prev) =>
+                            e.target.checked
+                              ? [...prev, addon.id]
+                              : prev.filter((id) => id !== addon.id)
+                          )
+                        }}
+                      />
+                      <span className="flex-1">
+                        <span className="font-medium text-gray-900">{addon.label}</span>
+                        {addon.description && (
+                          <span className="block text-sm text-gray-500">{addon.description}</span>
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-800">
+                        {formatPriceWithoutZeros(Number(addon.price || 0))}{' '}
+                        {addon.currency || currency}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              {addonsTotal > 0 && (
+                <p className="mt-3 text-sm text-gray-600">
+                  {t('addonsSubtotal', {
+                    amount: formatPriceWithoutZeros(addonsTotal),
+                    currency,
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Empty state when no fields */}
           {customFields.length === 0 && (
             <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
@@ -539,14 +594,14 @@ export default function RegistrationForm({
           )}
 
           {/* When selected fee is free, show message and skip payment block */}
-          {hasFees && selectedFee && selectedFeeAmount === 0 && (
+          {((hasFees && selectedFee && selectedFeeAmount === 0) || (!hasFees && !paymentRequired)) && addonsTotal === 0 && (
             <div className="pt-6 border-t-2 border-gray-100">
               <p className="text-sm font-medium text-green-700">{t('noPaymentRequired')}</p>
             </div>
           )}
 
           {/* Payment Section – refactored component */}
-          {hasFees && selectedFee && selectedFeeAmount > 0 && (
+          {paymentRequired && (
             <PaymentSection
               paymentSettings={paymentSettings}
               availablePaymentOptions={availablePaymentOptions}

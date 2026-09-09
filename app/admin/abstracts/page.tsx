@@ -47,6 +47,7 @@ interface Abstract {
   registration_id: string | null
   custom_data: Record<string, any> | null
   authors?: Author[] | null
+  status?: string
   conference?: {
     id: string
     name: string
@@ -69,6 +70,28 @@ function AbstractsPageContent() {
     string | 'all'
   >('all')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [reviewerEmail, setReviewerEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [reviewers, setReviewers] = useState<Array<{ id: string; email: string; name?: string }>>([])
+  const [exportingBook, setExportingBook] = useState(false)
+
+  const loadReviewers = async () => {
+    if (!currentConference?.id) {
+      setReviewers([])
+      return
+    }
+    try {
+      const res = await fetch(
+        `/api/admin/abstracts/reviews?conferenceId=${currentConference.id}`
+      )
+      const data = await res.json()
+      if (res.ok) setReviewers(data.reviewers || [])
+    } catch {
+      // ignore
+    }
+  }
 
   // Handle conference query parameter - set conference from URL if provided
   useEffect(() => {
@@ -84,6 +107,7 @@ function AbstractsPageContent() {
 
   useEffect(() => {
     loadAbstracts()
+    loadReviewers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConference, selectedConferenceId])
 
@@ -138,6 +162,7 @@ function AbstractsPageContent() {
             registration_id: a.registration_id,
             custom_data: a.custom_data || {},
             authors: authors ?? undefined,
+            status: a.status || 'pending',
             conference: a.conferences
               ? {
                   id: a.conferences.id,
@@ -200,8 +225,132 @@ function AbstractsPageContent() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
   }
 
+  const updateStatus = async (
+    abstract: Abstract,
+    status: 'accepted' | 'rejected' | 'under_review' | 'pending' | 'withdrawn'
+  ) => {
+    if (!abstract.conference_id) {
+      showError(t('missingConference'))
+      return
+    }
+    setUpdatingId(abstract.id)
+    try {
+      const res = await fetch('/api/admin/abstracts/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          abstractId: abstract.id,
+          conferenceId: abstract.conference_id,
+          status,
+          notify: status === 'accepted' || status === 'rejected',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      setAbstracts((prev) =>
+        prev.map((a) => (a.id === abstract.id ? { ...a, status } : a))
+      )
+      showSuccess(t('statusUpdated', { status }))
+    } catch (e: any) {
+      showError(e.message || t('updateFailed'))
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const inviteReviewer = async () => {
+    if (!currentConference?.id || !reviewerEmail.trim()) return
+    setInviting(true)
+    try {
+      const res = await fetch('/api/admin/abstracts/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conferenceId: currentConference.id,
+          action: 'invite_reviewer',
+          email: reviewerEmail.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Invite failed')
+      showSuccess(
+        data.reviewUrl
+          ? t('reviewerInvitedWithLink', { url: data.reviewUrl })
+          : t('reviewerInvited')
+      )
+      setReviewerEmail('')
+      loadReviewers()
+    } catch (e: any) {
+      showError(e.message || 'Invite failed')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const assignReviewer = async (abstract: Abstract, reviewerId: string) => {
+    if (!abstract.conference_id || !reviewerId) return
+    try {
+      const res = await fetch('/api/admin/abstracts/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conferenceId: abstract.conference_id,
+          action: 'assign',
+          abstractId: abstract.id,
+          reviewerId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Assign failed')
+      setAbstracts((prev) =>
+        prev.map((a) =>
+          a.id === abstract.id ? { ...a, status: 'under_review' } : a
+        )
+      )
+      showSuccess(t('assignedReviewer'))
+    } catch (e: any) {
+      showError(e.message || t('assignFailed'))
+    }
+  }
+
+  const exportBook = async () => {
+    if (!currentConference?.id) return
+    const acceptedCount = abstracts.filter((a) => a.status === 'accepted').length
+    if (acceptedCount === 0) {
+      showError(t('noAcceptedForBook'))
+      return
+    }
+    setExportingBook(true)
+    try {
+      const res = await fetch('/api/admin/abstracts/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conferenceId: currentConference.id, status: 'accepted' }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || t('bookExportFailed'))
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `book-of-abstracts-${currentConference.slug}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      showSuccess(t('bookExported'))
+    } catch (e: any) {
+      showError(e.message || t('bookExportFailed'))
+    } finally {
+      setExportingBook(false)
+    }
+  }
+
   // Filter abstracts based on search
   const filteredAbstracts = abstracts.filter((abstract) => {
+    if (statusFilter !== 'all' && (abstract.status || 'pending') !== statusFilter) {
+      return false
+    }
     const searchLower = searchTerm.toLowerCase()
     return (
       abstract.file_name.toLowerCase().includes(searchLower) ||
@@ -229,15 +378,19 @@ function AbstractsPageContent() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {t('title')}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {t('subtitle')}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+          <p className="text-gray-600 mt-2">{t('subtitle')}</p>
         </div>
+        <button
+          type="button"
+          onClick={exportBook}
+          disabled={exportingBook || !currentConference}
+          className="px-4 py-2 bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
+        >
+          {exportingBook ? t('exportingBook') : t('exportBook')}
+        </button>
       </div>
 
       {/* Filters and Search */}
@@ -281,6 +434,38 @@ function AbstractsPageContent() {
             </select>
           </div>
         </div>
+
+        <div className="mt-4 flex flex-col sm:flex-row gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="all">{t('statusAll')}</option>
+            <option value="pending">{t('statusPending')}</option>
+            <option value="under_review">{t('statusUnderReview')}</option>
+            <option value="accepted">{t('statusAccepted')}</option>
+            <option value="rejected">{t('statusRejected')}</option>
+            <option value="withdrawn">{t('statusWithdrawn')}</option>
+          </select>
+          <div className="flex flex-1 gap-2">
+            <input
+              type="email"
+              value={reviewerEmail}
+              onChange={(e) => setReviewerEmail(e.target.value)}
+              placeholder={t('inviteReviewerEmail')}
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={inviteReviewer}
+              disabled={inviting || !currentConference}
+              className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            >
+              {inviting ? t('inviting') : t('inviteReviewer')}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
@@ -288,7 +473,7 @@ function AbstractsPageContent() {
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-700">Total Abstracts</p>
+              <p className="text-sm font-medium text-blue-700">{t('totalAbstracts')}</p>
               <p className="text-3xl font-bold text-blue-900 mt-2">
                 {abstracts.length}
               </p>
@@ -314,9 +499,9 @@ function AbstractsPageContent() {
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-700">Current Conference</p>
+              <p className="text-sm font-medium text-green-700">{t('currentConference')}</p>
               <p className="text-lg font-semibold text-green-900 mt-2 line-clamp-1">
-                {currentConference?.name || 'None selected'}
+                {currentConference?.name || t('noneSelected')}
               </p>
             </div>
             <div className="w-14 h-14 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -370,7 +555,7 @@ function AbstractsPageContent() {
                     {t('fileName')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Autori
+                    {t('authors')}
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     {t('conference')}
@@ -524,26 +709,76 @@ function AbstractsPageContent() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadAbstract(abstract)
-                        }}
-                        disabled={downloadingId === abstract.id}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        {downloadingId === abstract.id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>{t('downloading')}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4" />
-                            <span>{t('download')}</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                            abstract.status === 'accepted'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : abstract.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : abstract.status === 'under_review'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {abstract.status || 'pending'}
+                        </span>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <button
+                            type="button"
+                            disabled={updatingId === abstract.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateStatus(abstract, 'accepted')
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-emerald-600 text-white disabled:opacity-50"
+                          >
+                            {t('accept')}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={updatingId === abstract.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateStatus(abstract, 'rejected')
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-red-600 text-white disabled:opacity-50"
+                          >
+                            {t('reject')}
+                          </button>
+                          {reviewers.length > 0 && (
+                            <select
+                              className="text-xs border rounded px-1 py-1 max-w-[140px]"
+                              defaultValue=""
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  assignReviewer(abstract, e.target.value)
+                                  e.target.value = ''
+                                }
+                              }}
+                            >
+                              <option value="">{t('assignReviewer')}</option>
+                              {reviewers.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name || r.email}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              downloadAbstract(abstract)
+                            }}
+                            disabled={downloadingId === abstract.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            {downloadingId === abstract.id ? '…' : t('download')}
+                          </button>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -559,11 +794,13 @@ function AbstractsPageContent() {
 // Wrapper with Suspense boundary
 export default function AbstractsPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       <AbstractsPageContent />
     </Suspense>
   )

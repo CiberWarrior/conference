@@ -15,6 +15,7 @@ type EmailType =
   | 'certificate'
   | 'subscription_welcome'
   | 'payment_offer'
+  | 'abstract_submission_confirmation'
 
 interface SendEmailParams {
   emailType: EmailType
@@ -38,6 +39,10 @@ interface SendEmailParams {
   tempPassword?: string
   planName?: string
   paymentLinkUrl?: string
+  // Abstract
+  abstractId?: string
+  fileName?: string
+  conferenceName?: string
   // Conference email settings (optional - falls back to default if not provided)
   emailSettings?: EmailSettings
 }
@@ -313,6 +318,73 @@ export async function sendCertificate(
     emailSettings,
   })
 }
+
+/**
+ * Confirm abstract submission to the author
+ */
+export async function sendAbstractSubmissionConfirmation(params: {
+  email: string
+  abstractId: string
+  fileName: string
+  conferenceName: string
+  emailSettings?: EmailSettings
+  customMessage?: string
+}): Promise<void> {
+  return sendEmail({
+    emailType: 'abstract_submission_confirmation',
+    email: params.email,
+    abstractId: params.abstractId,
+    fileName: params.fileName,
+    conferenceName: params.conferenceName,
+    emailSettings: params.emailSettings,
+    customMessage: params.customMessage,
+  })
+}
+
+/**
+ * Notify author of abstract accept / reject decision
+ */
+export async function sendAbstractDecisionEmail(params: {
+  email: string
+  conferenceName: string
+  status: 'accepted' | 'rejected'
+  fileName?: string
+  notes?: string
+  emailSettings?: EmailSettings
+}): Promise<void> {
+  const accepted = params.status === 'accepted'
+  const subject = accepted
+    ? `Abstract accepted — ${params.conferenceName}`
+    : `Abstract decision — ${params.conferenceName}`
+  const heading = accepted ? 'Abstract Accepted' : 'Abstract Decision'
+  const body = accepted
+    ? 'We are pleased to inform you that your abstract has been accepted.'
+    : 'Thank you for your submission. After review, we are unable to accept your abstract for this conference.'
+
+  const notesHtml = params.notes
+    ? `<p style="font-size:16px;margin:20px 0;"><strong>Note from organizers:</strong> ${params.notes}</p>`
+    : ''
+
+  await sendGenericEmail({
+    to: params.email,
+    subject,
+    html: `
+      <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:${accepted ? '#059669' : '#4b5563'};padding:24px;text-align:center;border-radius:10px 10px 0 0;">
+          <h1 style="color:white;margin:0;font-size:24px;">${heading}</h1>
+        </div>
+        <div style="background:white;padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+          <p style="font-size:16px;">${body}</p>
+          <p style="font-size:16px;"><strong>Conference:</strong> ${params.conferenceName}</p>
+          ${params.fileName ? `<p style="font-size:16px;"><strong>File:</strong> ${params.fileName}</p>` : ''}
+          ${notesHtml}
+        </div>
+      </body></html>
+    `,
+    text: `${heading}\n\n${body}\nConference: ${params.conferenceName}\n${params.fileName ? `File: ${params.fileName}\n` : ''}${params.notes ? `\nNotes: ${params.notes}` : ''}`,
+  })
+}
+
 
 /**
  * Send welcome email with login credentials (for new Conference Admin users)

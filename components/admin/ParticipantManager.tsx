@@ -6,6 +6,7 @@ import { Plus, Trash2, Users, FileCheck, Loader2 } from 'lucide-react'
 import type { Participant } from '@/types/participant'
 import type { CustomRegistrationField } from '@/types/conference'
 import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
+import { isFieldVisible } from '@/lib/form-visibility'
 import { showError } from '@/utils/toast'
 
 interface ParticipantManagerProps {
@@ -224,6 +225,9 @@ export default function ParticipantManager({
                   <div className="space-y-4">
                     {customFields.map((field) => {
                       const fieldValue = participant.customFields?.[field.name] || ''
+                      if (!isFieldVisible(field, participant.customFields || {})) {
+                        return null
+                      }
                       const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
                       const displayLabel = labelKey ? tFieldLabels(labelKey) : (field.label || '')
 

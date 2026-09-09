@@ -15,6 +15,14 @@ import { AlertCircle } from 'lucide-react'
 import PaymentMethodBadge from '@/components/admin/PaymentMethodBadge'
 import PaymentStatusBadge from '@/components/admin/PaymentStatusBadge'
 import StatusBadge from '@/components/admin/StatusBadge'
+import RegistrationDetailDrawer from '@/components/admin/RegistrationDetailDrawer'
+import {
+  getAccommodationDisplay,
+  matchesAccommodationFilter,
+  resolveAddonLabels,
+  type AccommodationFilter,
+} from '@/lib/registration-admin-display'
+import type { HotelOption, RegistrationAddon, CustomRegistrationField } from '@/types/conference'
 
 // Force dynamic rendering for this page (uses searchParams)
 export const dynamic = 'force-dynamic'
@@ -32,6 +40,8 @@ function RegistrationsPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterAccommodation, setFilterAccommodation] = useState<AccommodationFilter>('all')
+  const [detailRegistration, setDetailRegistration] = useState<Registration | null>(null)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkActionMenuOpen, setBulkActionMenuOpen] = useState(false)
@@ -84,17 +94,24 @@ function RegistrationsPageContent() {
 
     try {
       setLoading(true)
+      setError(null)
       const from = (pageNum - 1) * pageSize
       const to = from + pageSize - 1
 
       // Get total count (single query, lightweight)
-      const { count: countResult } = await supabase
+      const { count: countResult, error: countError } = await supabase
         .from('registrations')
         .select('*', { count: 'exact', head: true })
         .eq('conference_id', currentConference.id)
+
+      if (countError) throw countError
       setTotalCount(countResult ?? 0)
 
-      const { data, error: fetchError } = await supabase
+      // Prefer join for profile enrichment; fall back if relation/schema cache fails
+      let data: any[] | null = null
+      let fetchError: { message?: string } | null = null
+
+      const withJoins = await supabase
         .from('registrations')
         .select(
           `
@@ -107,17 +124,29 @@ function RegistrationsPageContent() {
           custom_registration_fees (
             name
           )
-        `,
-          { count: 'exact' }
+        `
         )
         .eq('conference_id', currentConference.id)
         .order('created_at', { ascending: false })
         .range(from, to)
 
+      if (withJoins.error) {
+        const fallback = await supabase
+          .from('registrations')
+          .select('*')
+          .eq('conference_id', currentConference.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+        data = fallback.data
+        fetchError = fallback.error
+      } else {
+        data = withJoins.data
+      }
+
       if (fetchError) throw fetchError
 
       setRegistrations(
-        data.map((r) => {
+        (data || []).map((r: any) => {
           // Helper: Extract data from participants[0].customFields if available
           const firstParticipant = r.participants?.[0]?.customFields || {}
           const customData = r.custom_data || {}
@@ -180,6 +209,7 @@ function RegistrationsPageContent() {
             checkedInAt: r.checked_in_at || null,
             customFields: customData,
             participants: r.participants || [],
+            selectedAddons: r.selected_addons || [],
           }
         })
       )
@@ -204,13 +234,18 @@ function RegistrationsPageContent() {
     const matchesFilter =
       filterStatus === 'all' || reg.paymentStatus === filterStatus
 
-    return matchesSearch && matchesFilter
+    const matchesAccommodation = matchesAccommodationFilter(reg, filterAccommodation)
+
+    return matchesSearch && matchesFilter && matchesAccommodation
   })
+
+  const hotelOptions = (currentConference?.settings?.hotel_options || []) as HotelOption[]
+  const registrationAddons = (currentConference?.settings?.registration_addons || []) as RegistrationAddon[]
+  const customFieldDefs = (currentConference?.settings?.custom_registration_fields || []) as CustomRegistrationField[]
 
   // Helper function to prepare data for export
   const prepareExportData = () => {
     // Get custom field definitions from current conference
-    const customFieldDefs = currentConference?.settings?.custom_registration_fields || []
     const participantSettings = currentConference?.settings?.participant_settings
     
     // Standard headers (translated)
@@ -224,6 +259,9 @@ function RegistrationsPageContent() {
       t('exportInstitution'),
       t('exportArrivalDate'),
       t('exportDepartureDate'),
+      t('exportHotel'),
+      t('exportNights'),
+      t('exportAddons'),
       t('exportRegistrationFeeType'),
       t('exportPaymentMethod'),
       t('exportPayerType'),
@@ -246,6 +284,7 @@ function RegistrationsPageContent() {
     const headers = [...standardHeaders, ...customHeaders, ...participantHeaders]
     
     const rows = filteredRegistrations.map((r) => {
+      const acc = getAccommodationDisplay(r, hotelOptions)
       const standardData = [
         currentConference?.name || 'N/A',
         r.firstName,
@@ -256,6 +295,15 @@ function RegistrationsPageContent() {
         r.institution || '',
         r.arrivalDate || '',
         r.departureDate || '',
+        (() => {
+          const display = getAccommodationDisplay(r, hotelOptions)
+          if (display.hotelName) return display.hotelName
+          if (display.datesFromFormOnly) return t('hotelFormDates')
+          if (display.arrivalDate || display.departureDate) return t('hotelDatesOnly')
+          return ''
+        })(),
+        acc.numberOfNights ?? '',
+        resolveAddonLabels(r.selectedAddons, registrationAddons).join('; '),
         r.registrationFeeType ?? '',
         r.paymentMethod === 'card' ? 'Card' : r.paymentMethod === 'bank_transfer' ? 'Bank transfer' : '',
         (r.customFields?.payer_type as string) || '',
@@ -793,6 +841,16 @@ function RegistrationsPageContent() {
               <option value="paid">{t('paid')}</option>
               <option value="not_required">{t('notRequired')}</option>
             </select>
+            <select
+              value={filterAccommodation}
+              onChange={(e) => setFilterAccommodation(e.target.value as AccommodationFilter)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">{t('filterAccommodationAll')}</option>
+              <option value="with_hotel">{t('filterAccommodationWithHotel')}</option>
+              <option value="with_dates">{t('filterAccommodationWithDates')}</option>
+              <option value="none">{t('filterAccommodationNone')}</option>
+            </select>
           </div>
         </div>
 
@@ -918,6 +976,9 @@ function RegistrationsPageContent() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('regNumber')}
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('details')}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('name')}
                 </th>
@@ -962,7 +1023,7 @@ function RegistrationsPageContent() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={15} className="px-6 py-12 text-center text-gray-500">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
@@ -995,6 +1056,20 @@ function RegistrationsPageContent() {
                         {reg.registration_number || '-'}
                       </span>
                     </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setDetailRegistration(reg)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                        title={t('viewDetails')}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        {t('details')}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {reg.firstName || ''} {reg.lastName || ''}
@@ -1025,28 +1100,29 @@ function RegistrationsPageContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {reg.accommodation && (reg.accommodation as any).hotel_id ? (
-                        <div className="text-sm">
-                          <div className="font-medium text-gray-900">
-                            {(() => {
-                              // Try to get hotel name from currentConference settings
-                              if (currentConference?.settings?.hotel_options) {
-                                const hotelOptions = currentConference.settings.hotel_options as any[]
-                                const hotel = hotelOptions.find((h: any) => h.id === (reg.accommodation as any).hotel_id)
-                                return hotel?.name || 'Hotel Selected'
-                              }
-                              return 'Hotel Selected'
-                            })()}
-                          </div>
-                          {reg.accommodation?.number_of_nights && (
-                            <div className="text-xs text-gray-500">
-                              {reg.accommodation.number_of_nights} {t('nights')}
+                      {(() => {
+                        const acc = getAccommodationDisplay(reg, hotelOptions)
+                        if (acc.hasHotelSelection && acc.hotelName) {
+                          return (
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">{acc.hotelName}</div>
+                              {acc.numberOfNights != null && (
+                                <div className="text-xs text-gray-500">
+                                  {acc.numberOfNights} {t('nights')}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
+                          )
+                        }
+                        if (acc.arrivalDate || acc.departureDate) {
+                          return (
+                            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                              {acc.datesFromFormOnly ? t('hotelFormDates') : t('hotelDatesOnly')}
+                            </span>
+                          )
+                        }
+                        return <span className="text-gray-400 text-sm">-</span>
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {reg.paymentRequired ? (
@@ -1305,6 +1381,30 @@ function RegistrationsPageContent() {
         </div>
       )}
 
+      <RegistrationDetailDrawer
+        registration={detailRegistration}
+        open={Boolean(detailRegistration)}
+        onClose={() => setDetailRegistration(null)}
+        hotelOptions={hotelOptions}
+        registrationAddons={registrationAddons}
+        customFieldDefs={customFieldDefs}
+        onShowQr={(reg) => {
+          setDetailRegistration(null)
+          setSelectedQRRegistration(reg)
+          setQrModalOpen(true)
+        }}
+        onCopyRegNumber={(regNumber) => {
+          navigator.clipboard.writeText(regNumber)
+          showSuccess(t('regNumberCopied'))
+        }}
+        onCopyId={(id) => {
+          navigator.clipboard.writeText(id)
+          showSuccess(t('idCopied'))
+        }}
+        onConfirmBankPayment={handleConfirmBankPayment}
+        confirmingPaymentId={confirmingPaymentId}
+      />
+
       {/* QR Code Modal */}
       {qrModalOpen && selectedQRRegistration && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1369,14 +1469,17 @@ function RegistrationsPageContent() {
   )
 }
 
-// Wrapper with Suspense boundary
+// Wrapper with Suspense boundary (keep fallback short — h-screen inside flex layout
+// can crush the admin Header and look like a blank page)
 export default function RegistrationsPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       <RegistrationsPageContent />
     </Suspense>
   )

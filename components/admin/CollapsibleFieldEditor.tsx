@@ -50,6 +50,7 @@ interface CollapsibleFieldEditorProps {
   onRemove: (id: string) => void
   isExpanded: boolean
   onToggleExpand: () => void
+  allFields?: CustomRegistrationField[]
 }
 
 export default function CollapsibleFieldEditor({
@@ -59,6 +60,7 @@ export default function CollapsibleFieldEditor({
   onRemove,
   isExpanded,
   onToggleExpand,
+  allFields = [],
 }: CollapsibleFieldEditorProps) {
   const t = useTranslations('admin.conferences')
   const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
@@ -515,6 +517,77 @@ export default function CollapsibleFieldEditor({
                 </div>
               )}
             </>
+          )}
+
+          {field.type !== 'separator' && (
+            <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Conditional visibility</p>
+              <p className="text-xs text-gray-500">
+                Show this field only when another field matches a value.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <select
+                  className="border rounded-lg px-3 py-2 text-sm"
+                  value={field.showIf?.fieldName || ''}
+                  onChange={(e) => {
+                    const fieldName = e.target.value
+                    if (!fieldName) {
+                      onUpdate(field.id, { showIf: undefined })
+                      return
+                    }
+                    onUpdate(field.id, {
+                      showIf: {
+                        fieldName,
+                        operator: field.showIf?.operator || 'equals',
+                        value: field.showIf?.value || '',
+                      },
+                    })
+                  }}
+                >
+                  <option value="">Always visible</option>
+                  {allFields
+                    .filter((f) => f.id !== field.id && f.type !== 'separator')
+                    .map((f) => (
+                      <option key={f.id} value={f.name}>
+                        {f.label || f.name}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  className="border rounded-lg px-3 py-2 text-sm"
+                  disabled={!field.showIf?.fieldName}
+                  value={field.showIf?.operator || 'equals'}
+                  onChange={(e) =>
+                    onUpdate(field.id, {
+                      showIf: {
+                        fieldName: field.showIf?.fieldName || '',
+                        operator: e.target.value as 'equals' | 'not_equals' | 'contains',
+                        value: field.showIf?.value || '',
+                      },
+                    })
+                  }
+                >
+                  <option value="equals">Equals</option>
+                  <option value="not_equals">Not equals</option>
+                  <option value="contains">Contains</option>
+                </select>
+                <input
+                  className="border rounded-lg px-3 py-2 text-sm"
+                  disabled={!field.showIf?.fieldName}
+                  placeholder="Value"
+                  value={field.showIf?.value || ''}
+                  onChange={(e) =>
+                    onUpdate(field.id, {
+                      showIf: {
+                        fieldName: field.showIf?.fieldName || '',
+                        operator: field.showIf?.operator || 'equals',
+                        value: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
