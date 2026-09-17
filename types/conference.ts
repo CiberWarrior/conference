@@ -200,7 +200,7 @@ export interface ParticipantSettings {
 
 export interface PaymentSettings {
   enabled: boolean // Enable/disable payment for this conference
-  allow_card: boolean // Show "Pay Now - Card" option (Stripe)
+  allow_card: boolean // Legacy flag — conference registration uses bank transfer only; card is platform billing
   allow_bank_transfer: boolean // Show "Pay Now - Bank Transfer" option
   allow_pay_later: boolean // Show "Pay Later" option
   default_preference: 'pay_now_card' | 'pay_now_bank' | 'pay_later' // Default payment preference selection
@@ -209,9 +209,23 @@ export interface PaymentSettings {
   payment_deadline_days: number // Days before conference for "pay later" (default: 30)
 }
 
+/** How authors submit abstracts for a conference */
+export type AbstractSubmissionMethod = 'online_form' | 'document_upload'
+
+/** Stored in conferences.settings; file lives in the private `conference-templates` bucket. */
+export interface AbstractTemplate {
+  file_name: string
+  file_path: string
+  file_size?: number
+  uploaded_at: string
+}
+
 export interface ConferenceSettings {
   registration_enabled: boolean
   abstract_submission_enabled: boolean
+  abstract_submission_deadline?: string // ISO date (YYYY-MM-DD); submissions blocked after end of this day
+  abstract_submission_method?: AbstractSubmissionMethod // Default: 'online_form'
+  abstract_template?: AbstractTemplate | null // Optional DOCX template for document_upload conferences
   payment_required: boolean
   max_registrations?: number
   timezone: string

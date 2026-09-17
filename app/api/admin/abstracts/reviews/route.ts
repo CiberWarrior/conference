@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { requireConferencePermission } from '@/lib/api-auth'
 import { handleApiError, ApiError } from '@/lib/api-error'
-import { sendGenericEmail } from '@/lib/email'
+import { sendGenericEmail, sendReviewerReminderEmail } from '@/lib/email'
+import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from('abstract_reviews')
         .select(
-          '*, reviewer:abstract_reviewers(id, email, name), abstract:abstracts(id, file_name, email, status)'
+          '*, reviewer:abstract_reviewers(id, email, name), abstract:abstracts(id, file_name, title, email, status)'
         )
         .eq('abstract_id', abstractId)
       if (error) throw ApiError.internal('Failed to load reviews')
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabase
           .from('abstract_reviews')
           .select(
-            '*, reviewer:abstract_reviewers(id, email, name), abstract:abstracts(id, file_name, email, status)'
+            '*, reviewer:abstract_reviewers(id, email, name), abstract:abstracts(id, file_name, title, email, status)'
           )
           .in('abstract_id', ids)
         if (error) throw ApiError.internal('Failed to load reviews')
@@ -181,6 +182,96 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ success: true, review })
+    }
+
+    if (action === 'unassign') {
+      const { reviewId } = body
+      if (!reviewId) throw ApiError.validationError('reviewId is required')
+
+      const { data: review } = await supabase
+        .from('abstract_reviews')
+        .select('id, abstract_id, abstract:abstracts(conference_id)')
+        .eq('id', reviewId)
+        .maybeSingle()
+
+      const owner = review?.abstract as { conference_id?: string } | null
+      if (!review || owner?.conference_id !== conferenceId) {
+        throw ApiError.notFound('Review not found')
+      }
+
+      const { error } = await supabase.from('abstract_reviews').delete().eq('id', reviewId)
+      if (error) throw ApiError.internal('Failed to remove reviewer')
+
+      const { count } = await supabase
+        .from('abstract_reviews')
+        .select('id', { count: 'exact', head: true })
+        .eq('abstract_id', review.abstract_id)
+
+      if (!count) {
+        await supabase
+          .from('abstracts')
+          .update({ status: 'pending' })
+          .eq('id', review.abstract_id)
+          .eq('status', 'under_review')
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'remind') {
+      const reviewerId = body.reviewerId ? String(body.reviewerId) : null
+
+      const { data: conference } = await supabase
+        .from('conferences')
+        .select('name')
+        .eq('id', conferenceId)
+        .single()
+
+      let reviewerQuery = supabase
+        .from('abstract_reviewers')
+        .select('id, email, name, invite_token')
+        .eq('conference_id', conferenceId)
+      if (reviewerId) reviewerQuery = reviewerQuery.eq('id', reviewerId)
+
+      const { data: reviewers } = await reviewerQuery
+      if (!reviewers?.length) throw ApiError.notFound('No reviewers found')
+
+      const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      let reminded = 0
+      const reviewIdsToStamp: string[] = []
+
+      for (const reviewer of reviewers) {
+        const { data: pending } = await supabase
+          .from('abstract_reviews')
+          .select('id')
+          .eq('reviewer_id', reviewer.id)
+          .is('submitted_at', null)
+
+        if (!pending?.length) continue
+
+        try {
+          await sendReviewerReminderEmail({
+            email: reviewer.email,
+            reviewerName: reviewer.name,
+            conferenceName: conference?.name || 'Conference',
+            pendingCount: pending.length,
+            reviewUrl: `${base}/review/${reviewer.invite_token}`,
+          })
+          reminded += 1
+          reviewIdsToStamp.push(...pending.map((p) => p.id))
+        } catch (emailError) {
+          log.warn('Reviewer reminder email failed', emailError)
+        }
+      }
+
+      if (reviewIdsToStamp.length > 0) {
+        await supabase
+          .from('abstract_reviews')
+          .update({ reminded_at: new Date().toISOString() })
+          .in('id', reviewIdsToStamp)
+      }
+
+      return NextResponse.json({ success: true, reminded })
     }
 
     throw ApiError.validationError('Unknown action')

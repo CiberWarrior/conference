@@ -37,6 +37,28 @@ export default function GeneralSettingsSection({ formData, onChange }: GeneralSe
             {t('abstractSubmissionEnabled')}
           </span>
         </label>
+        {formData.abstract_submission_enabled && (
+          <div className="pl-7 space-y-4">
+            <div>
+              <label
+                className="block text-sm font-medium text-gray-800 mb-1.5"
+                htmlFor="abstract-submission-deadline"
+              >
+                {t('abstractSubmissionDeadline')}
+              </label>
+              <input
+                id="abstract-submission-deadline"
+                type="date"
+                value={formData.abstract_submission_deadline}
+                onChange={(e) => onChange({ abstract_submission_deadline: e.target.value })}
+                className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-500 mt-1.5">
+                {t('abstractSubmissionDeadlineHint')}
+              </p>
+            </div>
+          </div>
+        )}
         <label className="flex items-center gap-3 cursor-pointer group">
           <input
             type="checkbox"

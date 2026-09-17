@@ -353,6 +353,7 @@ export default function ConferencePage() {
                   </div>
                 </Link>
               )}
+
             </div>
 
             {/* Divider with elegant styling */}

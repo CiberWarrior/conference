@@ -1,12 +1,32 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import Link from 'next/link'
+import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
 import { useConference } from '@/contexts/ConferenceContext'
 import { showSuccess, showError } from '@/utils/toast'
+import StatusBadge from '@/components/admin/StatusBadge'
+import AbstractDetailDrawer, {
+  ABSTRACT_STATUS_LABEL_KEY,
+  ABSTRACT_STATUS_TONE,
+  type AbstractRecord,
+} from '@/components/admin/AbstractDetailDrawer'
+import {
+  formatAuthorList,
+  getAbstractContent,
+  getAbstractKeywords,
+  getAbstractTitle,
+  getAbstractType,
+  getCorrespondingAuthorEmail,
+  groupReviewsByAbstract,
+  isDocumentUploadAbstract,
+  summarizeReviews,
+  type AbstractStatus,
+  type ReviewLike,
+} from '@/lib/abstract-display'
 
 // Force dynamic rendering for this page (uses searchParams)
 export const dynamic = 'force-dynamic'
@@ -15,39 +35,18 @@ import {
   FileText,
   Search,
   Filter,
-  Calendar,
   Mail,
   User,
   X,
   ExternalLink,
   CheckCircle,
+  ClipboardList,
+  Clock,
+  BellRing,
+  FileSpreadsheet,
 } from 'lucide-react'
 
-interface Author {
-  firstName?: string
-  lastName?: string
-  email?: string
-  affiliation?: string
-  country?: string
-  city?: string
-  orcid?: string
-  isCorresponding?: boolean
-  order?: number
-  customFields?: Record<string, any>
-}
-
-interface Abstract {
-  id: string
-  file_name: string
-  file_path: string
-  file_size: number
-  email: string | null
-  uploaded_at: string
-  conference_id: string | null
-  registration_id: string | null
-  custom_data: Record<string, any> | null
-  authors?: Author[] | null
-  status?: string
+interface Abstract extends AbstractRecord {
   conference?: {
     id: string
     name: string
@@ -55,43 +54,113 @@ interface Abstract {
   }
 }
 
+function parseAuthors(raw: unknown): Abstract['authors'] {
+  if (Array.isArray(raw)) return raw as Abstract['authors']
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : undefined
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
+}
+
 function AbstractsPageContent() {
   const searchParams = useSearchParams()
   const t = useTranslations('admin.abstracts')
-  const c = useTranslations('admin.common')
   const locale = useLocale()
-  const { currentConference, conferences, setCurrentConference, loading: conferenceLoading } =
-    useConference()
+  const { currentConference, conferences, setCurrentConference } = useConference()
   const [abstracts, setAbstracts] = useState<Abstract[]>([])
+  const [reviews, setReviews] = useState<ReviewLike[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedConferenceId, setSelectedConferenceId] = useState<
-    string | 'all'
-  >('all')
+  const [selectedConferenceId, setSelectedConferenceId] = useState<string | 'all'>('all')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [savingStatus, setSavingStatus] = useState(false)
   const [reviewerEmail, setReviewerEmail] = useState('')
   const [inviting, setInviting] = useState(false)
-  const [reviewers, setReviewers] = useState<Array<{ id: string; email: string; name?: string }>>([])
-  const [exportingBook, setExportingBook] = useState(false)
+  const [reviewers, setReviewers] = useState<
+    Array<{ id: string; email: string; name?: string | null }>
+  >([])
+  const [exportingBook, setExportingBook] = useState<'pdf' | 'docx' | null>(null)
+  const [reminding, setReminding] = useState(false)
+  const [detailAbstract, setDetailAbstract] = useState<Abstract | null>(null)
 
-  const loadReviewers = async () => {
-    if (!currentConference?.id) {
+  const reviewConferenceId =
+    selectedConferenceId !== 'all' ? selectedConferenceId : currentConference?.id
+
+  const loadAbstracts = useCallback(async () => {
+    try {
+      setLoading(true)
+      let query = supabase
+        .from('abstracts')
+        .select('*, conferences(id, name, slug)')
+        .order('uploaded_at', { ascending: false })
+
+      if (selectedConferenceId !== 'all') {
+        query = query.eq('conference_id', selectedConferenceId)
+      }
+
+      const { data, error: fetchError } = await query
+      if (fetchError) throw fetchError
+
+      setAbstracts(
+        (data || []).map((a: any) => ({
+          id: a.id,
+          file_name: a.file_name,
+          file_path: a.file_path,
+          file_size: a.file_size,
+          email: a.email,
+          uploaded_at: a.uploaded_at,
+          conference_id: a.conference_id,
+          registration_id: a.registration_id,
+          title: a.title,
+          custom_data: a.custom_data || {},
+          authors: parseAuthors(a.authors),
+          status: a.status || 'pending',
+          decision_notes: a.decision_notes,
+          decided_at: a.decided_at,
+          conference: a.conferences
+            ? {
+                id: a.conferences.id,
+                name: a.conferences.name,
+                slug: a.conferences.slug,
+              }
+            : undefined,
+        }))
+      )
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('loadFailed'))
+      showError(t('loadFailedToast'))
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedConferenceId, t])
+
+  const loadReviews = useCallback(async () => {
+    if (!reviewConferenceId) {
       setReviewers([])
+      setReviews([])
       return
     }
     try {
       const res = await fetch(
-        `/api/admin/abstracts/reviews?conferenceId=${currentConference.id}`
+        `/api/admin/abstracts/reviews?conferenceId=${reviewConferenceId}`
       )
       const data = await res.json()
-      if (res.ok) setReviewers(data.reviewers || [])
+      if (res.ok) {
+        setReviewers(data.reviewers || [])
+        setReviews(data.reviews || [])
+      }
     } catch {
-      // ignore
+      // non-blocking
     }
-  }
+  }, [reviewConferenceId])
 
   // Handle conference query parameter - set conference from URL if provided
   useEffect(() => {
@@ -107,9 +176,11 @@ function AbstractsPageContent() {
 
   useEffect(() => {
     loadAbstracts()
-    loadReviewers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConference, selectedConferenceId])
+  }, [loadAbstracts])
+
+  useEffect(() => {
+    loadReviews()
+  }, [loadReviews])
 
   // Auto-select current conference if available
   useEffect(() => {
@@ -119,98 +190,33 @@ function AbstractsPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConference])
 
-  const loadAbstracts = async () => {
-    try {
-      setLoading(true)
-      let query = supabase
-        .from('abstracts')
-        .select('*, conferences(id, name, slug)')
-        .order('uploaded_at', { ascending: false })
+  const reviewsByAbstract = useMemo(() => groupReviewsByAbstract(reviews), [reviews])
 
-      // Filter by conference if selected
-      if (selectedConferenceId !== 'all') {
-        query = query.eq('conference_id', selectedConferenceId)
-      }
-
-      const { data, error: fetchError } = await query
-
-      if (fetchError) throw fetchError
-
-      setAbstracts(
-        (data || []).map((a: any) => {
-          // Parse authors if stored as string (JSONB from Supabase is usually already parsed)
-          let authors: Author[] | null = null
-          if (a.authors != null) {
-            if (Array.isArray(a.authors)) authors = a.authors
-            else if (typeof a.authors === 'string') {
-              try {
-                const parsed = JSON.parse(a.authors)
-                authors = Array.isArray(parsed) ? parsed : null
-              } catch {
-                authors = null
-              }
-            }
-          }
-          return {
-            id: a.id,
-            file_name: a.file_name,
-            file_path: a.file_path,
-            file_size: a.file_size,
-            email: a.email,
-            uploaded_at: a.uploaded_at,
-            conference_id: a.conference_id,
-            registration_id: a.registration_id,
-            custom_data: a.custom_data || {},
-            authors: authors ?? undefined,
-            status: a.status || 'pending',
-            conference: a.conferences
-              ? {
-                  id: a.conferences.id,
-                  name: a.conferences.name,
-                  slug: a.conferences.slug,
-                }
-              : undefined,
-          }
-        })
-      )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('loadFailed'))
-      showError(t('loadFailedToast'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const downloadAbstract = async (abstract: Abstract) => {
+  const downloadAbstract = async (abstract: AbstractRecord) => {
     try {
       setDownloadingId(abstract.id)
+      if (!abstract.file_path) throw new Error(t('downloadUrlFailed'))
 
-      // Get signed URL for download
-      const { data, error: urlError } = await supabase.storage
-        .from('abstracts')
-        .createSignedUrl(abstract.file_path, 3600) // 1 hour expiry
-
-      if (urlError) throw urlError
-
-      if (data?.signedUrl) {
-        // Create a temporary link and trigger download
-        const link = document.createElement('a')
-        link.href = data.signedUrl
-        link.download = abstract.file_name
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-
-        showSuccess(t('downloadSuccess'))
-      } else {
-        throw new Error(t('downloadUrlFailed'))
+      // Signed URL is issued server-side only after the admin's conference
+      // permission has been verified (bucket has no client-side read policy).
+      const response = await fetch(`/api/admin/abstracts/${abstract.id}/download`, {
+        cache: 'no-store',
+      })
+      const data = await response.json()
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error?.message || data?.error || t('downloadUrlFailed'))
       }
+
+      const link = document.createElement('a')
+      link.href = data.url
+      link.download = abstract.file_name || 'abstract'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      showSuccess(t('downloadSuccess'))
     } catch (err) {
-      console.error('Download error:', err)
       showError(
-        t('downloadFailed') +
-          ': ' +
-          (err instanceof Error ? err.message : t('unknownError'))
+        `${t('downloadFailed')}: ${err instanceof Error ? err.message : t('unknownError')}`
       )
     } finally {
       setDownloadingId(null)
@@ -218,22 +224,22 @@ function AbstractsPageContent() {
   }
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
+    if (!bytes) return '0 Bytes'
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return `${Math.round((bytes / Math.pow(1024, i)) * 100) / 100} ${sizes[i]}`
   }
 
-  const updateStatus = async (
-    abstract: Abstract,
-    status: 'accepted' | 'rejected' | 'under_review' | 'pending' | 'withdrawn'
+  const patchStatus = async (
+    abstract: AbstractRecord,
+    status: AbstractStatus,
+    options: { decisionNotes?: string; notify?: boolean } = {}
   ) => {
     if (!abstract.conference_id) {
       showError(t('missingConference'))
       return
     }
-    setUpdatingId(abstract.id)
+    setSavingStatus(true)
     try {
       const res = await fetch('/api/admin/abstracts/status', {
         method: 'PATCH',
@@ -242,52 +248,70 @@ function AbstractsPageContent() {
           abstractId: abstract.id,
           conferenceId: abstract.conference_id,
           status,
-          notify: status === 'accepted' || status === 'rejected',
+          decisionNotes: options.decisionNotes,
+          notify: options.notify ?? false,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Update failed')
+      if (!res.ok) throw new Error(data.error || t('updateFailed'))
+
+      const patch = {
+        status,
+        decision_notes: options.decisionNotes ?? abstract.decision_notes ?? null,
+      }
       setAbstracts((prev) =>
-        prev.map((a) => (a.id === abstract.id ? { ...a, status } : a))
+        prev.map((a) => (a.id === abstract.id ? { ...a, ...patch } : a))
       )
-      showSuccess(t('statusUpdated', { status }))
+      setDetailAbstract((prev) => (prev?.id === abstract.id ? { ...prev, ...patch } : prev))
+      showSuccess(
+        data.notified
+          ? t('statusUpdatedNotified', { status: t(ABSTRACT_STATUS_LABEL_KEY[status]) })
+          : t('statusUpdated', { status: t(ABSTRACT_STATUS_LABEL_KEY[status]) })
+      )
     } catch (e: any) {
       showError(e.message || t('updateFailed'))
     } finally {
-      setUpdatingId(null)
+      setSavingStatus(false)
     }
   }
 
+  const saveDecisionNotes = async (abstract: AbstractRecord, decisionNotes: string) => {
+    await patchStatus(abstract, (abstract.status || 'pending') as AbstractStatus, {
+      decisionNotes,
+      notify: false,
+    })
+  }
+
   const inviteReviewer = async () => {
-    if (!currentConference?.id || !reviewerEmail.trim()) return
+    if (!reviewConferenceId || !reviewerEmail.trim()) return
     setInviting(true)
     try {
       const res = await fetch('/api/admin/abstracts/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conferenceId: currentConference.id,
+          conferenceId: reviewConferenceId,
           action: 'invite_reviewer',
           email: reviewerEmail.trim(),
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Invite failed')
+      if (!res.ok) throw new Error(data.error || t('inviteFailed'))
       showSuccess(
         data.reviewUrl
           ? t('reviewerInvitedWithLink', { url: data.reviewUrl })
           : t('reviewerInvited')
       )
       setReviewerEmail('')
-      loadReviewers()
+      loadReviews()
     } catch (e: any) {
-      showError(e.message || 'Invite failed')
+      showError(e.message || t('inviteFailed'))
     } finally {
       setInviting(false)
     }
   }
 
-  const assignReviewer = async (abstract: Abstract, reviewerId: string) => {
+  const assignReviewer = async (abstract: AbstractRecord, reviewerId: string) => {
     if (!abstract.conference_id || !reviewerId) return
     try {
       const res = await fetch('/api/admin/abstracts/reviews', {
@@ -301,31 +325,98 @@ function AbstractsPageContent() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Assign failed')
-      setAbstracts((prev) =>
-        prev.map((a) =>
-          a.id === abstract.id ? { ...a, status: 'under_review' } : a
+      if (!res.ok) throw new Error(data.error || t('assignFailed'))
+
+      if ((abstract.status || 'pending') === 'pending') {
+        setAbstracts((prev) =>
+          prev.map((a) => (a.id === abstract.id ? { ...a, status: 'under_review' } : a))
         )
-      )
+        setDetailAbstract((prev) =>
+          prev?.id === abstract.id ? { ...prev, status: 'under_review' } : prev
+        )
+      }
+      await loadReviews()
       showSuccess(t('assignedReviewer'))
     } catch (e: any) {
       showError(e.message || t('assignFailed'))
     }
   }
 
-  const exportBook = async () => {
-    if (!currentConference?.id) return
-    const acceptedCount = abstracts.filter((a) => a.status === 'accepted').length
-    if (acceptedCount === 0) {
-      showError(t('noAcceptedForBook'))
+  const unassignReviewer = async (abstract: AbstractRecord, reviewId: string) => {
+    if (!abstract.conference_id) return
+    try {
+      const res = await fetch('/api/admin/abstracts/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conferenceId: abstract.conference_id,
+          action: 'unassign',
+          reviewId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || t('unassignFailed'))
+      await Promise.all([loadReviews(), loadAbstracts()])
+      showSuccess(t('reviewerRemoved'))
+    } catch (e: any) {
+      showError(e.message || t('unassignFailed'))
+    }
+  }
+
+  const remindReviewers = async (reviewerId?: string) => {
+    if (!reviewConferenceId) return
+    setReminding(true)
+    try {
+      const res = await fetch('/api/admin/abstracts/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conferenceId: reviewConferenceId,
+          action: 'remind',
+          reviewerId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || t('remindFailed'))
+      if (data.reminded === 0) {
+        showSuccess(t('noPendingReviews'))
+      } else {
+        showSuccess(t('remindersSent', { count: data.reminded }))
+      }
+      loadReviews()
+    } catch (e: any) {
+      showError(e.message || t('remindFailed'))
+    } finally {
+      setReminding(false)
+    }
+  }
+
+  const exportBook = async (format: 'pdf' | 'docx') => {
+    if (!reviewConferenceId) return
+
+    // Final book = accepted only. With a status filter, export that slice (e.g. draft preview).
+    const bookStatus = statusFilter !== 'all' ? statusFilter : 'accepted'
+    const exportCount = abstracts.filter(
+      (a) => (a.status || 'pending') === bookStatus
+    ).length
+
+    if (exportCount === 0) {
+      showError(
+        bookStatus === 'accepted' ? t('noAcceptedForBookHint') : t('noAbstractsForBookFilter')
+      )
       return
     }
-    setExportingBook(true)
+
+    setExportingBook(format)
     try {
       const res = await fetch('/api/admin/abstracts/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conferenceId: currentConference.id, status: 'accepted' }),
+        body: JSON.stringify({
+          conferenceId: reviewConferenceId,
+          status: bookStatus,
+          format,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -335,34 +426,97 @@ function AbstractsPageContent() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `book-of-abstracts-${currentConference.slug}.pdf`
+      a.download = `book-of-abstracts-${currentConference?.slug || 'conference'}.${format}`
       a.click()
       URL.revokeObjectURL(url)
       showSuccess(t('bookExported'))
     } catch (e: any) {
       showError(e.message || t('bookExportFailed'))
     } finally {
-      setExportingBook(false)
+      setExportingBook(null)
     }
   }
 
-  // Filter abstracts based on search
+  // Filter abstracts based on status + search
   const filteredAbstracts = abstracts.filter((abstract) => {
     if (statusFilter !== 'all' && (abstract.status || 'pending') !== statusFilter) {
       return false
     }
+    if (!searchTerm.trim()) return true
     const searchLower = searchTerm.toLowerCase()
     return (
-      abstract.file_name.toLowerCase().includes(searchLower) ||
-      (abstract.email && abstract.email.toLowerCase().includes(searchLower)) ||
-      (abstract.conference &&
-        abstract.conference.name.toLowerCase().includes(searchLower)) ||
-      (abstract.custom_data &&
-        JSON.stringify(abstract.custom_data)
-          .toLowerCase()
-          .includes(searchLower))
+      getAbstractTitle(abstract).toLowerCase().includes(searchLower) ||
+      (abstract.file_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (abstract.email?.toLowerCase().includes(searchLower) ?? false) ||
+      formatAuthorList(abstract.authors).toLowerCase().includes(searchLower) ||
+      (abstract.conference?.name.toLowerCase().includes(searchLower) ?? false) ||
+      JSON.stringify(abstract.custom_data || {})
+        .toLowerCase()
+        .includes(searchLower)
     )
   })
+
+  const exportToExcel = () => {
+    if (filteredAbstracts.length === 0) {
+      showError(t('noResultsFilter'))
+      return
+    }
+
+    const rows = filteredAbstracts.map((abstract, index) => {
+      const abstractReviews = reviewsByAbstract[abstract.id] || []
+      const summary = summarizeReviews(abstractReviews)
+      return {
+        [t('exportIndex')]: index + 1,
+        [t('exportTitle')]: getAbstractTitle(abstract),
+        [t('statusLabel')]: t(
+          ABSTRACT_STATUS_LABEL_KEY[(abstract.status || 'pending') as AbstractStatus]
+        ),
+        [t('exportType')]: getAbstractType(abstract) || '',
+        [t('authors')]: formatAuthorList(abstract.authors, { withAffiliation: true }),
+        [t('exportCorrespondingEmail')]:
+          getCorrespondingAuthorEmail(abstract.authors) || '',
+        [t('email')]: abstract.email || '',
+        [t('keywords')]: getAbstractKeywords(abstract) || '',
+        [t('exportReviewsSubmitted')]: `${summary.submitted}/${summary.total}`,
+        [t('averageScore')]: summary.averageScore ?? '',
+        [t('exportRecommendations')]: `${t('recAccept')}: ${summary.accept}, ${t(
+          'recRevise'
+        )}: ${summary.revise}, ${t('recReject')}: ${summary.reject}`,
+        [t('decisionNotes')]: abstract.decision_notes || '',
+        [t('fileName')]: abstract.file_name,
+        [t('uploaded')]: new Date(abstract.uploaded_at).toLocaleString(
+          locale === 'hr' ? 'hr-HR' : 'en-US'
+        ),
+        [t('exportAbstractText')]: getAbstractContent(abstract) || '',
+      }
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    worksheet['!cols'] = Object.keys(rows[0] || {}).map((key) => ({
+      wch: key === t('exportAbstractText') ? 60 : Math.min(Math.max(key.length + 4, 14), 40),
+    }))
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Abstracts')
+    XLSX.writeFile(
+      workbook,
+      `abstracts-${currentConference?.slug || 'all'}-${new Date().toISOString().slice(0, 10)}.xlsx`
+    )
+    showSuccess(t('exportSuccess'))
+  }
+
+  const stats = useMemo(() => {
+    const byStatus = abstracts.reduce<Record<string, number>>((acc, a) => {
+      const key = a.status || 'pending'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+    return {
+      total: abstracts.length,
+      awaiting: (byStatus.pending || 0) + (byStatus.under_review || 0),
+      accepted: byStatus.accepted || 0,
+      pendingReviews: reviews.filter((r) => !r.submitted_at).length,
+    }
+  }, [abstracts, reviews])
 
   if (loading && abstracts.length === 0) {
     return (
@@ -376,29 +530,72 @@ function AbstractsPageContent() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('title')}</h1>
           <p className="text-gray-600 mt-2">{t('subtitle')}</p>
         </div>
-        <button
-          type="button"
-          onClick={exportBook}
-          disabled={exportingBook || !currentConference}
-          className="px-4 py-2 bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
-        >
-          {exportingBook ? t('exportingBook') : t('exportBook')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={exportToExcel}
+            disabled={filteredAbstracts.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            {t('exportExcel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => remindReviewers()}
+            disabled={reminding || !reviewConferenceId || stats.pendingReviews === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+          >
+            <BellRing className="w-4 h-4" />
+            {reminding ? t('sendingReminders') : t('remindAllReviewers')}
+          </button>
+          <div className="inline-flex items-stretch rounded-lg overflow-hidden border border-indigo-700">
+            <span className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-700 text-white text-sm font-medium">
+              <FileText className="w-4 h-4" />
+              {t('exportBook')}
+            </span>
+            <button
+              type="button"
+              onClick={() => exportBook('pdf')}
+              disabled={Boolean(exportingBook) || !reviewConferenceId}
+              className="px-3 py-2 bg-white text-indigo-700 text-sm font-semibold border-l border-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            >
+              {exportingBook === 'pdf' ? t('exportingBook') : t('formatPdf')}
+            </button>
+            <button
+              type="button"
+              onClick={() => exportBook('docx')}
+              disabled={Boolean(exportingBook) || !reviewConferenceId}
+              className="px-3 py-2 bg-white text-indigo-700 text-sm font-semibold border-l border-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            >
+              {exportingBook === 'docx' ? t('exportingBook') : t('formatWord')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
+        <p className="text-sm font-semibold text-slate-800 mb-2">{t('workflowTitle')}</p>
+        <ol className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4 text-xs sm:text-sm text-slate-600">
+          <li>{t('workflowStep1')}</li>
+          <li>{t('workflowStep2')}</li>
+          <li>{t('workflowStep3')}</li>
+          <li>{t('workflowStep4')}</li>
+        </ol>
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
-          {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
             <input
               type="text"
               placeholder={t('searchPlaceholder')}
@@ -409,7 +606,7 @@ function AbstractsPageContent() {
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 aria-label={t('clearSearch')}
               >
                 <X className="w-4 h-4" />
@@ -417,13 +614,12 @@ function AbstractsPageContent() {
             )}
           </div>
 
-          {/* Conference Filter */}
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none z-10" />
             <select
               value={selectedConferenceId}
               onChange={(e) => setSelectedConferenceId(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white cursor-pointer outline-none"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer outline-none"
             >
               <option value="all">{t('allConferences')}</option>
               {conferences.map((conf) => (
@@ -435,15 +631,16 @@ function AbstractsPageContent() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white sm:w-52"
           >
             <option value="all">{t('statusAll')}</option>
             <option value="pending">{t('statusPending')}</option>
             <option value="under_review">{t('statusUnderReview')}</option>
+            <option value="revise">{t('statusRevise')}</option>
             <option value="accepted">{t('statusAccepted')}</option>
             <option value="rejected">{t('statusRejected')}</option>
             <option value="withdrawn">{t('statusWithdrawn')}</option>
@@ -459,334 +656,263 @@ function AbstractsPageContent() {
             <button
               type="button"
               onClick={inviteReviewer}
-              disabled={inviting || !currentConference}
-              className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              disabled={inviting || !reviewConferenceId}
+              className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 shrink-0"
             >
               {inviting ? t('inviting') : t('inviteReviewer')}
             </button>
           </div>
         </div>
+
+        {reviewers.length > 0 && (
+          <p className="text-xs text-gray-500">
+            {t('reviewersConfigured', { count: reviewers.length })}
+          </p>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-700">{t('totalAbstracts')}</p>
-              <p className="text-3xl font-bold text-blue-900 mt-2">
-                {abstracts.length}
-              </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="w-14 h-14 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-              <FileText className="w-7 h-7 text-white" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-500">{t('totalAbstracts')}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-700">{t('filteredResults')}</p>
-              <p className="text-3xl font-bold text-purple-900 mt-2">
-                {filteredAbstracts.length}
-              </p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-600" />
             </div>
-            <div className="w-14 h-14 bg-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Filter className="w-7 h-7 text-white" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-500">{t('awaitingDecision')}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.awaiting}</p>
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-700">{t('currentConference')}</p>
-              <p className="text-lg font-semibold text-green-900 mt-2 line-clamp-1">
-                {currentConference?.name || t('noneSelected')}
-              </p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="w-14 h-14 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Calendar className="w-7 h-7 text-white" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-500">{t('statusAccepted')}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.accepted}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-violet-50 rounded-lg flex items-center justify-center shrink-0">
+              <ClipboardList className="w-5 h-5 text-violet-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-500">{t('reviewsOutstanding')}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pendingReviews}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Abstracts List */}
       {error && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <X className="w-5 h-5 text-red-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">{error}</p>
-            </div>
-          </div>
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <X className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-sm font-medium text-red-800">{error}</p>
         </div>
       )}
 
+      {/* Abstracts List */}
       {filteredAbstracts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-16 text-center">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 sm:p-16 text-center">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {t('noAbstracts')}
-          </h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('noAbstracts')}</h3>
           <p className="text-gray-600 max-w-md mx-auto">
-            {searchTerm || selectedConferenceId !== 'all'
+            {searchTerm || statusFilter !== 'all'
               ? t('noResultsFilter')
               : t('noAbstracts')}
           </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {loading && (
-            <div className="p-8 text-center">
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Refreshing abstracts...</p>
-            </div>
-          )}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {t('fileName')}
+                  <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    {t('abstract')}
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     {t('authors')}
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {t('conference')}
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    {t('statusLabel')}
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    {t('reviewsColumn')}
+                  </th>
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     {t('email')}
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {t('size')}
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {t('uploaded')}
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-4 sm:px-6 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     {t('actions')}
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAbstracts.map((abstract) => (
-                  <tr
-                    key={abstract.id}
-                    className="hover:bg-blue-50 transition-colors cursor-pointer"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <FileText className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="ml-3 min-w-0 flex-1">
-                          {/* Title (if exists) */}
-                          {abstract.custom_data?.abstractTitle && (
-                            <div className="text-sm font-bold text-gray-900 mb-1 line-clamp-2">
-                              {abstract.custom_data.abstractTitle}
-                            </div>
-                          )}
-                          
-                          {/* File name */}
-                          <div className="text-sm text-gray-600 truncate mb-1">
-                            📎 {abstract.file_name}
-                          </div>
-                          
-                          {/* Type badge */}
-                          {abstract.custom_data?.abstractType && (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                              abstract.custom_data.abstractType === 'oral'
-                                ? 'bg-blue-100 text-blue-700'
-                                : abstract.custom_data.abstractType === 'invited'
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-green-100 text-green-700'
-                            }`}>
-                              {abstract.custom_data.abstractType === 'oral' && '🎤 Oral'}
-                              {abstract.custom_data.abstractType === 'invited' && '⭐ Invited Speaker'}
-                              {abstract.custom_data.abstractType === 'poster' && '📊 Poster'}
-                            </span>
-                          )}
-                          
-                          {/* Keywords */}
-                          {abstract.custom_data?.abstractKeywords && (
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              🔑 {abstract.custom_data.abstractKeywords}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {abstract.authors && abstract.authors.length > 0 ? (
-                        <div className="space-y-1">
-                          {abstract.authors.slice(0, 2).map((author, idx) => (
-                            <div key={idx} className="flex items-start text-sm">
-                              <User className="w-3.5 h-3.5 text-gray-400 mr-1.5 flex-shrink-0 mt-0.5" />
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium text-gray-900 truncate">
-                                  {author.firstName} {author.lastName}
-                                  {author.isCorresponding && (
-                                    <span className="ml-1 text-xs text-blue-600">★</span>
-                                  )}
-                                </div>
-                                {author.affiliation && (
-                                  <div className="text-xs text-gray-500 truncate">
-                                    {author.affiliation}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                          {abstract.authors.length > 2 && (
-                            <div className="text-xs text-gray-500 ml-5">
-                              +{abstract.authors.length - 2} više
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400 italic">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {abstract.conference?.slug ? (
-                        <Link
-                          href={`/conferences/${abstract.conference.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-                          onClick={(e) => e.stopPropagation()}
+                {filteredAbstracts.map((abstract) => {
+                  const status = (abstract.status || 'pending') as AbstractStatus
+                  const abstractReviews = reviewsByAbstract[abstract.id] || []
+                  const summary = summarizeReviews(abstractReviews)
+                  const type = getAbstractType(abstract)
+
+                  return (
+                    <tr key={abstract.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-4 sm:px-6 py-4 max-w-xs">
+                        <button
+                          type="button"
+                          onClick={() => setDetailAbstract(abstract)}
+                          className="text-left w-full group"
                         >
-                          <span>{abstract.conference.name}</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
-                      ) : (
-                        <div className="text-sm text-gray-900">
-                          <span className="text-gray-400 italic">N/A</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Mail className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                          <span className="truncate">
-                            {abstract.email || (
-                              <span className="text-gray-400 italic">N/A</span>
-                            )}
+                          <span className="block text-sm font-semibold text-gray-900 group-hover:text-blue-700 line-clamp-2">
+                            {getAbstractTitle(abstract, t('untitled'))}
                           </span>
+                          <span className="block text-xs text-gray-500 truncate mt-0.5">
+                            {abstract.file_name && abstract.file_size
+                              ? `${abstract.file_name} · ${formatFileSize(abstract.file_size)}`
+                              : abstract.email || t('formSubmission')}
+                          </span>
+                        </button>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          <StatusBadge
+                            tone={isDocumentUploadAbstract(abstract) ? 'violet' : 'neutral'}
+                          >
+                            {isDocumentUploadAbstract(abstract)
+                              ? t('methodDocument')
+                              : t('methodOnlineForm')}
+                          </StatusBadge>
+                          {type && (
+                            <StatusBadge tone="info" className="capitalize">
+                              {type}
+                            </StatusBadge>
+                          )}
+                          {abstract.conference?.slug && selectedConferenceId === 'all' && (
+                            <Link
+                              href={`/conferences/${abstract.conference.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                            >
+                              {abstract.conference.name}
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
+                          )}
                         </div>
-                        {abstract.registration_id && (
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Povezano sa registracijom
-                            </span>
+                      </td>
+                      <td className="px-4 py-4 max-w-[200px]">
+                        {abstract.authors?.length ? (
+                          <div className="text-sm text-gray-900">
+                            <div className="flex items-start gap-1.5">
+                              <User className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">
+                                {formatAuthorList(abstract.authors)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400 italic">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <StatusBadge tone={ABSTRACT_STATUS_TONE[status]}>
+                          {t(ABSTRACT_STATUS_LABEL_KEY[status])}
+                        </StatusBadge>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        {summary.total === 0 ? (
+                          <span className="text-gray-400">—</span>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <p className="text-gray-900 font-medium">
+                              {summary.submitted}/{summary.total}
+                              {summary.averageScore != null && (
+                                <span className="ml-1.5 text-gray-500 font-normal">
+                                  ø {summary.averageScore}
+                                </span>
+                              )}
+                            </p>
+                            {summary.submitted > 0 && (
+                              <p className="text-xs text-gray-500">
+                                +{summary.accept} / ~{summary.revise} / −{summary.reject}
+                              </p>
+                            )}
                           </div>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {formatFileSize(abstract.file_size)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(abstract.uploaded_at).toLocaleDateString(
-                        locale === 'hr' ? 'hr-HR' : 'en-US',
-                        {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex flex-col items-end gap-2">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
-                            abstract.status === 'accepted'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : abstract.status === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : abstract.status === 'under_review'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {abstract.status || 'pending'}
-                        </span>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <button
-                            type="button"
-                            disabled={updatingId === abstract.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateStatus(abstract, 'accepted')
-                            }}
-                            className="px-2 py-1 text-xs rounded bg-emerald-600 text-white disabled:opacity-50"
-                          >
-                            {t('accept')}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={updatingId === abstract.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateStatus(abstract, 'rejected')
-                            }}
-                            className="px-2 py-1 text-xs rounded bg-red-600 text-white disabled:opacity-50"
-                          >
-                            {t('reject')}
-                          </button>
-                          {reviewers.length > 0 && (
-                            <select
-                              className="text-xs border rounded px-1 py-1 max-w-[140px]"
-                              defaultValue=""
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  assignReviewer(abstract, e.target.value)
-                                  e.target.value = ''
-                                }
-                              }}
-                            >
-                              <option value="">{t('assignReviewer')}</option>
-                              {reviewers.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.name || r.email}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              downloadAbstract(abstract)
-                            }}
-                            disabled={downloadingId === abstract.id}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs disabled:opacity-50"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            {downloadingId === abstract.id ? '…' : t('download')}
-                          </button>
+                      </td>
+                      <td className="px-4 py-4 max-w-[180px]">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-900">
+                          <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="truncate">{abstract.email || '—'}</span>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        {abstract.registration_id && (
+                          <StatusBadge tone="success" className="mt-1">
+                            {t('linkedToRegistration')}
+                          </StatusBadge>
+                        )}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDetailAbstract(abstract)}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
+                          >
+                            {t('viewDetails')}
+                          </button>
+                          {abstract.file_path && (
+                            <button
+                              type="button"
+                              onClick={() => downloadAbstract(abstract)}
+                              disabled={downloadingId === abstract.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              {downloadingId === abstract.id ? '…' : t('download')}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
+
+      <AbstractDetailDrawer
+        abstract={detailAbstract}
+        open={Boolean(detailAbstract)}
+        reviews={detailAbstract ? reviewsByAbstract[detailAbstract.id] || [] : []}
+        reviewers={reviewers}
+        savingStatus={savingStatus}
+        onClose={() => setDetailAbstract(null)}
+        onDownload={downloadAbstract}
+        onUpdateStatus={(abstract, status, options) =>
+          patchStatus(abstract, status, options)
+        }
+        onSaveNotes={saveDecisionNotes}
+        onAssignReviewer={assignReviewer}
+        onUnassignReviewer={unassignReviewer}
+        onRemindReviewer={(reviewerId) => remindReviewers(reviewerId)}
+      />
     </div>
   )
 }

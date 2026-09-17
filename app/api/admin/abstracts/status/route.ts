@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireConferencePermission } from '@/lib/api-auth'
 import { handleApiError, ApiError } from '@/lib/api-error'
 import { sendAbstractDecisionEmail } from '@/lib/email'
+import { issueAbstractReviseUrl } from '@/lib/abstract-manage-token'
+import { getAbstractTitle, ABSTRACT_STATUSES } from '@/lib/abstract-display'
 import { log } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
-const ALLOWED = ['pending', 'under_review', 'accepted', 'rejected', 'withdrawn'] as const
+const NOTIFIABLE = ['accepted', 'rejected', 'revise'] as const
 
 /**
  * PATCH /api/admin/abstracts/status
@@ -20,8 +22,10 @@ export async function PATCH(request: NextRequest) {
     if (!abstractId || !conferenceId || !status) {
       throw ApiError.validationError('abstractId, conferenceId, and status are required')
     }
-    if (!ALLOWED.includes(status)) {
-      throw ApiError.validationError(`Invalid status. Allowed: ${ALLOWED.join(', ')}`)
+    if (!ABSTRACT_STATUSES.includes(status)) {
+      throw ApiError.validationError(
+        `Invalid status. Allowed: ${ABSTRACT_STATUSES.join(', ')}`
+      )
     }
 
     const { supabase } = await requireConferencePermission(
@@ -31,7 +35,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: abstract, error: fetchError } = await supabase
       .from('abstracts')
-      .select('*, conferences(id, name, email_settings)')
+      .select('*, conferences(id, name, slug, email_settings)')
       .eq('id', abstractId)
       .eq('conference_id', conferenceId)
       .single()
@@ -42,10 +46,17 @@ export async function PATCH(request: NextRequest) {
 
     const updates: Record<string, unknown> = {
       status,
-      decision_notes: decisionNotes ?? abstract.decision_notes ?? null,
+      decision_notes:
+        decisionNotes !== undefined ? decisionNotes || null : (abstract.decision_notes ?? null),
     }
     if (status === 'accepted' || status === 'rejected') {
       updates.decided_at = new Date().toISOString()
+    }
+    if (status === 'revise') {
+      updates.revision_requested_at = new Date().toISOString()
+    }
+    if (status === 'withdrawn') {
+      updates.withdrawn_at = new Date().toISOString()
     }
 
     const { data: updated, error: updateError } = await supabase
@@ -59,22 +70,30 @@ export async function PATCH(request: NextRequest) {
       throw ApiError.internal('Failed to update abstract status')
     }
 
-    if (
-      notify &&
-      abstract.email &&
-      (status === 'accepted' || status === 'rejected')
-    ) {
+    const shouldNotify =
+      notify && Boolean(abstract.email) && NOTIFIABLE.includes(status)
+
+    if (shouldNotify) {
       try {
         const conference = abstract.conferences as {
           name?: string
+          slug?: string
           email_settings?: { from_email?: string; from_name?: string; reply_to?: string }
         } | null
+
+        const reviseUrl =
+          status === 'revise' && conference?.slug
+            ? await issueAbstractReviseUrl(abstractId, conference.slug)
+            : null
+
         await sendAbstractDecisionEmail({
           email: abstract.email,
           conferenceName: conference?.name || 'Conference',
           status,
           fileName: abstract.file_name,
-          notes: decisionNotes || undefined,
+          title: getAbstractTitle(abstract) || undefined,
+          notes: (decisionNotes ?? abstract.decision_notes) || undefined,
+          reviseUrl: reviseUrl || undefined,
           emailSettings: conference?.email_settings,
         })
       } catch (emailError) {
@@ -82,7 +101,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, abstract: updated })
+    return NextResponse.json({ success: true, abstract: updated, notified: shouldNotify })
   } catch (error) {
     return handleApiError(error)
   }

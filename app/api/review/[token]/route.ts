@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { handleApiError, ApiError } from '@/lib/api-error'
+import {
+  getAbstractContent,
+  getAbstractKeywords,
+  getAbstractTitle,
+  getAbstractType,
+  getAuthorAffiliations,
+  getSubmissionMethod,
+} from '@/lib/abstract-display'
 
 export const dynamic = 'force-dynamic'
+
+/** Custom abstract fields may contain contact details; hide them for blind review. */
+function sanitizeCustomData(customData: unknown): Record<string, unknown> {
+  if (!customData || typeof customData !== 'object') return {}
+  const reserved = new Set([
+    'abstractTitle',
+    'abstractContent',
+    'abstractKeywords',
+    'abstractType',
+    'submissionMethod',
+  ])
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(customData as Record<string, unknown>)) {
+    if (reserved.has(key)) continue
+    if (/e-?mail|phone|telefon|contact/i.test(key)) continue
+    if (typeof value === 'string' && value.includes('@')) continue
+    result[key] = value
+  }
+  return result
+}
 
 /**
  * GET /api/review/[token] — list assigned abstracts for this reviewer (blind: no author email)
@@ -26,11 +54,12 @@ export async function GET(
     const { data: reviews } = await supabase
       .from('abstract_reviews')
       .select(
-        'id, score, comments, recommendation, submitted_at, abstract:abstracts(id, file_name, file_path, title, status, custom_data, authors)'
+        'id, abstract_id, score, comments, recommendation, submitted_at, abstract:abstracts(id, file_name, file_path, file_size, title, status, custom_data, authors)'
       )
       .eq('reviewer_id', reviewer.id)
+      .order('created_at', { ascending: true })
 
-    // Blind: strip author emails from authors payload
+    // Blind: strip author emails and contact-like custom fields
     const sanitized = (reviews || []).map((r: any) => {
       const abs = r.abstract
       if (!abs) return r
@@ -38,21 +67,25 @@ export async function GET(
         ? abs.authors.map((a: any) => ({
             firstName: a.firstName,
             lastName: a.lastName,
-            affiliation: a.affiliation,
+            affiliations: getAuthorAffiliations(a),
             country: a.country,
             // email omitted for blind review
           }))
-        : abs.authors
+        : []
       return {
         ...r,
         abstract: {
           id: abs.id,
           file_name: abs.file_name,
-          title: abs.title,
+          file_size: abs.file_size,
+          title: getAbstractTitle(abs),
           status: abs.status,
-          custom_data: abs.custom_data,
+          submission_method: getSubmissionMethod(abs),
+          content: getAbstractContent(abs),
+          keywords: getAbstractKeywords(abs),
+          type: getAbstractType(abs),
+          custom_data: sanitizeCustomData(abs.custom_data),
           authors,
-          // signed URL generated on demand via separate download if needed
         },
       }
     })

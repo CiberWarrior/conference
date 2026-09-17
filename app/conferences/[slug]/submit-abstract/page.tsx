@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -10,14 +11,22 @@ import {
   FileText,
   AlertCircle,
   X,
+  Download,
 } from 'lucide-react'
 import type { Conference, CustomRegistrationField } from '@/types/conference'
 import type { Author } from '@/types/author'
+import {
+  getExtraAbstractCustomFields,
+  isCoveredAbstractCustomField,
+} from '@/lib/abstract-custom-fields'
+import { getAuthorAffiliations, isAbstractDeadlinePassed } from '@/lib/abstract-display'
+import { ABSTRACT_DOCUMENT_ACCEPT, validateAbstractFile } from '@/lib/abstract-file'
 import { showSuccess, showError } from '@/utils/toast'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import AuthorManager from '@/components/admin/AuthorManager'
 
 export default function SubmitAbstractPage() {
+  const t = useTranslations('abstractRevise')
   const params = useParams()
   const slug = params?.slug as string
   const [conference, setConference] = useState<Conference | null>(null)
@@ -25,19 +34,19 @@ export default function SubmitAbstractPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [deadlinePassed, setDeadlinePassed] = useState(false)
   const [submittedEmail, setSubmittedEmail] = useState<string>('')
   const [registrationId, setRegistrationId] = useState<string | null>(null)
   const [checkingRegistration, setCheckingRegistration] = useState(false)
 
   // Form state
-  const [file, setFile] = useState<File | null>(null)
   const [customFields, setCustomFields] = useState<Record<string, any>>({})
   const [authors, setAuthors] = useState<Author[]>([
     {
       firstName: '',
       lastName: '',
       email: '',
-      affiliation: '',
+      affiliations: [''],
       country: '',
       city: '',
       isCorresponding: true,
@@ -51,6 +60,11 @@ export default function SubmitAbstractPage() {
   const [abstractContent, setAbstractContent] = useState('')
   const [abstractKeywords, setAbstractKeywords] = useState('')
   const [abstractType, setAbstractType] = useState<'poster' | 'oral' | 'invited'>('poster')
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
+
+  const isDocumentMode =
+    (conference?.settings?.abstract_submission_method ?? 'online_form') === 'document_upload'
+  const abstractTemplate = isDocumentMode ? conference?.settings?.abstract_template : null
 
   useEffect(() => {
     if (!slug) return
@@ -101,6 +115,8 @@ export default function SubmitAbstractPage() {
           setError('Abstract submission is not available for this conference')
           return
         }
+
+        setDeadlinePassed(isAbstractDeadlinePassed(settings.abstract_submission_deadline))
       } catch (err) {
         setError('Failed to load conference')
         console.error('Error loading conference:', err)
@@ -111,42 +127,6 @@ export default function SubmitAbstractPage() {
 
     loadConference()
   }, [slug])
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      // Validate file type
-      const allowedTypes = [
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/pdf',
-      ]
-      const allowedExtensions = ['.doc', '.docx', '.pdf']
-      const fileExtension = selectedFile.name
-        .toLowerCase()
-        .substring(selectedFile.name.lastIndexOf('.'))
-
-      const isValidType =
-        allowedTypes.includes(selectedFile.type) ||
-        allowedExtensions.includes(fileExtension)
-
-      if (!isValidType) {
-        showError('Only Word documents (.doc, .docx) and PDF files are allowed')
-        return
-      }
-
-      // Validate file size (10MB max)
-      const maxSize = 10 * 1024 * 1024 // 10MB
-      if (selectedFile.size > maxSize) {
-        showError(
-          `File size must be less than 10MB. Current size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB`
-        )
-        return
-      }
-
-      setFile(selectedFile)
-    }
-  }
 
   const handleCustomFieldChange = (fieldName: string, value: any) => {
     setCustomFields((prev) => ({
@@ -200,38 +180,55 @@ export default function SubmitAbstractPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (deadlinePassed) {
+      showError('The abstract submission deadline has passed')
+      return
+    }
+
     // Validate abstract details
     if (!abstractTitle || abstractTitle.trim() === '') {
       showError('Abstract title is required')
       return
     }
 
-    if (!abstractContent || abstractContent.trim() === '') {
-      showError('Abstract content is required')
-      return
-    }
+    if (isDocumentMode) {
+      if (!documentFile) {
+        showError('Please upload your abstract as a .docx or .pdf document')
+        return
+      }
+      const fileValidation = validateAbstractFile(documentFile)
+      if (!fileValidation.ok) {
+        showError(fileValidation.details ? `${fileValidation.error}. ${fileValidation.details}` : fileValidation.error)
+        return
+      }
+    } else {
+      if (!abstractContent || abstractContent.trim() === '') {
+        showError('Abstract content is required')
+        return
+      }
 
-    // Validate character count (1000-2000 with spaces)
-    const contentLength = abstractContent.length
-    if (contentLength < 1000) {
-      showError(`Abstract content is too short. Current: ${contentLength} characters. Minimum: 1000 characters.`)
-      return
-    }
-    if (contentLength > 2000) {
-      showError(`Abstract content is too long. Current: ${contentLength} characters. Maximum: 2000 characters.`)
-      return
-    }
+      // Validate character count (1000-2000 with spaces)
+      const contentLength = abstractContent.length
+      if (contentLength < 1000) {
+        showError(`Abstract content is too short. Current: ${contentLength} characters. Minimum: 1000 characters.`)
+        return
+      }
+      if (contentLength > 2000) {
+        showError(`Abstract content is too long. Current: ${contentLength} characters. Maximum: 2000 characters.`)
+        return
+      }
 
-    if (!abstractKeywords || abstractKeywords.trim() === '') {
-      showError('Keywords are required')
-      return
-    }
+      if (!abstractKeywords || abstractKeywords.trim() === '') {
+        showError('Keywords are required')
+        return
+      }
 
-    // Validate keywords (should have at least 5)
-    const keywordsArray = abstractKeywords.split(',').map(k => k.trim()).filter(k => k)
-    if (keywordsArray.length < 5) {
-      showError(`Please enter at least 5 keywords. Current: ${keywordsArray.length}`)
-      return
+      // Validate keywords (should have at least 5)
+      const keywordsArray = abstractKeywords.split(',').map(k => k.trim()).filter(k => k)
+      if (keywordsArray.length < 5) {
+        showError(`Please enter at least 5 keywords. Current: ${keywordsArray.length}`)
+        return
+      }
     }
 
     // Validate authors
@@ -255,8 +252,8 @@ export default function SubmitAbstractPage() {
         showError(`Author ${i + 1}: Email is required`)
         return
       }
-      if (!author.affiliation || author.affiliation.trim() === '') {
-        showError(`Author ${i + 1}: Affiliation is required`)
+      if (getAuthorAffiliations(author).length === 0) {
+        showError(`Author ${i + 1}: At least one institution is required`)
         return
       }
     }
@@ -268,13 +265,17 @@ export default function SubmitAbstractPage() {
       return
     }
 
-    // Validate required custom fields (skip separators)
     const abstractCustomFields = Array.isArray(conference?.settings?.custom_abstract_fields)
       ? conference.settings.custom_abstract_fields
       : []
+    const extraCustomFields = getExtraAbstractCustomFields(abstractCustomFields).filter(
+      (f) => !(isDocumentMode && f.type === 'file')
+    )
 
-    // Check if email is in custom fields
-    const emailField = abstractCustomFields.find((f) => f && f.type === 'email')
+    // Check if email is in custom fields (including legacy covered email fields)
+    const emailField = abstractCustomFields.find(
+      (f) => f && f.type === 'email' && !isCoveredAbstractCustomField(f)
+    )
     const email = emailField ? customFields[emailField.name] : authors.find(a => a.isCorresponding)?.email || authors[0]?.email
     
     if (!email) {
@@ -282,9 +283,10 @@ export default function SubmitAbstractPage() {
       return
     }
 
-    // Validate all required fields including file uploads
-    for (const field of abstractCustomFields) {
-      if (field && field.type !== 'separator' && field.required) {
+    // Validate extra custom fields only (covered fields are validated in Author / Abstract Details)
+    for (const field of extraCustomFields) {
+      if (field.type === 'file' || field.type === 'separator') continue
+      if (field.required) {
         const value = customFields[field.name]
         if (!value || (typeof value === 'string' && value.trim() === '')) {
           showError(`Please fill in the required field: ${field.label}`)
@@ -305,25 +307,29 @@ export default function SubmitAbstractPage() {
 
     try {
       const formData = new FormData()
-      
-      // Append files from custom fields
-      const fileFields = abstractCustomFields.filter(f => f && f.type === 'file')
-      for (const fileField of fileFields) {
-        const fileValue = customFields[fileField.name]
-        if (fileValue && typeof fileValue === 'object' && 'name' in fileValue) {
-          formData.append(`file_${fileField.name}`, fileValue as File)
-        }
-      }
-      
+
       formData.append('email', email)
       
-      // Append authors data
-      formData.append('authors', JSON.stringify(authors))
+      // Append authors data (drop empty institution rows)
+      formData.append(
+        'authors',
+        JSON.stringify(
+          authors.map((author) => {
+            const { affiliation: _legacy, ...rest } = author
+            return { ...rest, affiliations: getAuthorAffiliations(author) }
+          })
+        )
+      )
       
       // Append abstract details
       formData.append('abstractTitle', abstractTitle)
-      formData.append('abstractContent', abstractContent)
-      formData.append('abstractKeywords', abstractKeywords)
+      if (isDocumentMode) {
+        if (documentFile) formData.append('file', documentFile)
+        if (abstractKeywords.trim()) formData.append('abstractKeywords', abstractKeywords)
+      } else {
+        formData.append('abstractContent', abstractContent)
+        formData.append('abstractKeywords', abstractKeywords)
+      }
       formData.append('abstractType', abstractType)
       
       // Append registration ID if found
@@ -374,12 +380,13 @@ export default function SubmitAbstractPage() {
       setAbstractContent('')
       setAbstractKeywords('')
       setAbstractType('poster')
+      setDocumentFile(null)
       setAuthors([
         {
           firstName: '',
           lastName: '',
           email: '',
-          affiliation: '',
+          affiliations: [''],
           country: '',
           city: '',
           isCorresponding: true,
@@ -434,6 +441,11 @@ export default function SubmitAbstractPage() {
       </main>
     )
   }
+
+  // In document mode the primary upload replaces any custom "file" field.
+  const extraAbstractCustomFields = getExtraAbstractCustomFields(
+    conference.settings?.custom_abstract_fields
+  ).filter((f) => !(isDocumentMode && f.type === 'file'))
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white via-purple-50/30 to-white">
@@ -560,7 +572,12 @@ export default function SubmitAbstractPage() {
                     Thank you for submitting your abstract. We have received your
                     submission and will review it shortly.
                     {submittedEmail && (
-                      <> You will receive a confirmation email at {submittedEmail}.</>
+                      <>
+                        {' '}
+                        A confirmation email will be sent to {submittedEmail}. If
+                        revisions are needed, we will contact you by email with
+                        instructions.
+                      </>
                     )}
                   </p>
                 </div>
@@ -570,6 +587,40 @@ export default function SubmitAbstractPage() {
                 >
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Submission deadline notice */}
+          {conference.settings?.abstract_submission_deadline && (
+            <div
+              className={`mb-8 p-5 rounded-xl border-2 flex items-start gap-3 ${
+                deadlinePassed
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-amber-50 border-amber-200'
+              }`}
+            >
+              <AlertCircle
+                className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                  deadlinePassed ? 'text-red-600' : 'text-amber-600'
+                }`}
+              />
+              <div className={deadlinePassed ? 'text-red-800' : 'text-amber-800'}>
+                <p className="font-semibold">
+                  {deadlinePassed ? 'Submissions are closed' : 'Submission deadline'}
+                </p>
+                <p className="text-sm mt-0.5">
+                  {new Date(
+                    conference.settings.abstract_submission_deadline
+                  ).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                  {deadlinePassed
+                    ? '. Please contact the organizers if you need assistance.'
+                    : '. Submit your abstract before the end of this day.'}
+                </p>
               </div>
             </div>
           )}
@@ -670,7 +721,92 @@ export default function SubmitAbstractPage() {
                   />
                 </div>
 
-                {/* Content */}
+                {/* Document upload (document_upload conferences) */}
+                {isDocumentMode && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Abstract document <span className="text-red-500">*</span>
+                    </label>
+
+                    {abstractTemplate?.file_name && (
+                      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="text-sm text-blue-800">
+                          <p className="font-semibold">Abstract template available</p>
+                          <p className="text-xs text-blue-700 mt-0.5">
+                            Please prepare your abstract using the organizer&apos;s template.
+                          </p>
+                        </div>
+                        <a
+                          href={`/api/conferences/${slug}/abstract-template`}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download abstract template
+                        </a>
+                      </div>
+                    )}
+
+                    <label
+                      htmlFor="abstract-document"
+                      className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span> your abstract
+                        </p>
+                        <p className="text-xs text-gray-500">.docx or .pdf - Max 10MB</p>
+                      </div>
+                      <input
+                        id="abstract-document"
+                        type="file"
+                        className="hidden"
+                        accept={ABSTRACT_DOCUMENT_ACCEPT}
+                        disabled={isSubmitting}
+                        onChange={(e) => {
+                          const selected = e.target.files?.[0]
+                          if (!selected) return
+                          const result = validateAbstractFile(selected)
+                          if (!result.ok) {
+                            showError(result.details ? `${result.error}. ${result.details}` : result.error)
+                            e.target.value = ''
+                            setDocumentFile(null)
+                            return
+                          }
+                          setDocumentFile(selected)
+                        }}
+                      />
+                    </label>
+
+                    {documentFile && (
+                      <div className="mt-3 flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{documentFile.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {(documentFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDocumentFile(null)
+                            const input = document.getElementById('abstract-document') as HTMLInputElement | null
+                            if (input) input.value = ''
+                          }}
+                          className="text-gray-400 hover:text-gray-600"
+                          disabled={isSubmitting}
+                          aria-label="Remove selected document"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Content (online_form conferences) */}
+                {!isDocumentMode && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Content <span className="text-red-500">*</span>
@@ -713,25 +849,37 @@ export default function SubmitAbstractPage() {
                     The abstract should not have less than <strong>1000</strong> and more than <strong>2000</strong> characters with spaces.
                   </p>
                 </div>
+                )}
 
                 {/* Keywords */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Keywords <span className="text-red-500">*</span>
+                    Keywords{' '}
+                    {isDocumentMode ? (
+                      <span className="text-gray-400 font-normal">(optional)</span>
+                    ) : (
+                      <span className="text-red-500">*</span>
+                    )}
                   </label>
                   <input
                     type="text"
                     value={abstractKeywords}
                     onChange={(e) => setAbstractKeywords(e.target.value)}
                     placeholder="keyword1, keyword2, keyword3, keyword4, keyword5"
-                    required
+                    required={!isDocumentMode}
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
                   />
                   <p className="text-xs text-gray-600 mt-2">
-                    Please enter <strong>5 keywords</strong> relevant for your abstract using the name or acronym that is the best known. Separate them by comma.
+                    {isDocumentMode
+                      ? 'Optionally list keywords relevant for your abstract, separated by comma.'
+                      : (
+                        <>
+                          Please enter <strong>5 keywords</strong> relevant for your abstract using the name or acronym that is the best known. Separate them by comma.
+                        </>
+                      )}
                   </p>
-                  {abstractKeywords && (
+                  {!isDocumentMode && abstractKeywords && (
                     <div className="mt-2 flex items-center gap-2 text-xs">
                       <span className={`font-semibold ${
                         abstractKeywords.split(',').filter(k => k.trim()).length >= 5
@@ -747,7 +895,7 @@ export default function SubmitAbstractPage() {
                 {/* Abstract Type */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                    Abstract <span className="text-red-500">*</span>
+                    {t('fieldType')} <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
                     <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50">
@@ -790,51 +938,13 @@ export default function SubmitAbstractPage() {
                     </label>
                   </div>
                 </div>
+
               </div>
 
               {/* Custom Fields */}
-              {conference.settings?.custom_abstract_fields &&
-                Array.isArray(conference.settings.custom_abstract_fields) &&
-                conference.settings.custom_abstract_fields.length > 0 && (
+              {extraAbstractCustomFields.length > 0 && (
                   <div className="space-y-6">
-                    {conference.settings.custom_abstract_fields
-                      .filter((field) => {
-                        if (!field || !field.type) return false
-                        
-                        // Filter out fields that are already covered in other sections
-                        const coveredFieldNames = [
-                          // Author-related fields (covered in AuthorManager)
-                          'first_name', 'firstName', 'first name', 'ime',
-                          'last_name', 'lastName', 'last name', 'prezime', 'surname',
-                          'email', 'e-mail',
-                          'institution', 'institutions', 'institucija', 'affiliation',
-                          'country', 'država', 'drzava',
-                          'city', 'grad',
-                          'orcid',
-                          'author', 'authors', 'autor', 'autori',
-                          
-                          // Abstract-related fields (covered in Abstract Details)
-                          'abstract', 'abstrakt', 'sažetak', 'sazetak',
-                          'title', 'naslov',
-                          'content', 'sadržaj', 'sadrzaj',
-                          'keywords', 'ključne riječi', 'kljucne rijeci',
-                          'poster', 'oral', 'invited', 'invited speaker',
-                          'abstract type', 'tip abstrakta', 'vrsta abstrakta'
-                        ]
-                        
-                        const fieldNameLower = field.name?.toLowerCase() || ''
-                        const fieldLabelLower = field.label?.toLowerCase() || ''
-                        
-                        // Skip if field name or label matches covered fields
-                        const isCoveredField = coveredFieldNames.some(
-                          coveredField => 
-                            fieldNameLower.includes(coveredField.toLowerCase()) ||
-                            fieldLabelLower.includes(coveredField.toLowerCase())
-                        )
-                        
-                        return !isCoveredField
-                      })
-                      .map((field, idx) => {
+                    {extraAbstractCustomFields.map((field, idx) => {
                       // Skip separators from field value lookup
                       const fieldValue = field.type !== 'separator' ? (customFields[field.name] || '') : ''
                       
@@ -1207,7 +1317,7 @@ export default function SubmitAbstractPage() {
               <div className="pt-6">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || deadlinePassed}
                   className="group relative w-full py-5 px-8 bg-gradient-to-r from-purple-600 via-purple-600 to-purple-700 text-white text-lg font-bold rounded-xl shadow-2xl hover:shadow-purple-500/50 hover:from-purple-700 hover:via-purple-700 hover:to-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3 overflow-hidden"
                   style={
                     conference.primary_color
@@ -1225,6 +1335,8 @@ export default function SubmitAbstractPage() {
                       <LoadingSpinner />
                       <span className="relative z-10">Submitting...</span>
                     </>
+                  ) : deadlinePassed ? (
+                    <span className="relative z-10">Submissions closed</span>
                   ) : (
                     <>
                       <Upload className="w-6 h-6 relative z-10 group-hover:scale-110 transition-transform duration-200" />

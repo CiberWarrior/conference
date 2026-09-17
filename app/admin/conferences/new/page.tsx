@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Calendar, MapPin, Globe, DollarSign, Save, Building2, Users, Settings, Upload, Plus, X, GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import { showSuccess, showError } from '@/utils/toast'
-import type { CustomPricingField, HotelOption, CustomRegistrationField, PaymentSettings, RoomType } from '@/types/conference'
+import type { AbstractSubmissionMethod, CustomPricingField, HotelOption, CustomRegistrationField, PaymentSettings, RoomType } from '@/types/conference'
 import type { ParticipantSettings } from '@/types/conference'
 import { DEFAULT_PARTICIPANT_SETTINGS } from '@/types/participant'
 import { DEFAULT_PAYMENT_SETTINGS } from '@/constants/defaultPaymentSettings'
@@ -62,6 +62,7 @@ export default function NewConferencePage() {
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
+    abstract_submission_method: 'online_form' as AbstractSubmissionMethod,
     payment_required: true,
     max_registrations: '',
     timezone: 'Europe/Zagreb',
@@ -377,13 +378,19 @@ export default function NewConferencePage() {
           settings: {
             registration_enabled: formData.registration_enabled,
             abstract_submission_enabled: formData.abstract_submission_enabled,
+            abstract_submission_method: formData.abstract_submission_method,
             payment_required: formData.payment_required,
             max_registrations: formData.max_registrations ? parseInt(formData.max_registrations) : null,
             timezone: formData.timezone,
             custom_registration_fields: formData.custom_registration_fields,
             custom_abstract_fields: formData.custom_abstract_fields,
             participant_settings: participantSettings,
-            payment_settings: paymentSettings,
+            payment_settings: {
+              ...paymentSettings,
+              allow_card: false,
+              allow_bank_transfer: true,
+              default_preference: 'pay_now_bank',
+            },
             registration_info_text: registrationInfoText || undefined,
             abstract_info_text: abstractInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
@@ -788,6 +795,51 @@ export default function NewConferencePage() {
                         />
                         <span className="text-sm font-medium text-gray-700">Show abstract submission link on conference page</span>
                       </label>
+                      {formData.abstract_submission_enabled && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Abstract submission method
+                          </label>
+                          <div className="space-y-2">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="abstract_submission_method"
+                                value="online_form"
+                                checked={formData.abstract_submission_method === 'online_form'}
+                                onChange={() =>
+                                  setFormData((prev) => ({ ...prev, abstract_submission_method: 'online_form' as const }))
+                                }
+                                className="mt-0.5 border-gray-300 text-blue-600 focus:ring-blue-500 size-4"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Online form</span>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Authors enter the abstract directly in MeetFlow.
+                                </p>
+                              </div>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="abstract_submission_method"
+                                value="document_upload"
+                                checked={formData.abstract_submission_method === 'document_upload'}
+                                onChange={() =>
+                                  setFormData((prev) => ({ ...prev, abstract_submission_method: 'document_upload' as const }))
+                                }
+                                className="mt-0.5 border-gray-300 text-blue-600 focus:ring-blue-500 size-4"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Document upload</span>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Authors upload the abstract as a document.
+                                </p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -864,94 +916,21 @@ export default function NewConferencePage() {
 
                 {paymentSettings.enabled && (
                   <>
-                    {/* Payment Methods */}
                     <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-3">Available Payment Methods</h3>
-                      
-                      {/* Card Payment */}
-                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                        <input
-                          type="checkbox"
-                          checked={paymentSettings.allow_card}
-                          onChange={(e) => {
-                            setPaymentSettings({
-                              ...paymentSettings,
-                              allow_card: e.target.checked,
-                            })
-                          }}
-                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900">💳 Card Payment (Stripe)</p>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                              Instant
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Accept credit/debit card payments through Stripe
+                      <h3 className="font-semibold text-gray-900 mb-1">Conference payment</h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Participants pay by bank transfer. A proforma invoice is generated after registration.
+                      </p>
+                      <div className="p-3 bg-white rounded-lg border border-gray-200">
+                        <p className="font-semibold text-gray-900">🏦 Bank transfer</p>
+                        {!profile?.bank_account_number && (
+                          <p className="text-xs text-amber-600 mt-2 font-medium">
+                            ⚠️ Bank account not configured. Go to Account Settings to add bank details.
                           </p>
-                        </div>
-                      </label>
-
-                      {/* Bank Transfer */}
-                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                        <input
-                          type="checkbox"
-                          checked={paymentSettings.allow_bank_transfer}
-                          onChange={(e) => {
-                            setPaymentSettings({
-                              ...paymentSettings,
-                              allow_bank_transfer: e.target.checked,
-                            })
-                          }}
-                          className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900">🏦 Bank Transfer</p>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                              1-2 days
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Allow participants to pay via bank transfer (requires manual verification)
-                          </p>
-                          {!profile?.bank_account_number && (
-                            <p className="text-xs text-amber-600 mt-2 font-medium">
-                              ⚠️ Bank account not configured. Go to Account Settings to add bank details.
-                            </p>
-                          )}
-                        </div>
-                      </label>
-
-                    </div>
-
-                    {/* Default Preference */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-gray-700">
-                        Default Payment Preference
-                      </label>
-                      <select
-                        value={paymentSettings.default_preference}
-                        onChange={(e) => {
-                          setPaymentSettings({
-                            ...paymentSettings,
-                            // Pay Later removed from UI; keep stored values backward-compatible
-                            default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank',
-                          })
-                        }}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {paymentSettings.allow_card && (
-                          <option value="pay_now_card">Card Payment (Recommended for instant confirmation)</option>
                         )}
-                        {paymentSettings.allow_bank_transfer && (
-                          <option value="pay_now_bank">Bank Transfer</option>
-                        )}
-                      </select>
+                      </div>
                       <p className="text-xs text-gray-500">
-                        This option will be pre-selected in the registration form
+                        Card payments are available for MeetFlow platform billing only, not for conference registration.
                       </p>
                     </div>
 

@@ -521,8 +521,8 @@ Thank you for your participation in the conference!
                     </p>
                     ${conferenceName ? `<p style="font-size: 16px; margin-bottom: 20px;"><strong>Conference:</strong> ${conferenceName}</p>` : ''}
                     <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                      <p style="margin: 0; font-size: 14px;"><strong>File Name:</strong> ${fileName}</p>
-                      <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Abstract ID:</strong> ${abstractId}</p>
+                      ${fileName ? `<p style="margin: 0; font-size: 14px;"><strong>File Name:</strong> ${fileName}</p>` : ''}
+                      <p style="margin: ${fileName ? '5px 0 0 0' : '0'}; font-size: 14px;"><strong>Abstract ID:</strong> ${abstractId}</p>
                     </div>
                     ${customMessage ? `<p style="font-size: 16px; margin: 20px 0;">${customMessage}</p>` : ''}
                     <p style="font-size: 16px; margin-top: 30px;">
@@ -543,8 +543,7 @@ Dear ${email ? email.split('@')[0] : 'Participant'},
 
 We are pleased to confirm that your abstract has been successfully submitted!
 
-${conferenceName ? `Conference: ${conferenceName}\n` : ''}File Name: ${fileName}
-Abstract ID: ${abstractId}
+${conferenceName ? `Conference: ${conferenceName}\n` : ''}${fileName ? `File Name: ${fileName}\n` : ''}Abstract ID: ${abstractId}
 ${customMessage ? `\n${customMessage}\n` : ''}
 Our review team will evaluate your submission and you will be notified of the outcome in due course.
 

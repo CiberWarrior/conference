@@ -8,9 +8,8 @@ import { formatPriceWithoutZeros } from '@/utils/pricing'
 import type { CustomRegistrationField, ParticipantSettings, HotelOption, PaymentSettings, RegistrationAddon } from '@/types/conference'
 import type { RegistrationFeeOption } from '@/types/custom-registration-fee'
 import type { Participant } from '@/types/participant'
-import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
+import { validateParticipantsInput } from '@/lib/registration-participant-validation'
 import ParticipantManager from '@/components/admin/ParticipantManager'
-import PaymentForm from '@/components/PaymentForm'
 import { AlertCircle, Euro, UserPlus, Bed, Upload } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -19,6 +18,7 @@ import {
   RegistrationInfoBanner,
   PaymentSection,
   AccommodationTab,
+  OrderSummary,
 } from '@/components/registration'
 import type { BankInstructions } from '@/components/registration/RegistrationSuccess'
 
@@ -63,7 +63,6 @@ export default function RegistrationForm({
   registrationAddons = [],
 }: RegistrationFormProps) {
   const t = useTranslations('registrationForm')
-  const tFieldLabels = useTranslations('admin.conferences')
   const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
@@ -97,39 +96,19 @@ export default function RegistrationForm({
     }
   }, [activeTab])
   
-  // Determine which payment options are available based on settings
+  // Conference registration: bank transfer only (card is MeetFlow platform billing only).
   const availablePaymentOptions = {
-    card: paymentSettings?.allow_card ?? true,
+    card: false,
     bank: (paymentSettings?.allow_bank_transfer ?? true) && hasBankAccount,
-    // Pay Later removed from product
     later: false,
   }
 
-  // Payment preference state - NO default, user must select
-  const [paymentPreference, setPaymentPreference] = useState<'pay_now_card' | 'pay_now_bank' | ''>('')
+  const [paymentPreference, setPaymentPreference] = useState<'pay_now_bank' | ''>('')
   const [bankTransferProofUrl, setBankTransferProofUrl] = useState<string | null>(null)
-  // Bank transfer payment instructions returned by /api/register (shown on success screen)
   const [bankInstructions, setBankInstructions] = useState<BankInstructions | null>(null)
-  const [registrationId, setRegistrationId] = useState<string | null>(null) // For payment redirect
-  // Option A: same-page card payment – after register success when payment_required
-  const [showPaymentStep, setShowPaymentStep] = useState(false)
-  const [paymentAmount, setPaymentAmount] = useState<number>(0)
-  const [paymentCurrency, setPaymentCurrency] = useState<string>('EUR')
-  
-  // Count available options
-  const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
+  const [proformaDownloadUrl, setProformaDownloadUrl] = useState<string | null>(null)
 
-  // Auto-select the payment method when only one is available - the selector
-  // UI is hidden in that case (see PaymentSection), so the user can never pick
-  // one manually and submission would otherwise always fail validation.
-  useEffect(() => {
-    if (paymentPreference || availableOptionsCount !== 1) return
-    if (availablePaymentOptions.card) {
-      setPaymentPreference('pay_now_card')
-    } else if (availablePaymentOptions.bank) {
-      setPaymentPreference('pay_now_bank')
-    }
-  }, [availableOptionsCount, availablePaymentOptions.card, availablePaymentOptions.bank, paymentPreference])
+  const availableOptionsCount = Object.values(availablePaymentOptions).filter(Boolean).length
 
   // Iznos odabrane kotizacije (iz custom_registration_fees)
   const selectedFeeAmount = ((): number => {
@@ -139,6 +118,19 @@ export default function RegistrationForm({
   })()
   const chargeTotal = selectedFeeAmount + addonsTotal
   const paymentRequired = chargeTotal > 0
+  const multiParticipantEnabled = participantSettings?.enabled === true
+  const effectiveMinParticipants = multiParticipantEnabled
+    ? Math.max(1, participantSettings?.minParticipants ?? 1)
+    : 1
+  const effectiveMaxParticipants = multiParticipantEnabled
+    ? Math.max(effectiveMinParticipants, participantSettings?.maxParticipants ?? 5)
+    : 1
+
+  useEffect(() => {
+    if (paymentRequired && availablePaymentOptions.bank && !paymentPreference) {
+      setPaymentPreference('pay_now_bank')
+    }
+  }, [paymentRequired, availablePaymentOptions.bank, paymentPreference])
   
   // Accommodation state
   const [arrivalDate, setArrivalDate] = useState<string>('')
@@ -264,28 +256,41 @@ export default function RegistrationForm({
       }
     }
 
-    // Check all required custom fields for each participant
-    for (let i = 0; i < participants.length; i++) {
-      const participant = participants[i]
-      
-      for (const field of customFields) {
-        if (field.required) {
-          const value = participant.customFields?.[field.name]
-          
-          // Check if required field is empty
-          if (
-            value === undefined ||
-            value === null ||
-            value === '' ||
-            (field.type === 'checkbox' && value !== true)
-          ) {
-            const labelKey = getTranslatedFieldLabelKey(field.name, field.label)
-            const displayLabel = labelKey ? tFieldLabels(labelKey) : field.label
-            showError(t('participantFieldRequired', { num: i + 1, label: displayLabel }))
-            return false
-          }
-        }
+    const participantError = validateParticipantsInput(
+      participants,
+      customFields,
+      {
+        minParticipants: effectiveMinParticipants,
+        maxParticipants: effectiveMaxParticipants,
+        requireUniqueEmails: participantSettings?.requireUniqueEmails,
       }
+    )
+    if (participantError) {
+      switch (participantError.code) {
+        case 'min_participants':
+          showError(t('minParticipantsRequired', { min: participantError.min ?? 1 }))
+          break
+        case 'max_participants':
+          showError(t('maxParticipantsAllowed', { max: participantError.max ?? 5 }))
+          break
+        case 'duplicate_email':
+          showError(t('duplicateParticipantEmail', { email: participantError.email ?? '' }))
+          break
+        case 'accompanying_target_required':
+          showError(t('accompanyingTargetRequired', { num: (participantError.participantIndex ?? 0) + 1 }))
+          break
+        case 'accompanying_invalid_target':
+          showError(t('accompanyingInvalidTarget', { num: (participantError.participantIndex ?? 0) + 1 }))
+          break
+        default:
+          showError(
+            t('participantFieldRequired', {
+              num: (participantError.participantIndex ?? 0) + 1,
+              label: participantError.fieldLabel ?? '',
+            })
+          )
+      }
+      return false
     }
 
     return true
@@ -348,20 +353,14 @@ export default function RegistrationForm({
 
       const data = await response.json()
 
-      // Option A: pay_now_card and amount > 0 → show payment step on same page
-      if (data.payment_required && data.registrationId && data.amount != null) {
-        setRegistrationId(data.registrationId)
-        setPaymentAmount(Number(data.amount))
-        setPaymentCurrency(data.currency || 'EUR')
-        setShowPaymentStep(true)
-        showSuccess(t('registrationSuccess'))
-      } else {
-        if (data.bank_instructions) {
-          setBankInstructions(data.bank_instructions as BankInstructions)
-        }
-        setSubmitSuccess(true)
-        showSuccess(t('registrationSuccess'))
+      if (data.bank_instructions) {
+        setBankInstructions(data.bank_instructions as BankInstructions)
       }
+      if (data.proforma_download_url) {
+        setProformaDownloadUrl(data.proforma_download_url)
+      }
+      setSubmitSuccess(true)
+      showSuccess(t('registrationSuccess'))
     } catch (error: any) {
       showError(error.message || t('submitFailed'))
     } finally {
@@ -369,35 +368,13 @@ export default function RegistrationForm({
     }
   }
 
-  // Option A: same-page card payment – show PaymentForm after successful registration
-  if (showPaymentStep && registrationId) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-          <p className="text-sm font-medium text-green-800">{t('registrationSuccess')}</p>
-          <p className="text-sm text-green-700 mt-1">{t('payNowCardSamePage')}</p>
-        </div>
-        <PaymentForm
-          registrationId={registrationId}
-          amount={paymentAmount}
-          currency={paymentCurrency}
-          conferenceName={conferenceName}
-          conferenceDate={conferenceDate}
-          conferenceLocation={conferenceLocation}
-          onSuccess={() => {
-            setShowPaymentStep(false)
-            setSubmitSuccess(true)
-            showSuccess(t('paymentSuccess'))
-          }}
-          onError={(err: string) => showError(err)}
-        />
-      </div>
-    )
-  }
-
-  // Success screen - Refactored component
   if (submitSuccess) {
-    return <RegistrationSuccess bankInstructions={bankInstructions} />
+    return (
+      <RegistrationSuccess
+        bankInstructions={bankInstructions}
+        proformaDownloadUrl={proformaDownloadUrl}
+      />
+    )
   }
 
   return (
@@ -527,7 +504,9 @@ export default function RegistrationForm({
                 <ParticipantManager
                   participants={participants}
                   onChange={setParticipants}
-                  maxParticipants={participantSettings?.maxParticipants || 5}
+                  minParticipants={effectiveMinParticipants}
+                  maxParticipants={effectiveMaxParticipants}
+                  allowMultiple={multiParticipantEnabled}
                   participantFields={participantSettings?.participantFields || []}
                   customFields={customFields}
                   participantLabel={participantSettings?.participantLabel || t('participantLabel')}
@@ -592,6 +571,24 @@ export default function RegistrationForm({
               </p>
             </div>
           )}
+
+          <OrderSummary
+            currency={currency}
+            registrationFees={registrationFees}
+            selectedFeeId={selectedFee}
+            selectedFeeAmount={selectedFeeAmount}
+            addons={activeAddons}
+            selectedAddonIds={selectedAddonIds}
+            addonsTotal={addonsTotal}
+            chargeTotal={chargeTotal}
+            participants={participants}
+            participantLabel={participantSettings?.participantLabel || t('participantLabel')}
+            hotelOptions={hotelOptions}
+            arrivalDate={arrivalDate}
+            departureDate={departureDate}
+            numberOfNights={numberOfNights}
+            selectedHotelId={selectedHotel}
+          />
 
           {/* When selected fee is free, show message and skip payment block */}
           {((hasFees && selectedFee && selectedFeeAmount === 0) || (!hasFees && !paymentRequired)) && addonsTotal === 0 && (

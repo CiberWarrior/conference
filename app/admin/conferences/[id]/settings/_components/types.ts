@@ -3,6 +3,7 @@
  */
 
 import type {
+  AbstractSubmissionMethod,
   Conference,
   CustomRegistrationField,
   HotelOption,
@@ -42,6 +43,8 @@ export interface ConferenceFormData {
   // Settings
   registration_enabled: boolean
   abstract_submission_enabled: boolean
+  abstract_submission_deadline: string
+  abstract_submission_method: AbstractSubmissionMethod
   payment_required: boolean
   max_registrations: string
   timezone: string

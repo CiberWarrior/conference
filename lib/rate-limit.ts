@@ -147,6 +147,54 @@ export const abstractUploadRateLimit = isConfigured && redis
   : null
 
 /**
+ * Abstract online form submit rate limiter: 60 submissions per 5 minutes
+ */
+export const abstractOnlineSubmitRateLimit = isConfigured && redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(60, '5 m'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/abstract-online-submit',
+    })
+  : null
+
+/**
+ * Abstract document submit rate limiter: 20 submissions per 5 minutes
+ */
+export const abstractDocumentSubmitRateLimit = isConfigured && redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(20, '5 m'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/abstract-document-submit',
+    })
+  : null
+
+/**
+ * Abstract revision document upload rate limiter: 5 uploads per 10 minutes
+ */
+export const abstractRevisionUploadRateLimit = isConfigured && redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '10 m'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/abstract-revision-upload',
+    })
+  : null
+
+/**
+ * Registration attachment upload rate limiter: 5 uploads per minute
+ */
+export const registrationAttachmentRateLimit = isConfigured && redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '1 m'),
+      analytics: true,
+      prefix: '@upstash/ratelimit/registration-attachment',
+    })
+  : null
+
+/**
  * Email lookup rate limiter: 10 lookups per minute
  * Protects endpoints that check whether an email exists (enumeration attacks)
  */

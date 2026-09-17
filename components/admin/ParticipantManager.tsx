@@ -7,12 +7,17 @@ import type { Participant } from '@/types/participant'
 import type { CustomRegistrationField } from '@/types/conference'
 import { getTranslatedFieldLabelKey } from '@/lib/registration-field-labels'
 import { isFieldVisible } from '@/lib/form-visibility'
+import {
+  getParticipantDisplayName,
+} from '@/lib/registration-participant-validation'
 import { showError } from '@/utils/toast'
 
 interface ParticipantManagerProps {
   participants: Participant[]
   onChange: (participants: Participant[]) => void
+  minParticipants?: number
   maxParticipants: number
+  allowMultiple?: boolean
   participantFields: string[]
   customFields?: CustomRegistrationField[]
   participantLabel?: string
@@ -24,7 +29,9 @@ interface ParticipantManagerProps {
 export default function ParticipantManager({
   participants,
   onChange,
+  minParticipants = 1,
   maxParticipants,
+  allowMultiple = true,
   participantFields,
   customFields = [],
   participantLabel,
@@ -39,7 +46,22 @@ export default function ParticipantManager({
   const [uploadingKeys, setUploadingKeys] = useState<Record<string, boolean>>({})
   const [uploadedFileNames, setUploadedFileNames] = useState<Record<string, string>>({})
 
-  const addParticipant = () => {
+  const reindexAccompanyingLinks = (
+    list: Participant[],
+    removedIndex: number
+  ): Participant[] =>
+    list.map((p) => {
+      if (!p.isAccompanying || p.accompanyingForIndex == null) return p
+      if (p.accompanyingForIndex === removedIndex) {
+        return { ...p, isAccompanying: false, accompanyingForIndex: null }
+      }
+      if (p.accompanyingForIndex > removedIndex) {
+        return { ...p, accompanyingForIndex: p.accompanyingForIndex - 1 }
+      }
+      return p
+    })
+
+  const addParticipant = (asAccompanying = false, linkToIndex = 0) => {
     if (participants.length >= maxParticipants) {
       alert(t('maxParticipantsAllowed', { max: maxParticipants }))
       return
@@ -47,6 +69,8 @@ export default function ParticipantManager({
 
     const newParticipant: Participant = {
       customFields: {},
+      isAccompanying: asAccompanying,
+      accompanyingForIndex: asAccompanying ? linkToIndex : null,
     }
 
     onChange([...participants, newParticipant])
@@ -54,13 +78,13 @@ export default function ParticipantManager({
   }
 
   const removeParticipant = (index: number) => {
-    if (participants.length <= 1) {
-      alert(t('atLeastOneParticipantRequired'))
+    if (participants.length <= minParticipants) {
+      alert(t('minParticipantsRequired', { min: minParticipants }))
       return
     }
 
-    const updated = participants.filter((_, i) => i !== index)
-    onChange(updated)
+    const filtered = participants.filter((_, i) => i !== index)
+    onChange(reindexAccompanyingLinks(filtered, index))
     if (expandedParticipant === index) {
       setExpandedParticipant(0)
     }
@@ -75,6 +99,15 @@ export default function ParticipantManager({
         [fieldName]: value,
       },
     }
+    onChange(updated)
+  }
+
+  const updateParticipantMeta = (
+    index: number,
+    patch: Partial<Pick<Participant, 'isAccompanying' | 'accompanyingForIndex'>>
+  ) => {
+    const updated = [...participants]
+    updated[index] = { ...updated[index], ...patch }
     onChange(updated)
   }
 
@@ -139,15 +172,30 @@ export default function ParticipantManager({
             {t('participantsSectionTitle')} ({participants.length}/{maxParticipants})
           </h3>
         </div>
-        {participants.length < maxParticipants && (
-          <button
-            type="button"
-            onClick={addParticipant}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            {t('addParticipant', { label: displayLabel })}
-          </button>
+        {allowMultiple && participants.length < maxParticipants && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => addParticipant(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              {t('addParticipant', { label: displayLabel })}
+            </button>
+            {participants.some((p) => !p.isAccompanying) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const mainIndex = participants.findIndex((p) => !p.isAccompanying)
+                  addParticipant(true, mainIndex >= 0 ? mainIndex : 0)
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors text-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                {t('addAccompanyingPerson')}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -171,13 +219,28 @@ export default function ParticipantManager({
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">
-                    {(() => {
-                      const firstName = participant.customFields?.['first_name'] || participant.customFields?.['firstName'] || ''
-                      const lastName = participant.customFields?.['last_name'] || participant.customFields?.['lastName'] || ''
-                      const fullName = `${firstName} ${lastName}`.trim()
-                      return fullName || `${t('participantLabel')} ${index + 1}`
-                    })()}
+                    {getParticipantDisplayName(
+                      participant,
+                      `${displayLabel} ${index + 1}`
+                    )}
+                    {participant.isAccompanying && (
+                      <span className="ml-2 text-xs font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full">
+                        {t('accompanyingPersonBadge')}
+                      </span>
+                    )}
                   </p>
+                  {participant.isAccompanying &&
+                    participant.accompanyingForIndex != null &&
+                    participants[participant.accompanyingForIndex] && (
+                      <p className="text-xs text-violet-600 mt-0.5">
+                        {t('accompanyingPersonFor', {
+                          name: getParticipantDisplayName(
+                            participants[participant.accompanyingForIndex],
+                            `${displayLabel} ${participant.accompanyingForIndex + 1}`
+                          ),
+                        })}
+                      </p>
+                    )}
                   {(() => {
                     const email = participant.customFields?.['email'] || participant.customFields?.['Email'] || ''
                     return email ? <p className="text-sm text-gray-500">{email}</p> : null
@@ -186,7 +249,7 @@ export default function ParticipantManager({
               </div>
 
               <div className="flex items-center gap-2">
-                {participants.length > 1 && (
+                {participants.length > minParticipants && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -220,6 +283,82 @@ export default function ParticipantManager({
             {/* Participant Fields (Expanded) */}
             {expandedParticipant === index && (
               <div className="p-4 space-y-4">
+                {allowMultiple && participants.length > 1 && (
+                  <div className="rounded-lg border border-violet-100 bg-violet-50/60 p-4 space-y-3">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(participant.isAccompanying)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          if (checked) {
+                            const firstMain = participants.findIndex(
+                              (p, i) => i !== index && !p.isAccompanying
+                            )
+                            updateParticipantMeta(index, {
+                              isAccompanying: true,
+                              accompanyingForIndex:
+                                firstMain >= 0 ? firstMain : null,
+                            })
+                          } else {
+                            updateParticipantMeta(index, {
+                              isAccompanying: false,
+                              accompanyingForIndex: null,
+                            })
+                          }
+                        }}
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-gray-900">
+                          {t('accompanyingPersonLabel')}
+                        </span>
+                        <span className="block text-xs text-gray-600 mt-0.5">
+                          {t('accompanyingPersonHelp')}
+                        </span>
+                      </span>
+                    </label>
+
+                    {participant.isAccompanying && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          {t('accompanyingPersonForLabel')}
+                        </label>
+                        <select
+                          value={
+                            participant.accompanyingForIndex != null
+                              ? String(participant.accompanyingForIndex)
+                              : ''
+                          }
+                          onChange={(e) =>
+                            updateParticipantMeta(index, {
+                              accompanyingForIndex:
+                                e.target.value === ''
+                                  ? null
+                                  : parseInt(e.target.value, 10),
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                          required
+                        >
+                          <option value="">{t('selectMainParticipant')}</option>
+                          {participants.map((p, i) => {
+                            if (i === index || p.isAccompanying) return null
+                            return (
+                              <option key={i} value={String(i)}>
+                                {getParticipantDisplayName(
+                                  p,
+                                  `${displayLabel} ${i + 1}`
+                                )}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* All Custom Fields */}
                 {customFields.length > 0 ? (
                   <div className="space-y-4">

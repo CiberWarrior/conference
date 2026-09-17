@@ -7,10 +7,11 @@ import type { PaymentSettings } from '@/types/conference'
  */
 export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   enabled: true,
-  allow_card: true,
+  // Card payments are for MeetFlow platform billing only — not conference registration.
+  allow_card: false,
   allow_bank_transfer: true,
-  allow_pay_later: true,
-  default_preference: 'pay_later',
+  allow_pay_later: false,
+  default_preference: 'pay_now_bank',
   required_at_registration: false,
   bank_transfer_deadline_days: 7, // Days user has to complete bank transfer after registering
   payment_deadline_days: 30, // Days before conference start – payment due date for "pay later"

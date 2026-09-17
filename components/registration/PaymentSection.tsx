@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { CreditCard, Building2, User, Upload, FileCheck, Loader2 } from 'lucide-react'
+import { Building2, User, Upload, FileCheck, Loader2 } from 'lucide-react'
 import { showError } from '@/utils/toast'
 import type { PaymentSettings as PaymentSettingsType } from '@/types/conference'
 
@@ -10,8 +10,8 @@ interface PaymentSectionProps {
   paymentSettings?: PaymentSettingsType | null
   availablePaymentOptions: { card: boolean; bank: boolean; later: boolean }
   availableOptionsCount: number
-  paymentPreference: 'pay_now_card' | 'pay_now_bank' | ''
-  onPaymentPreferenceChange: (v: 'pay_now_card' | 'pay_now_bank') => void
+  paymentPreference: 'pay_now_bank' | ''
+  onPaymentPreferenceChange: (v: 'pay_now_bank') => void
   payerType: 'person' | 'company' | ''
   onPayerTypeChange: (v: 'person' | 'company') => void
   companyVatNumber: string
@@ -101,93 +101,17 @@ export default function PaymentSection({
 
   return (
     <div className="pt-6 border-t-2 border-gray-100 space-y-8">
-      {/* Payment Method Selection - Card Style */}
-      {availableOptionsCount > 1 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">{t('choosePaymentMethod')}</h3>
-            {!paymentPreference && (
-              <span className="text-sm font-medium text-red-600">*</span>
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {availablePaymentOptions.card && (
-              <button
-                type="button"
-                onClick={() => onPaymentPreferenceChange('pay_now_card')}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 text-left ${
-                  paymentPreference === 'pay_now_card'
-                    ? 'border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-200'
-                    : paymentPreference === ''
-                    ? 'border-gray-300 bg-white hover:border-blue-400 hover:shadow-md'
-                    : 'border-gray-200 bg-gray-50 opacity-60 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      paymentPreference === 'pay_now_card'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    <CreditCard className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">{t('payByCard')}</h4>
-                    <p className="text-sm text-gray-600">{t('payByCardDescription')}</p>
-                  </div>
-                  {paymentPreference === 'pay_now_card' && (
-                    <div className="absolute top-4 right-4">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </button>
-            )}
-
-            {availablePaymentOptions.bank && (
-              <button
-                type="button"
-                onClick={() => onPaymentPreferenceChange('pay_now_bank')}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 text-left ${
-                  paymentPreference === 'pay_now_bank'
-                    ? 'border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-200'
-                    : paymentPreference === ''
-                    ? 'border-gray-300 bg-white hover:border-blue-400 hover:shadow-md'
-                    : 'border-gray-200 bg-gray-50 opacity-60 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      paymentPreference === 'pay_now_bank'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">{t('bankTransfer')}</h4>
-                    <p className="text-sm text-gray-600">{t('bankTransferDescription')}</p>
-                  </div>
-                  {paymentPreference === 'pay_now_bank' && (
-                    <div className="absolute top-4 right-4">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </button>
-            )}
+      {availablePaymentOptions.bank && (
+        <div className="rounded-xl border-2 border-blue-100 bg-blue-50 p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{t('bankTransfer')}</h3>
+              <p className="text-sm text-gray-600 mt-1">{t('bankTransferIntro')}</p>
+              <p className="text-sm text-gray-600 mt-2">{t('proformaAfterSubmit')}</p>
+            </div>
           </div>
         </div>
       )}

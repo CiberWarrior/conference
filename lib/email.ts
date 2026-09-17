@@ -325,7 +325,7 @@ export async function sendCertificate(
 export async function sendAbstractSubmissionConfirmation(params: {
   email: string
   abstractId: string
-  fileName: string
+  fileName?: string
   conferenceName: string
   emailSettings?: EmailSettings
   customMessage?: string
@@ -341,47 +341,104 @@ export async function sendAbstractSubmissionConfirmation(params: {
   })
 }
 
+const ABSTRACT_DECISION_COPY = {
+  accepted: {
+    accent: '#059669',
+    heading: 'Abstract Accepted',
+    subject: (conference: string) => `Abstract accepted — ${conference}`,
+    body: 'We are pleased to inform you that your abstract has been accepted.',
+  },
+  rejected: {
+    accent: '#4b5563',
+    heading: 'Abstract Decision',
+    subject: (conference: string) => `Abstract decision — ${conference}`,
+    body: 'Thank you for your submission. After review, we are unable to accept your abstract for this conference.',
+  },
+  revise: {
+    accent: '#d97706',
+    heading: 'Revision Requested',
+    subject: (conference: string) => `Revision requested — ${conference}`,
+    body: 'The reviewers ask for a revision of your abstract before a final decision can be made. Please review the notes below and send an updated version.',
+  },
+} as const
+
 /**
- * Notify author of abstract accept / reject decision
+ * Notify author of abstract accept / reject / revise decision
  */
 export async function sendAbstractDecisionEmail(params: {
   email: string
   conferenceName: string
-  status: 'accepted' | 'rejected'
+  status: 'accepted' | 'rejected' | 'revise'
   fileName?: string
+  title?: string
   notes?: string
+  /** One-time link to upload a corrected file (revise status only). */
+  reviseUrl?: string
   emailSettings?: EmailSettings
 }): Promise<void> {
-  const accepted = params.status === 'accepted'
-  const subject = accepted
-    ? `Abstract accepted — ${params.conferenceName}`
-    : `Abstract decision — ${params.conferenceName}`
-  const heading = accepted ? 'Abstract Accepted' : 'Abstract Decision'
-  const body = accepted
-    ? 'We are pleased to inform you that your abstract has been accepted.'
-    : 'Thank you for your submission. After review, we are unable to accept your abstract for this conference.'
+  const copy = ABSTRACT_DECISION_COPY[params.status]
 
   const notesHtml = params.notes
     ? `<p style="font-size:16px;margin:20px 0;"><strong>Note from organizers:</strong> ${params.notes}</p>`
     : ''
 
+  const reviseHtml =
+    params.status === 'revise' && params.reviseUrl
+      ? `<p style="font-size:16px;margin:20px 0;">Please update your abstract text using the secure link below. This link is private — do not share it.</p>
+         <p style="margin:24px 0 0;"><a href="${params.reviseUrl}" style="display:inline-block;padding:12px 24px;background:${copy.accent};color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Submit revised abstract</a></p>
+         <p style="font-size:13px;color:#6b7280;margin:12px 0 0;">${params.reviseUrl}</p>`
+      : ''
+
   await sendGenericEmail({
     to: params.email,
-    subject,
+    subject: copy.subject(params.conferenceName),
     html: `
       <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-        <div style="background:${accepted ? '#059669' : '#4b5563'};padding:24px;text-align:center;border-radius:10px 10px 0 0;">
-          <h1 style="color:white;margin:0;font-size:24px;">${heading}</h1>
+        <div style="background:${copy.accent};padding:24px;text-align:center;border-radius:10px 10px 0 0;">
+          <h1 style="color:white;margin:0;font-size:24px;">${copy.heading}</h1>
         </div>
         <div style="background:white;padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
-          <p style="font-size:16px;">${body}</p>
+          <p style="font-size:16px;">${copy.body}</p>
           <p style="font-size:16px;"><strong>Conference:</strong> ${params.conferenceName}</p>
+          ${params.title ? `<p style="font-size:16px;"><strong>Abstract:</strong> ${params.title}</p>` : ''}
           ${params.fileName ? `<p style="font-size:16px;"><strong>File:</strong> ${params.fileName}</p>` : ''}
           ${notesHtml}
+          ${reviseHtml}
         </div>
       </body></html>
     `,
-    text: `${heading}\n\n${body}\nConference: ${params.conferenceName}\n${params.fileName ? `File: ${params.fileName}\n` : ''}${params.notes ? `\nNotes: ${params.notes}` : ''}`,
+    text: `${copy.heading}\n\n${copy.body}\nConference: ${params.conferenceName}\n${params.title ? `Abstract: ${params.title}\n` : ''}${params.fileName ? `File: ${params.fileName}\n` : ''}${params.notes ? `\nNotes: ${params.notes}\n` : ''}${params.status === 'revise' && params.reviseUrl ? `\nSubmit your revision: ${params.reviseUrl}` : ''}`,
+  })
+}
+
+/**
+ * Remind a reviewer about abstracts still awaiting their review
+ */
+export async function sendReviewerReminderEmail(params: {
+  email: string
+  reviewerName?: string | null
+  conferenceName: string
+  pendingCount: number
+  reviewUrl: string
+}): Promise<void> {
+  const greeting = params.reviewerName ? `Dear ${params.reviewerName},` : 'Hello,'
+
+  await sendGenericEmail({
+    to: params.email,
+    subject: `Reminder: ${params.pendingCount} abstract(s) awaiting your review — ${params.conferenceName}`,
+    html: `
+      <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:#1e293b;padding:24px;text-align:center;border-radius:10px 10px 0 0;">
+          <h1 style="color:white;margin:0;font-size:22px;">Review Reminder</h1>
+        </div>
+        <div style="background:white;padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+          <p style="font-size:16px;">${greeting}</p>
+          <p style="font-size:16px;">You have <strong>${params.pendingCount}</strong> abstract(s) awaiting your review for <strong>${params.conferenceName}</strong>.</p>
+          <p style="margin:24px 0 0;"><a href="${params.reviewUrl}" style="display:inline-block;padding:12px 24px;background:#1e293b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Open reviewer portal</a></p>
+        </div>
+      </body></html>
+    `,
+    text: `${greeting}\n\nYou have ${params.pendingCount} abstract(s) awaiting your review for ${params.conferenceName}.\n\nOpen reviewer portal: ${params.reviewUrl}`,
   })
 }
 

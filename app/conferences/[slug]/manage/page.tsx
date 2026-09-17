@@ -103,6 +103,15 @@ export default function ManageRegistrationPage() {
           </div>
         </dl>
 
+        {data.registration.payment_status === 'pending' && token && (
+          <a
+            href={`/api/conferences/${slug}/proforma?token=${encodeURIComponent(token)}`}
+            className="inline-flex w-full justify-center py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+          >
+            {t('downloadProforma')}
+          </a>
+        )}
+
         <div className="border-t border-slate-100 pt-4 space-y-3">
           <h2 className="font-semibold text-slate-900 text-sm">{t('requestCancelTitle')}</h2>
           {cancelRequested ? (

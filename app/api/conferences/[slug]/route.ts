@@ -12,6 +12,22 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
+ * Public responses must not expose the raw Storage path of the abstract template.
+ * Authors download it through /api/conferences/[slug]/abstract-template instead.
+ */
+function stripPrivateSettings<T extends { settings?: any }>(conference: T): T {
+  const template = conference.settings?.abstract_template
+  if (template && typeof template === 'object' && 'file_path' in template) {
+    const { file_path: _path, ...publicTemplate } = template
+    return {
+      ...conference,
+      settings: { ...conference.settings, abstract_template: publicTemplate },
+    }
+  }
+  return conference
+}
+
+/**
  * GET /api/conferences/[slug]
  * Get a published conference by slug (public endpoint)
  * Cached for 1 hour
@@ -102,7 +118,7 @@ export async function GET(
 
       return NextResponse.json(
         { 
-          conference,
+          conference: stripPrivateSettings(conference),
           organizer_has_bank_account 
         },
         {
@@ -216,7 +232,7 @@ export async function GET(
 
     return NextResponse.json(
       { 
-        conference: parsedConference,
+        conference: stripPrivateSettings(parsedConference),
         organizer_has_bank_account 
       },
       {

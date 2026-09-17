@@ -15,9 +15,13 @@ export interface BankInstructions {
 
 interface RegistrationSuccessProps {
   bankInstructions?: BankInstructions | null
+  proformaDownloadUrl?: string | null
 }
 
-export default function RegistrationSuccess({ bankInstructions }: RegistrationSuccessProps) {
+export default function RegistrationSuccess({
+  bankInstructions,
+  proformaDownloadUrl,
+}: RegistrationSuccessProps) {
   const t = useTranslations('registrationForm')
 
   return (
@@ -45,6 +49,21 @@ export default function RegistrationSuccess({ bankInstructions }: RegistrationSu
           </p>
         </div>
       </div>
+
+      {proformaDownloadUrl && (
+        <div className="p-6 bg-white border-2 border-indigo-200 rounded-xl shadow-lg text-center">
+          <h3 className="font-semibold text-gray-900 mb-2">{t('proformaTitle')}</h3>
+          <p className="text-sm text-gray-600 mb-4">{t('proformaSubtitle')}</p>
+          <a
+            href={proformaDownloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center px-5 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            {t('downloadProforma')}
+          </a>
+        </div>
+      )}
 
       {bankInstructions && (
         <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl shadow-lg">

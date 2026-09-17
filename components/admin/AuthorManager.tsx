@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Trash2, Users, Mail, Building2, Globe, ArrowUp, ArrowDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Trash2, Users, Mail, Building2, Globe, ArrowUp, ArrowDown, X } from 'lucide-react'
 import type { Author } from '@/types/author'
 import type { CustomRegistrationField } from '@/types/conference'
+import { getAuthorAffiliations } from '@/lib/abstract-display'
+import { getCountryOptions } from '@/lib/countries'
 
 interface AuthorManagerProps {
   authors: Author[]
@@ -33,7 +35,7 @@ export default function AuthorManager({
       firstName: '',
       lastName: '',
       email: '',
-      affiliation: '',
+      affiliations: [''],
       country: '',
       city: '',
       orcid: '',
@@ -72,6 +74,42 @@ export default function AuthorManager({
     }
     onChange(updated)
   }
+
+  /** Raw rows for editing (may contain empty strings); always at least one row. */
+  const editableAffiliations = (author: Author): string[] => {
+    if (Array.isArray(author.affiliations) && author.affiliations.length > 0) {
+      return author.affiliations
+    }
+    if (author.affiliation) return [author.affiliation]
+    return ['']
+  }
+
+  const setAffiliations = (index: number, affiliations: string[]) => {
+    updateAuthor(index, { affiliations, affiliation: undefined })
+  }
+
+  const updateAffiliation = (index: number, affIndex: number, value: string) => {
+    const rows = [...editableAffiliations(authors[index])]
+    rows[affIndex] = value
+    setAffiliations(index, rows)
+  }
+
+  const addAffiliation = (index: number) => {
+    setAffiliations(index, [...editableAffiliations(authors[index]), ''])
+  }
+
+  const removeAffiliation = (index: number, affIndex: number) => {
+    const rows = editableAffiliations(authors[index]).filter((_, i) => i !== affIndex)
+    setAffiliations(index, rows.length > 0 ? rows : [''])
+  }
+
+  /** Institutions already typed for other authors, offered as autocomplete suggestions. */
+  const countryOptions = useMemo(() => getCountryOptions(), [])
+
+  const affiliationSuggestions = useMemo(() => {
+    const all = authors.flatMap((author) => getAuthorAffiliations(author))
+    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b, 'hr'))
+  }, [authors])
 
   const updateAuthorCustomField = (index: number, fieldName: string, value: any) => {
     const updated = [...authors]
@@ -119,6 +157,13 @@ export default function AuthorManager({
 
   return (
     <div className="space-y-4">
+      {/* Shared suggestions so co-authors from the same institution get identical spelling */}
+      <datalist id="author-affiliation-suggestions">
+        {affiliationSuggestions.map((suggestion) => (
+          <option key={suggestion} value={suggestion} />
+        ))}
+      </datalist>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -146,6 +191,8 @@ export default function AuthorManager({
           const displayName = author.firstName || author.lastName
             ? `${author.firstName || ''} ${author.lastName || ''}`.trim()
             : `Autor ${index + 1}`
+          const affiliationRows = editableAffiliations(author)
+          const filledAffiliations = getAuthorAffiliations(author)
 
           return (
             <div
@@ -176,6 +223,11 @@ export default function AuthorManager({
                     </p>
                     {author.email && (
                       <p className="text-xs text-gray-500 truncate">{author.email}</p>
+                    )}
+                    {filledAffiliations.length > 0 && (
+                      <p className="text-xs text-gray-500 truncate">
+                        {filledAffiliations.join(' · ')}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -319,23 +371,56 @@ export default function AuthorManager({
                     />
                   </div>
 
-                  {/* Affiliation */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {/* Affiliations (one or more institutions) */}
+                  <fieldset>
+                    <legend className="block text-sm font-semibold text-gray-700 mb-2">
                       <Building2 className="w-4 h-4 inline mr-1" />
                       Institucija / Organizacija <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={author.affiliation || ''}
-                      onChange={(e) =>
-                        updateAuthor(index, { affiliation: e.target.value })
-                      }
-                      placeholder="Sveučilište, Institut ili Tvrtka"
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
-                  </div>
+                    </legend>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Ako autor radi na više institucija, dodajte svaku kao zasebnu stavku.
+                    </p>
+                    <div className="space-y-2">
+                      {affiliationRows.map((affiliation, affIndex) => (
+                        <div key={affIndex} className="flex items-center gap-2">
+                          <span className="flex-shrink-0 w-6 h-6 bg-purple-50 text-purple-700 rounded flex items-center justify-center text-xs font-semibold">
+                            {affIndex + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={affiliation}
+                            onChange={(e) =>
+                              updateAffiliation(index, affIndex, e.target.value)
+                            }
+                            placeholder="Sveučilište, Institut ili Tvrtka"
+                            required={affIndex === 0}
+                            list="author-affiliation-suggestions"
+                            aria-label={`Institucija ${affIndex + 1}`}
+                            className="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          />
+                          {affiliationRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeAffiliation(index, affIndex)}
+                              className="flex-shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Ukloni instituciju"
+                              aria-label={`Ukloni instituciju ${affIndex + 1}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addAffiliation(index)}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Dodaj instituciju
+                    </button>
+                  </fieldset>
 
                   {/* Country and City */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -345,15 +430,24 @@ export default function AuthorManager({
                         <Globe className="w-4 h-4 inline mr-1" />
                         Država
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={author.country || ''}
                         onChange={(e) =>
                           updateAuthor(index, { country: e.target.value })
                         }
-                        placeholder="Hrvatska, SAD, itd."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      />
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white"
+                      >
+                        <option value="">— Odaberite državu —</option>
+                        {countryOptions.map((country) => (
+                          <option key={country} value={country}>
+                            {country}
+                          </option>
+                        ))}
+                        {author.country &&
+                          !countryOptions.includes(author.country) && (
+                            <option value={author.country}>{author.country}</option>
+                          )}
+                      </select>
                     </div>
 
                     {/* City */}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/logger'
 import {
-  abstractUploadRateLimit,
+  registrationAttachmentRateLimit,
   getClientIP,
   checkRateLimit,
   createRateLimitHeaders,
@@ -33,7 +33,7 @@ export async function POST(
 ) {
   try {
     const ip = getClientIP(request)
-    const rateLimitResult = await checkRateLimit(abstractUploadRateLimit, ip)
+    const rateLimitResult = await checkRateLimit(registrationAttachmentRateLimit, ip)
 
     if (rateLimitResult && !rateLimitResult.success) {
       return NextResponse.json(

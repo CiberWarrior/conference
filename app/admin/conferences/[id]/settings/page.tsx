@@ -14,8 +14,18 @@ import type {
 } from '@/types/conference'
 import Link from 'next/link'
 import Image from 'next/image'
-import type { Conference, CustomRegistrationField } from '@/types/conference'
+import type {
+  AbstractSubmissionMethod,
+  AbstractTemplate,
+  Conference,
+  CustomRegistrationField,
+} from '@/types/conference'
 import { showSuccess, showError, showWarning } from '@/utils/toast'
+import { ABSTRACT_TEMPLATE_ACCEPT, validateAbstractTemplateFile } from '@/lib/abstract-file'
+import {
+  getCoveredAbstractCustomFields,
+  removeCoveredAbstractCustomFields,
+} from '@/lib/abstract-custom-fields'
 import CollapsibleFieldEditor from '@/components/admin/CollapsibleFieldEditor'
 import RegistrationAddonsSection from '@/components/admin/RegistrationAddonsSection'
 import type { ParticipantSettings } from '@/types/conference'
@@ -52,6 +62,8 @@ export default function ConferenceSettingsPage() {
   const [participantSettings, setParticipantSettings] = useState<ParticipantSettings>(DEFAULT_PARTICIPANT_SETTINGS)
   const [registrationInfoText, setRegistrationInfoText] = useState<string>('')
   const [abstractInfoText, setAbstractInfoText] = useState<string>('')
+  const [abstractTemplate, setAbstractTemplate] = useState<AbstractTemplate | null>(null)
+  const [templateBusy, setTemplateBusy] = useState(false)
   const [showParticipantSettings, setShowParticipantSettings] = useState(false)
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null)
@@ -85,6 +97,8 @@ export default function ConferenceSettingsPage() {
     // Settings
     registration_enabled: true,
     abstract_submission_enabled: true,
+    abstract_submission_deadline: '',
+    abstract_submission_method: 'online_form' as AbstractSubmissionMethod,
     payment_required: true,
     max_registrations: '',
     timezone: 'Europe/Zagreb',
@@ -226,6 +240,9 @@ export default function ConferenceSettingsPage() {
           // Settings
           registration_enabled: conf.settings?.registration_enabled ?? true,
           abstract_submission_enabled: conf.settings?.abstract_submission_enabled ?? true,
+          abstract_submission_deadline:
+            conf.settings?.abstract_submission_deadline?.slice(0, 10) || '',
+          abstract_submission_method: conf.settings?.abstract_submission_method ?? 'online_form',
           payment_required: conf.settings?.payment_required ?? true,
           max_registrations: conf.settings?.max_registrations?.toString() || '',
           timezone: conf.settings?.timezone || 'Europe/Zagreb',
@@ -242,8 +259,14 @@ export default function ConferenceSettingsPage() {
         
         // Load participant settings, payment settings, custom fee types, and info texts
         setParticipantSettings(conf.settings?.participant_settings || DEFAULT_PARTICIPANT_SETTINGS)
-        setPaymentSettings(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS)
+        setPaymentSettings({
+          ...(conf.settings?.payment_settings || DEFAULT_PAYMENT_SETTINGS),
+          allow_card: false,
+          allow_bank_transfer: true,
+          default_preference: 'pay_now_bank',
+        })
         setRegistrationInfoText(conf.settings?.registration_info_text || '')
+        setAbstractTemplate(conf.settings?.abstract_template ?? null)
         setAbstractInfoText(conf.settings?.abstract_info_text || `Guidelines:
 
 The abstract should be written in English
@@ -558,6 +581,63 @@ Important: Authors who submit abstracts for presentation are not automatically r
     }
   }
 
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validation = validateAbstractTemplateFile(file)
+    if (!validation.ok) {
+      showError(validation.details ? `${validation.error}. ${validation.details}` : validation.error)
+      e.target.value = ''
+      return
+    }
+
+    setTemplateBusy(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const response = await fetch(`/api/admin/conferences/${conferenceId}/abstract-template`, {
+        method: 'POST',
+        body,
+      })
+      const data = await response.json()
+      if (!response.ok || !data?.template) {
+        showError(data?.error?.message || data?.error || t('abstractTemplateUploadFailed'))
+        return
+      }
+      setAbstractTemplate(data.template)
+      showSuccess(t('abstractTemplateUploaded'))
+    } catch (error) {
+      console.error('Template upload error:', error)
+      showError(t('abstractTemplateUploadFailed'))
+    } finally {
+      setTemplateBusy(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleTemplateRemove = async () => {
+    if (!confirm(t('abstractTemplateRemoveConfirm'))) return
+    setTemplateBusy(true)
+    try {
+      const response = await fetch(`/api/admin/conferences/${conferenceId}/abstract-template`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        showError(data?.error?.message || data?.error || t('abstractTemplateRemoveFailed'))
+        return
+      }
+      setAbstractTemplate(null)
+      showSuccess(t('abstractTemplateRemoved'))
+    } catch (error) {
+      console.error('Template remove error:', error)
+      showError(t('abstractTemplateRemoveFailed'))
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
+
   const saveConference = async () => {
     setSaving(true)
     try {
@@ -586,6 +666,8 @@ Important: Authors who submit abstracts for presentation are not automatically r
           settings: {
             registration_enabled: formData.registration_enabled,
             abstract_submission_enabled: formData.abstract_submission_enabled,
+            abstract_submission_deadline: formData.abstract_submission_deadline || undefined,
+            abstract_submission_method: formData.abstract_submission_method,
             payment_required: formData.payment_required,
             max_registrations: formData.max_registrations ? parseInt(formData.max_registrations) : null,
             timezone: formData.timezone,
@@ -593,7 +675,12 @@ Important: Authors who submit abstracts for presentation are not automatically r
             custom_registration_fields: formData.custom_registration_fields,
             custom_abstract_fields: formData.custom_abstract_fields,
             participant_settings: participantSettings,
-            payment_settings: paymentSettings,
+            payment_settings: {
+              ...paymentSettings,
+              allow_card: false,
+              allow_bank_transfer: true,
+              default_preference: 'pay_now_bank',
+            },
             registration_info_text: registrationInfoText || undefined,
             abstract_info_text: abstractInfoText || undefined,
             hotel_options: hotelOptions.length > 0 ? hotelOptions : undefined,
@@ -827,94 +914,26 @@ Important: Authors who submit abstracts for presentation are not automatically r
 
             {paymentSettings.enabled && (
               <>
-                {/* Payment Methods */}
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-3">{t('availablePaymentMethods')}</h3>
-                  
-                  {/* Card Payment */}
-                  <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                    <input
-                      type="checkbox"
-                      checked={paymentSettings.allow_card}
-                      onChange={(e) => {
-                        setPaymentSettings({
-                          ...paymentSettings,
-                          allow_card: e.target.checked,
-                        })
-                      }}
-                      className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">💳 {t('cardPaymentStripe')}</p>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          {t('instant')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {t('cardPaymentDesc')}
-                      </p>
-                    </div>
-                  </label>
+                  <h3 className="font-semibold text-gray-900 mb-1">{t('conferencePaymentMethod')}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{t('conferencePaymentMethodDesc')}</p>
 
-                  {/* Bank Transfer */}
-                  <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
-                    <input
-                      type="checkbox"
-                      checked={paymentSettings.allow_bank_transfer}
-                      onChange={(e) => {
-                        setPaymentSettings({
-                          ...paymentSettings,
-                          allow_bank_transfer: e.target.checked,
-                        })
-                      }}
-                      className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">🏦 {t('bankTransfer')}</p>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          {t('oneTwoDays')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {t('bankTransferDesc')}
-                      </p>
-                      {!profile?.bank_account_number && (
-                        <p className="text-xs text-amber-600 mt-2 font-medium">
-                          ⚠️ {t('bankAccountNotConfigured')}
-                        </p>
-                      )}
+                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-gray-900">🏦 {t('bankTransfer')}</p>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {t('oneTwoDays')}
+                      </span>
                     </div>
-                  </label>
-                </div>
+                    <p className="text-sm text-gray-600">{t('bankTransferDesc')}</p>
+                    {!profile?.bank_account_number && (
+                      <p className="text-xs text-amber-600 mt-2 font-medium">
+                        ⚠️ {t('bankAccountNotConfigured')}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Default Preference */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    {t('defaultPaymentPreference')}
-                  </label>
-                  <select
-                    value={paymentSettings.default_preference}
-                    onChange={(e) => {
-                      setPaymentSettings({
-                        ...paymentSettings,
-                        // Pay Later removed from UI; keep stored values backward-compatible
-                        default_preference: e.target.value as 'pay_now_card' | 'pay_now_bank',
-                      })
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {paymentSettings.allow_card && (
-                      <option value="pay_now_card">{t('cardPaymentRecommended')}</option>
-                    )}
-                    {paymentSettings.allow_bank_transfer && (
-                      <option value="pay_now_bank">{t('bankTransfer')}</option>
-                    )}
-                  </select>
-                  <p className="text-xs text-gray-500">
-                    {t('defaultPreferenceHint')}
-                  </p>
+                  <p className="text-xs text-gray-500">{t('cardPaymentPlatformOnly')}</p>
                 </div>
 
                 {/* Payment Requirements */}
@@ -1656,6 +1675,99 @@ Important: Authors who submit abstracts for presentation are not automatically r
           rows={12}
         />
 
+        {/* Abstract Submission Method */}
+        {formData.abstract_submission_enabled && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {t('abstractSubmissionMethod')}
+            </h2>
+            <div className="space-y-3">
+              {(['online_form', 'document_upload'] as const).map((method) => (
+                <label key={method} className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="abstract_submission_method"
+                    value={method}
+                    checked={formData.abstract_submission_method === method}
+                    onChange={() =>
+                      handleFormDataChange({
+                        abstract_submission_method: method as AbstractSubmissionMethod,
+                      })
+                    }
+                    className="mt-0.5 border-gray-300 text-blue-600 focus:ring-blue-500 size-4"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                      {t(`abstractSubmissionMethodOption_${method}`)}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {t(`abstractSubmissionMethodHint_${method}`)}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {formData.abstract_submission_method === 'document_upload' && (
+              <div className="mt-5 pt-5 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900">{t('abstractTemplate')}</h3>
+                <p className="text-xs text-gray-500 mt-0.5 mb-3">{t('abstractTemplateDesc')}</p>
+
+                {abstractTemplate ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {abstractTemplate.file_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {abstractTemplate.file_size
+                          ? `${(abstractTemplate.file_size / 1024 / 1024).toFixed(2)} MB · `
+                          : ''}
+                        {new Date(abstractTemplate.uploaded_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <Upload className="w-3.5 h-3.5" />
+                        {templateBusy ? t('abstractTemplateUploading') : t('abstractTemplateReplace')}
+                        <input
+                          type="file"
+                          accept={ABSTRACT_TEMPLATE_ACCEPT}
+                          className="hidden"
+                          disabled={templateBusy}
+                          onChange={handleTemplateUpload}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleTemplateRemove}
+                        disabled={templateBusy}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {t('abstractTemplateRemove')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    {templateBusy ? t('abstractTemplateUploading') : t('abstractTemplateUpload')}
+                    <input
+                      type="file"
+                      accept={ABSTRACT_TEMPLATE_ACCEPT}
+                      className="hidden"
+                      disabled={templateBusy}
+                      onChange={handleTemplateUpload}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-gray-400 mt-2">{t('abstractTemplateHint')}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Custom Abstract Submission Fields */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-purple-100 p-6">
           <div className="mb-6">
@@ -1668,6 +1780,13 @@ Important: Authors who submit abstracts for presentation are not automatically r
             <p className="text-sm text-gray-600 ml-13">
               {t('customAbstractFieldsDesc')}
             </p>
+            {getCoveredAbstractCustomFields(formData.custom_abstract_fields).length > 0 && (
+              <div className="mt-3 ml-13 p-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-900">
+                {t('legacyAbstractFieldsWarning', {
+                  count: getCoveredAbstractCustomFields(formData.custom_abstract_fields).length,
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
@@ -1682,6 +1801,27 @@ Important: Authors who submit abstracts for presentation are not automatically r
               )}
             </div>
             <div className="flex items-center gap-2">
+              {getCoveredAbstractCustomFields(formData.custom_abstract_fields).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const removed = getCoveredAbstractCustomFields(
+                      formData.custom_abstract_fields
+                    ).length
+                    setFormData((prev) => ({
+                      ...prev,
+                      custom_abstract_fields: removeCoveredAbstractCustomFields(
+                        prev.custom_abstract_fields
+                      ),
+                    }))
+                    showSuccess(t('legacyAbstractFieldsRemoved', { count: removed }))
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors font-medium text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {t('removeLegacyAbstractFields')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={saveConference}
